@@ -86,8 +86,8 @@ namespace Emberhold
         public bool trap;
         /// <summary>Can never be damaged (walls). Enemies walk around it, so a closed ring needs a gate.</summary>
         public bool indestructible;
-        /// <summary>False for weapons that can't hit flying dinosaurs (the missile launcher).</summary>
-        public bool hitsAir = true;
+        /// <summary>Only anti-air weapons (the missile launcher) can hit flyers; gun and laser are ground only.</summary>
+        public bool hitsAir;
         /// <summary>How many tamed dinosaurs this pen keeps.</summary>
         public int penCapacity;
 
@@ -190,8 +190,8 @@ namespace Emberhold
             Add(new BuildingDef {
                 id = "cannon", displayName = "Missile Launcher", category = BuildingCategory.Defense,
                 width = 2, depth = 2, height = 2.1f, color = new Color(0.55f, 0.53f, 0.5f),
-                cost = new Cost(steel: 70, energy: 30, coins: 40), maxHp = 400, unlockLevel = 3,
-                attackRange = 9f, attackDamage = 28, attackInterval = 3.2f, splashRadius = 2.2f, projectile = 2, hitsAir = false
+                cost = new Cost(steel: 70, energy: 30, coins: 40), maxHp = 400, unlockLevel = 2,
+                attackRange = 9f, attackDamage = 28, attackInterval = 3.2f, splashRadius = 2.2f, projectile = 2, hitsAir = true
             });
         }
 

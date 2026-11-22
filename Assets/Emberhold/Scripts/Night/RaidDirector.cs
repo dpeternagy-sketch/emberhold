@@ -41,7 +41,7 @@ namespace Emberhold
                 int brutes = nightsSurvived >= 3 ? Random.Range(0, 1 + nightsSurvived / 3) : 0;
                 for (int r = 0; r < raiders; r++) plan.troops.Add(EnemyKind.Raider);
                 for (int b = 0; b < brutes; b++) plan.troops.Add(EnemyKind.Brute);
-                int flyers = nightsSurvived >= 2 ? Random.Range(0, 2 + nightsSurvived / 3) : 0;
+                int flyers = nightsSurvived >= 3 ? Random.Range(0, 2 + nightsSurvived / 3) : 0;
                 for (int f = 0; f < flyers; f++) plan.troops.Add(EnemyKind.Flyer);
                 list.Add(plan);
             }

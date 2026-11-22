@@ -27,7 +27,7 @@ namespace Emberhold
             for (int i = 0; i < raiders; i++) pending.Enqueue(EnemyKind.Raider);
             for (int i = 0; i < brutes; i++) pending.Enqueue(EnemyKind.Brute);
             if (night % 5 == 0) pending.Enqueue(EnemyKind.Boss);
-            int flyers = night >= 2 ? 1 + night / 2 : 0;     // pterosaurs fly over walls: defend inside too
+            int flyers = night >= 3 ? night / 2 : 0;     // pterosaurs fly over walls: defend inside too
             for (int i = 0; i < flyers; i++) pending.Enqueue(EnemyKind.Flyer);
             groupAngle = Random.Range(0f, 360f);
             nextSpawn = Time.time + 3f;

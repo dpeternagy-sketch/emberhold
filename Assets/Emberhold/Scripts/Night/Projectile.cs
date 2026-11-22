@@ -56,7 +56,7 @@ namespace Emberhold
                 DamageEffects.Puff(pos, 1.2f);
                 foreach (var e in Enemy.All.ToArray())
                 {
-                    if (e.Flying) continue;   // splash hits the ground only
+                    if (e.Flying && e != target) continue;   // the blast hits ground units; a missile aimed at a flyer hits it
                     var d = e.transform.position - pos; d.y = 0;
                     if (d.magnitude <= Mathf.Max(splash, 0.6f)) e.Hit(damage);
                 }

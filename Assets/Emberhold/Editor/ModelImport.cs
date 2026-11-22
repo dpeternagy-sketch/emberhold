@@ -9,7 +9,7 @@ namespace Emberhold.EditorTools
     /// </summary>
     class ModelImport : AssetPostprocessor
     {
-        public override uint GetVersion() { return 2; }
+        public override uint GetVersion() { return 3; }
 
         [MenuItem("Emberhold/Setup/Reimport art models", priority = 21)]
         static void ReimportAll()
@@ -18,13 +18,15 @@ namespace Emberhold.EditorTools
                 AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
         }
 
+        static bool Animated(string p) { return p.Contains("/Models/Dinos/") || p.EndsWith("/Models/Units/Robot.fbx"); }
+
         void OnPreprocessModel()
         {
             if (!assetPath.Contains("/Resources/Models/") && !assetPath.Contains("/Resources/KayKit/")) return;
             var mi = (ModelImporter)assetImporter;
             mi.importCameras = false;
             mi.importLights = false;
-            if (assetPath.Contains("/Models/Dinos/"))
+            if (Animated(assetPath))
             {
                 mi.animationType = ModelImporterAnimationType.Legacy;
                 mi.importAnimation = true;
@@ -38,9 +40,9 @@ namespace Emberhold.EditorTools
 
         void OnPostprocessAnimation(GameObject root, AnimationClip clip)
         {
-            if (!assetPath.Contains("/Models/Dinos/")) return;
+            if (!Animated(assetPath)) return;
             string n = clip.name;
-            bool loop = n.EndsWith("_Walk") || n.EndsWith("_Run") || n.EndsWith("_Idle");
+            bool loop = n.EndsWith("_Walk") || n.EndsWith("_Run") || n.EndsWith("_Idle") || n.EndsWith("_Walking") || n.EndsWith("_Running");
             clip.wrapMode = loop ? WrapMode.Loop : WrapMode.Once;
         }
     }
