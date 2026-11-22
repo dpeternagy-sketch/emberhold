@@ -165,7 +165,7 @@ namespace Emberhold
             {
                 float cx = CenterX(z);
                 float y = Mathf.Max(WorldBuilder.HeightAt(cx, z) + 0.22f, WorldBuilder.WaterLevel + 0.02f);
-                float w = HalfWidth * 1.05f * (z > StartZ - 2f ? Mathf.Clamp01((StartZ - z) / 2f + 0.2f) : 1f);
+                float w = HalfWidth * 1.05f;   // full width up to the pool: a narrow spring left bare sandy bed on both sides (QC run 28)
                 verts.Add(new Vector3(cx - w, y, z));
                 verts.Add(new Vector3(cx + w, y, z));
                 bool fall = rows > 0 && prevY - y > 0.45f;   // the waterfall sheet covers steep drops

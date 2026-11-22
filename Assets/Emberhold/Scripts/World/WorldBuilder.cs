@@ -273,7 +273,7 @@ namespace Emberhold
                     cKeep = Mathf.Max(cKeep, beach);
                     // sand where the ground dips to the water, blended over a band instead of a hard height cut
                     // (QC run 26: a stair-step sand edge along the river)
-                    float low = Smooth(WaterLevel + 0.45f, WaterLevel + 0.05f, hh);
+                    float low = Smooth(WaterLevel + 0.45f, WaterLevel + 0.05f, hh) * mudK;   // no sand patch at the spring (QC run 28)
                     cKeep = Mathf.Max(cKeep, low);
                     if (low > 0f) c = Color.Lerp(c, Color.Lerp(sand, wetSand, Mathf.Clamp01((WaterLevel + 0.15f - hh) * 2f)), low);
                     // mountain: rock on steep or high ground, snow on top
