@@ -27,7 +27,7 @@ namespace Emberhold
         Transform quad;
         Material mat;
         Art art;
-        int shownTier = -1;
+        string shownKey;
         Color overlay = new Color(1, 1, 1, 0);
 
         static Art Load(string key)
@@ -111,6 +111,15 @@ namespace Emberhold
             Shader.SetGlobalFloat("_EH_SpriteGlow", Mathf.Lerp(0.05f, 0.75f, dark));
         }
 
+        /// <summary>Destroyed buildings show a shared ruin image sized by footprint (small, medium, large).</summary>
+        static string RuinKey(BuildingDef d)
+        {
+            if (d.indestructible || d.passable || d.id == "gate") return null;
+            int s = Mathf.Max(d.width, d.depth);
+            string k = s <= 2 ? "ruin_t1" : s == 3 ? "ruin_t3" : "ruin_t5";
+            return Load(k) != null ? k : null;
+        }
+
         void OnDestroy()
         {
             if (quad != null) Destroy(quad.gameObject);
@@ -122,11 +131,17 @@ namespace Emberhold
             if (quad == null) return;
             if (building == null) building = GetComponentInParent<Building>();
             int level = building != null && building.Data != null ? building.Data.level : 1;
-            int tier = TierFor(def, level);
-            if (tier != shownTier)
+            string key = def.id + "_t" + TierFor(def, level);
+            bool ruinArt = false;
+            if (building != null && building.Ruined)
             {
-                shownTier = tier;
-                art = Load(def.id + "_t" + tier);
+                var rk = RuinKey(def);
+                if (rk != null) { key = rk; ruinArt = true; }
+            }
+            if (key != shownKey)
+            {
+                shownKey = key;
+                art = Load(key);
                 if (art == null) { quad.gameObject.SetActive(false); return; }
                 mat.SetTexture("_MainTex", art.tex);
                 mat.SetTexture("_EmisTex", art.emis != null ? art.emis : Texture2D.blackTexture);
@@ -158,8 +173,8 @@ namespace Emberhold
             mat.SetVector("_Center", ground);
             mat.SetVector("_Normal", n);
             mat.SetFloat("_Cut", ruined ? 1f : Mathf.Lerp(0.18f, 1f, reveal));
-            mat.SetFloat("_Shade", ruined ? 0.42f : 1f);
-            mat.SetColor("_Overlay", ruined ? new Color(0.2f, 0.17f, 0.15f, 0.35f) : overlay);
+            mat.SetFloat("_Shade", ruined && !ruinArt ? 0.42f : 1f);
+            mat.SetColor("_Overlay", ruined && !ruinArt ? new Color(0.2f, 0.17f, 0.15f, 0.35f) : (ruined ? new Color(1, 1, 1, 0) : overlay));
         }
     }
 }
