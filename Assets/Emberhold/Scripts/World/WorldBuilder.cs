@@ -245,8 +245,10 @@ namespace Emberhold
                     c = Color.Lerp(c, grassDry, Mathf.Clamp01((Noise(wx + 99, z, 0.035f) - 0.55f) * 2.2f));
                     // dirt patches
                     float dp = Noise(wx + 300, z, 0.14f);
-                    float cDirt = dp > 0.6f ? Mathf.Clamp01((dp - 0.6f) * 6f) : 0f;
-                    if (dp > 0.68f) c = Color.Lerp(c, dirt, Mathf.Clamp01((dp - 0.68f) * 7f));
+                    // no dirt patch round the river spring under the painted pool (QC runs 27-29: a rust-brown triangle there)
+                    float spring = Smooth(River.StartZ - 9f, River.StartZ - 6f, z) * (1f - Smooth(River.HalfWidth + 6f, River.HalfWidth + 9f, Mathf.Abs(wx - River.CenterX(z))));
+                    float cDirt = (dp > 0.6f ? Mathf.Clamp01((dp - 0.6f) * 6f) : 0f) * (1f - spring);
+                    if (dp > 0.68f) c = Color.Lerp(c, dirt, Mathf.Clamp01((dp - 0.68f) * 7f) * (1f - spring));
                     // forest floor at the sides
                     float forest = Smooth(GridMap.ForestX - 5f, GridMap.ForestX + 2f, Mathf.Abs(wx));
                     c = Color.Lerp(c, forestFloor, forest * 0.8f);
