@@ -165,7 +165,26 @@ namespace Emberhold
         IEnumerator WallYard()
         {
             var wall = BuildingCatalog.Get("wall"); var gate = BuildingCatalog.Get("gate");
-            int x0 = 12, z0 = -20, x1 = 19, z1 = -14;
+            // find an open 8 x 7 spot inside the buildable area (trees may be cleared), nearest the city first
+            int x0 = 0, z0 = 0, best = int.MaxValue;
+            for (int cx = -20; cx <= 13; cx++)
+                for (int cz = -18; cz <= 8; cz++)
+                {
+                    int score = Mathf.Abs(cx + 4) + Mathf.Abs(cz - 2);
+                    if (score >= best) continue;
+                    bool ok = true;
+                    for (int x = cx; x <= cx + 7 && ok; x++)
+                        for (int z = cz; z <= cz + 6 && ok; z++)
+                        {
+                            if (x != cx && x != cx + 7 && z != cz && z != cz + 6) continue;
+                            var cell = new Vector2Int(x, z);
+                            ok = gm.Grid.At(cell) is TreeNode || gm.CanPlace(wall, x, z, 0);
+                        }
+                    if (ok) { best = score; x0 = cx; z0 = cz; }
+                }
+            if (best == int.MaxValue) { Debug.Log("[Preview] no room for the wall yard"); yield break; }
+            int x1 = x0 + 7, z1 = z0 + 6;
+            Debug.Log("[Preview] wall yard at " + x0 + "," + z0);
             var gates = new List<Building>();
             for (int x = x0; x <= x1; x++)
                 for (int z = z0; z <= z1; z++)
