@@ -10,6 +10,8 @@ bg = np.median(border, axis=0)
 d = np.sqrt(((im - bg) ** 2).sum(-1))
 sat = im.max(-1) - im.min(-1)
 cand = (d < 26) & (sat < 30)
+if bg.min() > 245:  # white backdrop with a soft grey drop shadow: treat the light shadow as background too
+    cand |= (im.min(-1) > 205) & (sat < 22)
 lab, n = ndimage.label(cand)
 edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:,0], lab[:,-1]]))) - {0}
 bgmask = np.isin(lab, list(edge))
@@ -19,6 +21,8 @@ fg = ndimage.binary_fill_holes(fg)
 lab2, n2 = ndimage.label(fg)
 sizes = ndimage.sum(fg, lab2, range(1, n2 + 1))
 fg = lab2 == (int(np.argmax(sizes)) + 1)
+if bg.min() > 245:  # pure white backdrop leaves a bright rim: trim it
+    fg = ndimage.binary_erosion(fg, iterations=1)
 # soft edge: alpha ramps from d over a 2px band
 dist_in = ndimage.distance_transform_edt(fg)
 alpha = np.clip(dist_in / 2.0, 0, 1)
