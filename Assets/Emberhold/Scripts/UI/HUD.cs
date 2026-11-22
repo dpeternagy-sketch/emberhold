@@ -15,6 +15,7 @@ namespace Emberhold
         CameraRig rig;
 
         Text statusText, toastText;
+        RectTransform toastBg;
         RawImage statusIcon;
         readonly Dictionary<string, Text> resourceTexts = new Dictionary<string, Text>();
         float toastUntil;
@@ -25,11 +26,22 @@ namespace Emberhold
         readonly List<KeyValuePair<Button, BuildingDef>> cards = new List<KeyValuePair<Button, BuildingDef>>();
 
         Button nightButton;
-        RectTransform ghostButtons, selectButtons;
+        RectTransform ghostButtons, mainButtons;
+        Text ghostHint;
         Button ghostOk;
-        RectTransform infoPanel;
-        Text infoText;
-        Button upgradeButton, removeButton;
+        // Tapped building: name above it, round action buttons at the bottom (like CoC / Boom Beach)
+        Text selTitle;
+        RectTransform actionBar, upgradeCostHolder, repairCostHolder;
+        Button infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn;
+        Text speedCaption, removeCaption;
+        RectTransform infoPopup, upgradePopup;
+        Text infoPopupTitle, infoPopupBody, upPopupTitle, upPopupBody, upPopupTime, upPopupNote;
+        RectTransform upPopupCost;
+        Button upPopupGo;
+        Building costShownFor; int costShownLevel = -1; bool costShownRepair;
+        readonly Dictionary<Building, RectTransform> timerBars = new Dictionary<Building, RectTransform>();
+        readonly Dictionary<Building, RectTransform> badges = new Dictionary<Building, RectTransform>();
+        RectTransform overlayRoot;
 
         RectTransform settlersPopup;
         Text settlersText;
@@ -39,43 +51,50 @@ namespace Emberhold
         {
             gm = game; input = interaction; rig = cameraRig;
             var canvas = UIKit.CreateCanvas();
-            var root = canvas.transform;
+            var screenRoot = canvas.transform;            // for things pinned to the map (follow screen pixels)
+            var root = UIKit.SafeArea(screenRoot);         // fixed HUD stays clear of notches and rounded corners
 
             // Top: resource icons with numbers, no background strip
             var res = UIKit.Rect("Resources", root);
-            res.anchorMin = new Vector2(0, 1); res.anchorMax = new Vector2(1, 1); res.pivot = new Vector2(0.5f, 1);
-            res.anchoredPosition = new Vector2(-60, -50); res.sizeDelta = new Vector2(-160, 90);
-            var hl = res.gameObject.AddComponent<HorizontalLayoutGroup>();
-            hl.spacing = 6; hl.childAlignment = TextAnchor.MiddleLeft; hl.childForceExpandWidth = false; hl.childControlWidth = false; hl.childControlHeight = false;
-            foreach (var key in new[] { "food", "water", "wood", "stone", "gold", "weapons", "people" })
+            UIKit.Anchor(res, new Vector2(0, 1), new Vector2(0, 1), new Vector2(34, -30), new Vector2(3 * 250 + 2 * 14, 2 * 72 + 12));
+            var grid = res.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(250, 72); grid.spacing = new Vector2(14, 12);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 3;
+            foreach (var key in new[] { "food", "water", "energy", "steel", "coins", "people" })
                 resourceTexts[key] = ResourceChip(res, key);
 
-            var menuBtn = UIKit.IconButton(root, "menu", null, 96, ToggleMenu);
-            UIKit.Anchor(menuBtn.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-30, -46), new Vector2(96, 96));
+            var menuBtn = UIKit.IconButton(root, "k_menu", null, 104, ToggleMenu, "grey");
+            UIKit.Anchor(menuBtn.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-30, -30), new Vector2(104, 104));
 
             var status = UIKit.Rect("Status", root);
-            UIKit.Anchor(status, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -150), new Vector2(700, 70));
+            UIKit.Anchor(status, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -206), new Vector2(560, 70));
+            var statusBg = UIKit.Pill("Bg", status);
+            statusBg.rectTransform.anchorMin = Vector2.zero; statusBg.rectTransform.anchorMax = Vector2.one;
+            statusBg.rectTransform.offsetMin = statusBg.rectTransform.offsetMax = Vector2.zero;
             statusIcon = UIKit.Icon(status, "day", 64);
             UIKit.Anchor(statusIcon.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(40, 0), new Vector2(64, 64));
-            statusText = UIKit.OutlinedLabel(status, "", 34, TextAnchor.MiddleLeft);
-            statusText.rectTransform.offsetMin = new Vector2(120, 0);
+            statusText = UIKit.OutlinedLabel(status, "", 30, TextAnchor.MiddleLeft);
+            statusText.rectTransform.offsetMin = new Vector2(112, 0);
 
             var toast = UIKit.Rect("Toast", root);
-            UIKit.Anchor(toast, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -240), new Vector2(950, 90));
-            toastText = UIKit.OutlinedLabel(toast, "", 40, TextAnchor.MiddleCenter);
+            UIKit.Anchor(toast, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -290), new Vector2(960, 96));
+            toastBg = UIKit.Pill("Bg", toast).rectTransform;
+            UIKit.Anchor(toastBg, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(400, 96));
+            toastText = UIKit.OutlinedLabel(toast, "", 34, TextAnchor.MiddleCenter);
 
             // Bottom-right: round icon buttons
             var menu = UIKit.Rect("MainButtons", root);
+            mainButtons = menu;
             UIKit.Anchor(menu, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-30, 40), new Vector2(170, 520));
-            var b1 = UIKit.IconButton(menu, "build", "Build", 150, () => TogglePanel(BuildingCategory.Economy));
+            var b1 = UIKit.IconButton(menu, "build", "Build", 150, () => TogglePanel(BuildingCategory.Economy), "green");
             UIKit.Anchor(b1.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(150, 190));
-            var b2 = UIKit.IconButton(menu, "defense", "Defenses", 150, () => TogglePanel(BuildingCategory.Defense));
+            var b2 = UIKit.IconButton(menu, "defense", "Defenses", 150, () => TogglePanel(BuildingCategory.Defense), "red");
             UIKit.Anchor(b2.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -200), new Vector2(150, 190));
-            nightButton = UIKit.IconButton(menu, "night", "Night", 110, () => gm.Cycle.StartNightNow());
+            nightButton = UIKit.IconButton(menu, "night", "Night", 110, () => gm.Cycle.StartNightNow(), "blue");
             UIKit.Anchor(nightButton.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -400), new Vector2(110, 150));
 
             // Build panel (cards row)
-            buildPanel = UIKit.Box("BuildPanel", root, UIKit.Panel).rectTransform;
+            buildPanel = UIKit.PanelBox("BuildPanel", root).rectTransform;
             buildPanel.anchorMin = new Vector2(0, 0); buildPanel.anchorMax = new Vector2(1, 0); buildPanel.pivot = new Vector2(0.5f, 0);
             buildPanel.anchoredPosition = new Vector2(-110, 40); buildPanel.sizeDelta = new Vector2(-260, 270);
             var scroll = buildPanel.gameObject.AddComponent<ScrollRect>();
@@ -93,34 +112,24 @@ namespace Emberhold
             buildPanel.gameObject.SetActive(false);
 
             // Floating buttons beside a ghost (OK / Rotate / Cancel)
-            ghostButtons = UIKit.Rect("GhostButtons", root);
-            ghostButtons.sizeDelta = new Vector2(380, 100);
-            ghostOk = UIKit.Button(ghostButtons, "Build", 30, () => input.ConfirmPlacement(), new Color(0.2f, 0.45f, 0.2f, 0.95f));
-            UIKit.Anchor(ghostOk.GetComponent<RectTransform>(), new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(140, 100));
-            var rot = UIKit.IconButton(ghostButtons, "rotate", null, 100, () => input.RotateCurrent());
-            UIKit.Anchor(rot.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(100, 100));
-            var cancel = UIKit.Button(ghostButtons, "X", 34, () => input.CancelPlacement(), new Color(0.5f, 0.15f, 0.12f, 0.95f));
+            ghostButtons = UIKit.Rect("GhostButtons", screenRoot);
+            ghostButtons.sizeDelta = new Vector2(420, 110);
+            ghostOk = UIKit.SkinButton(ghostButtons, "Build", 32, () => input.ConfirmPlacement(), "green");
+            UIKit.Anchor(ghostOk.GetComponent<RectTransform>(), new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(180, 100));
+            var rot = UIKit.IconButton(ghostButtons, "k_rotate", null, 100, () => input.RotateCurrent(), "blue");
+            UIKit.Anchor(rot.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40, 0), new Vector2(100, 100));
+            var cancel = UIKit.IconButton(ghostButtons, "k_cross", null, 100, () => input.CancelPlacement(), "red");
             UIKit.Anchor(cancel.GetComponent<RectTransform>(), new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(100, 100));
 
-            // Small rotate icon beside the selected building
-            selectButtons = UIKit.Rect("SelectButtons", root);
-            selectButtons.sizeDelta = new Vector2(90, 90);
-            var srot = UIKit.IconButton(selectButtons, "rotate", null, 90, () => input.RotateCurrent());
-            var srr = srot.GetComponent<RectTransform>();
-            srr.anchorMin = Vector2.zero; srr.anchorMax = Vector2.one; srr.offsetMin = srr.offsetMax = Vector2.zero;
+            ghostHint = UIKit.OutlinedLabel(screenRoot, "", 30, TextAnchor.MiddleCenter);
+            ghostHint.rectTransform.anchorMin = ghostHint.rectTransform.anchorMax = Vector2.zero;
+            ghostHint.rectTransform.sizeDelta = new Vector2(700, 50);
+            ghostHint.horizontalOverflow = HorizontalWrapMode.Overflow;
 
-            // Selected building info
-            infoPanel = UIKit.Box("InfoPanel", root, UIKit.Panel).rectTransform;
-            UIKit.Anchor(infoPanel, new Vector2(0, 0), new Vector2(0, 0), new Vector2(30, 40), new Vector2(740, 230));
-            infoText = UIKit.Label(infoPanel, "", 32, TextAnchor.UpperLeft);
-            infoText.rectTransform.offsetMin = new Vector2(20, 100); infoText.rectTransform.offsetMax = new Vector2(-20, -16);
-            upgradeButton = UIKit.Button(infoPanel, "Upgrade", 28, () => { if (input.Selected != null) gm.TryUpgrade(input.Selected); }, new Color(0.45f, 0.32f, 0.12f, 0.95f));
-            UIKit.Anchor(upgradeButton.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(20, 16), new Vector2(480, 80));
-            removeButton = UIKit.Button(infoPanel, "Remove", 28, () => { if (input.Selected != null) { gm.Demolish(input.Selected); input.Deselect(); } }, new Color(0.4f, 0.13f, 0.1f, 0.95f));
-            UIKit.Anchor(removeButton.GetComponent<RectTransform>(), new Vector2(1, 0), new Vector2(1, 0), new Vector2(-20, 16), new Vector2(200, 80));
+            BuildSelectionUI(root, screenRoot);
 
             // Settlers popup
-            settlersPopup = UIKit.Box("SettlersPopup", root, UIKit.Panel).rectTransform;
+            settlersPopup = UIKit.PanelBox("SettlersPopup", root).rectTransform;
             UIKit.Anchor(settlersPopup, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 100), new Vector2(820, 380));
             settlersText = UIKit.Label(settlersPopup, "", 40);
             settlersText.rectTransform.offsetMin = new Vector2(30, 140);
@@ -131,12 +140,29 @@ namespace Emberhold
             settlersPopup.gameObject.SetActive(false);
 
             // Menu
-            menuPanel = UIKit.Box("Menu", root, UIKit.Panel).rectTransform;
-            UIKit.Anchor(menuPanel, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-20, -170), new Vector2(460, 360));
-            var title = UIKit.Label(menuPanel, "Emberhold", 40, TextAnchor.UpperCenter, UIKit.Accent);
-            title.rectTransform.offsetMax = new Vector2(-8, -20);
+            menuPanel = UIKit.PanelBox("Menu", root).rectTransform;
+            UIKit.Anchor(menuPanel, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-20, -170), new Vector2(460, 680));
+            Header(menuPanel);
+            var title = UIKit.OutlinedLabel(menuPanel, "Emberhold", 40, TextAnchor.UpperCenter);
+            title.rectTransform.offsetMax = new Vector2(-8, -32);
             var reset = UIKit.Button(menuPanel, "Restart city", 30, () => gm.ResetGame(), new Color(0.4f, 0.13f, 0.1f, 0.95f));
             UIKit.Anchor(reset.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 150), new Vector2(400, 90));
+            UnityEngine.UI.Button soundBtn = null, ambBtn = null;
+            soundBtn = UIKit.Button(menuPanel, SoundLabel(), 30, () =>
+            {
+                float l = AudioManager.SoundLevel;
+                AudioManager.SoundLevel = l > 0.75f ? 0.5f : l > 0.25f ? 0f : 1f;
+                UIKit.SetText(soundBtn, SoundLabel());
+            });
+            UIKit.Anchor(soundBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 470), new Vector2(400, 90));
+            ambBtn = UIKit.Button(menuPanel, "Nature sounds: " + (AudioManager.AmbienceOn ? "On" : "Off"), 30, () =>
+            {
+                AudioManager.AmbienceOn = !AudioManager.AmbienceOn;
+                UIKit.SetText(ambBtn, "Nature sounds: " + (AudioManager.AmbienceOn ? "On" : "Off"));
+            });
+            UIKit.Anchor(ambBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 365), new Vector2(400, 90));
+            var raid = UIKit.Button(menuPanel, "Test raid now", 30, () => { if (gm.Raids != null) gm.Raids.TriggerNow(); ToggleMenu(); }, new Color(0.45f, 0.3f, 0.1f, 0.95f));
+            UIKit.Anchor(raid.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 260), new Vector2(400, 90));
             var close = UIKit.Button(menuPanel, "Close", 30, ToggleMenu);
             UIKit.Anchor(close.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 40), new Vector2(400, 90));
             menuPanel.gameObject.SetActive(false);
@@ -150,15 +176,20 @@ namespace Emberhold
 
         Text ResourceChip(Transform parent, string icon)
         {
-            var chip = UIKit.Rect("Chip_" + icon, parent);
-            chip.sizeDelta = new Vector2(icon == "people" ? 170 : 128, 84);
-            var ic = UIKit.Icon(chip, icon, 66);
-            UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(66, 66));
-            var t = UIKit.OutlinedLabel(chip, "0", 34, TextAnchor.MiddleLeft);
-            t.rectTransform.offsetMin = new Vector2(64, 0);
-            t.rectTransform.offsetMax = new Vector2(0, 0);
+            var chip = UIKit.Pill("Chip_" + icon, parent).rectTransform;
+            var ic = UIKit.Icon(chip, icon, 76);
+            UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(-14, 2), new Vector2(76, 76));
+            var t = UIKit.OutlinedLabel(chip, "0", 34, TextAnchor.MiddleCenter);
+            t.rectTransform.offsetMin = new Vector2(62, 0);
+            t.rectTransform.offsetMax = new Vector2(-10, 0);
             t.horizontalOverflow = HorizontalWrapMode.Overflow;
             return t;
+        }
+
+        static string SoundLabel()
+        {
+            float l = AudioManager.SoundLevel;
+            return "Sound: " + (l > 0.75f ? "High" : l > 0.25f ? "Low" : "Off");
         }
 
         void ToggleMenu() { menuPanel.gameObject.SetActive(!menuPanel.gameObject.activeSelf); }
@@ -173,30 +204,103 @@ namespace Emberhold
             openCategory = category;
             foreach (var kv in cards) Destroy(kv.Key.gameObject);
             cards.Clear();
+            costLabels.Clear();
             foreach (var def in BuildingCatalog.InCategory(category))
             {
                 var d = def;
-                var card = UIKit.Button(buildRow, "", 30, () => input.BeginPlacing(d));
+                bool locked = gm.CastleLevel < d.unlockLevel;
+                var card = UIKit.Button(buildRow, "", 30, () =>
+                {
+                    if (gm.CastleLevel < d.unlockLevel) { gm.Toast(d.displayName + " unlocks at HQ level " + d.unlockLevel); AudioManager.Play("ui", 0.5f); return; }
+                    input.BeginPlacing(d);
+                });
+                var cimg = card.GetComponent<Image>();
+                var cardShape = UIKit.Shape("grey", "button_square_depth_flat");
+                if (cardShape != null) cimg.sprite = cardShape;
+                cimg.color = locked ? new Color(0.55f, 0.57f, 0.62f, 1f) : Color.white;
                 card.GetComponent<RectTransform>().sizeDelta = new Vector2(230, 0);
                 var le = card.gameObject.AddComponent<LayoutElement>();
                 le.preferredWidth = 230;
                 // picture of the real building
                 var pic = UIKit.Rect("Picture", card.transform);
                 pic.anchorMin = new Vector2(0, 1); pic.anchorMax = new Vector2(1, 1); pic.pivot = new Vector2(0.5f, 1);
-                pic.anchoredPosition = new Vector2(0, -8); pic.sizeDelta = new Vector2(-16, 150);
+                pic.anchoredPosition = new Vector2(0, -12); pic.sizeDelta = new Vector2(-24, 140);
                 var raw = pic.gameObject.AddComponent<RawImage>();
                 raw.texture = Thumbnails.Get(d);
                 raw.raycastTarget = false;
                 raw.uvRect = new Rect(0.07f, 0.12f, 0.86f, 0.62f);
-                var name = UIKit.Label(card.transform, d.displayName, 30, TextAnchor.LowerCenter);
-                name.fontStyle = FontStyle.Bold;
-                name.rectTransform.offsetMin = new Vector2(4, 36);
-                var cost = UIKit.Label(card.transform, d.cost.ToString(), 22, TextAnchor.LowerCenter, new Color(0.95f, 0.82f, 0.55f));
-                cost.rectTransform.offsetMin = new Vector2(4, 6);
+                if (locked) raw.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+                var name = UIKit.Label(card.transform, d.displayName, 26, TextAnchor.LowerCenter, new Color(0.13f, 0.16f, 0.26f));
+                name.rectTransform.offsetMin = new Vector2(4, 48);
+                if (locked)
+                {
+                    var cost = UIKit.Label(card.transform, "HQ level " + d.unlockLevel, 22, TextAnchor.LowerCenter, new Color(0.75f, 0.75f, 0.75f));
+                    cost.rectTransform.offsetMin = new Vector2(4, 6);
+                    var lockIcon = UIKit.OutlinedLabel(card.transform, "LOCKED", 26, TextAnchor.UpperCenter);
+                    lockIcon.rectTransform.offsetMax = new Vector2(0, -60);
+                }
+                else CostRow(card.transform, d.cost);
                 cards.Add(new KeyValuePair<Button, BuildingDef>(card, d));
             }
             buildPanel.gameObject.SetActive(true);
             input.Deselect();
+        }
+
+        // Every price on a card: an icon and the amount per resource. Amounts you can't pay turn red.
+        readonly List<KeyValuePair<Text, KeyValuePair<ResourceType, int>>> costLabels = new List<KeyValuePair<Text, KeyValuePair<ResourceType, int>>>();
+        static readonly Color CostOk = new Color(1f, 0.95f, 0.85f), CostShort = new Color(1f, 0.32f, 0.27f);
+
+        void CostRow(Transform card, Cost c)
+        {
+            var row = UIKit.Rect("Cost", card);
+            row.anchorMin = new Vector2(0, 0); row.anchorMax = new Vector2(1, 0); row.pivot = new Vector2(0.5f, 0);
+            row.anchoredPosition = new Vector2(0, 6); row.sizeDelta = new Vector2(-8, 34);
+            var hl = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hl.spacing = 4; hl.childAlignment = TextAnchor.MiddleCenter; hl.childForceExpandWidth = false; hl.childControlWidth = false; hl.childControlHeight = false;
+            var items = new List<KeyValuePair<ResourceType, int>>();
+            if (c.steel > 0) items.Add(new KeyValuePair<ResourceType, int>(ResourceType.Steel, c.steel));
+            if (c.energy > 0) items.Add(new KeyValuePair<ResourceType, int>(ResourceType.Energy, c.energy));
+            if (c.coins > 0) items.Add(new KeyValuePair<ResourceType, int>(ResourceType.Coins, c.coins));
+            if (items.Count == 0)
+            {
+                var free = UIKit.OutlinedLabel(row, "Free", 24, TextAnchor.MiddleCenter);
+                free.rectTransform.sizeDelta = new Vector2(80, 34);
+                return;
+            }
+            foreach (var it in items)
+            {
+                var chip = UIKit.Rect("C", row);
+                string num = it.Value.ToString();
+                chip.sizeDelta = new Vector2(30 + 13 * num.Length + 4, 34);
+                var ic = UIKit.Icon(chip, IconOf(it.Key), 30);
+                UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(15, 0), new Vector2(30, 30));
+                var t = UIKit.OutlinedLabel(chip, num, 24, TextAnchor.MiddleLeft);
+                t.rectTransform.offsetMin = new Vector2(31, 0);
+                t.horizontalOverflow = HorizontalWrapMode.Overflow;
+                costLabels.Add(new KeyValuePair<Text, KeyValuePair<ResourceType, int>>(t, it));
+            }
+        }
+
+        static string IconOf(ResourceType t)
+        {
+            switch (t)
+            {
+                case ResourceType.Steel: return "steel";
+                case ResourceType.Energy: return "energy";
+                case ResourceType.Coins: return "coins";
+                case ResourceType.Water: return "water";
+                default: return "food";
+            }
+        }
+
+        void RefreshCostColors()
+        {
+            for (int i = costLabels.Count - 1; i >= 0; i--)
+            {
+                var kv = costLabels[i];
+                if (kv.Key == null) { costLabels.RemoveAt(i); continue; }
+                kv.Key.color = gm.State.Get(kv.Value.Key) >= kv.Value.Value ? CostOk : CostShort;
+            }
         }
 
         void ShowToast(string message)
@@ -219,10 +323,9 @@ namespace Emberhold
 
             SetIfChanged(resourceTexts["food"], s.food.ToString());
             SetIfChanged(resourceTexts["water"], s.water.ToString());
-            SetIfChanged(resourceTexts["wood"], s.wood.ToString());
-            SetIfChanged(resourceTexts["stone"], s.stone.ToString());
-            SetIfChanged(resourceTexts["gold"], s.gold.ToString());
-            SetIfChanged(resourceTexts["weapons"], s.weapons.ToString());
+            SetIfChanged(resourceTexts["energy"], s.energy.ToString());
+            SetIfChanged(resourceTexts["steel"], s.steel.ToString());
+            SetIfChanged(resourceTexts["coins"], s.coins.ToString());
             SetIfChanged(resourceTexts["people"], s.population + "/" + gm.HousingCapacity);
 
             var cycle = gm.Cycle;
@@ -244,64 +347,368 @@ namespace Emberhold
             {
                 if (toasts.Count > 0) { toastText.text = toasts.Dequeue(); toastUntil = Time.time + 2.5f; }
                 else toastText.text = "";
+                toastBg.gameObject.SetActive(toastText.text.Length > 0);
+                toastBg.sizeDelta = new Vector2(Mathf.Min(980f, toastText.preferredWidth + 70f), Mathf.Min(2, Mathf.CeilToInt(toastText.preferredWidth / 900f)) * 46f + 30f);
             }
 
             // Build cards affordability
-            foreach (var kv in cards) kv.Key.interactable = s.CanAfford(kv.Value.cost);
+            RefreshCostColors();
+            foreach (var kv in cards)
+            {
+                bool ok = s.CanAfford(kv.Value.cost) && gm.CastleLevel >= kv.Value.unlockLevel;
+                var cg = kv.Key.GetComponent<CanvasGroup>();
+                if (cg == null) cg = kv.Key.gameObject.AddComponent<CanvasGroup>();
+                cg.alpha = ok ? 1f : 0.6f;
+            }
 
             // Ghost buttons follow the ghost
             if (input.Ghost != null)
             {
                 ghostButtons.gameObject.SetActive(true);
                 Follow(ghostButtons, input.Ghost, -1.2f);
-                ghostOk.interactable = input.GhostValid;
+                ghostOk.interactable = true; // pressing it explains what is missing
+                var g = input.Ghost;
+                var img = ghostOk.GetComponent<Image>();
+                if (img != null) img.color = input.GhostValid ? Color.white : new Color(0.45f, 0.45f, 0.45f, 1f);
+                UIKit.SetText(ghostOk, input.LineCount > 1 ? "Build x" + input.LineValidCount : "Build");
+                ghostHint.gameObject.SetActive(true);
+                ghostHint.text = GhostHintText(g);
+                var sp = rig.Cam.WorldToScreenPoint(g.Center + Vector3.up * (g.Def.height + 1.2f));
+                ghostHint.rectTransform.anchoredPosition = new Vector2(sp.x, sp.y) / ghostHint.canvas.scaleFactor;
             }
-            else ghostButtons.gameObject.SetActive(false);
+            else { ghostButtons.gameObject.SetActive(false); ghostHint.gameObject.SetActive(false); }
 
-            // Selected building: rotate icon + info
+            UpdateSelectionUI();
+            UpdateTimerBars();
+            UpdateUpgradeBadges();
+        }
+
+        string GhostHintText(Building g)
+        {
+            var d = g.Def;
+            if (!gm.State.CanAfford(d.cost)) return "Need more " + gm.State.Missing(d.cost);
+            if (d.nearMountain && !GameManager.TouchesMountain(d, g.Data.x, g.Data.z, g.Data.rotation)) return "Build it against the mountain";
+            if (!input.GhostValid) return "No room here - drag it to free ground";
+            if (d.id == "canal") return input.GhostHasWater ? "Water will flow here" : "Dry - connect to the river or a well";
+            if (InteractionController.IsLineDef(d)) return input.LineCount > 1 ? input.LineValidCount + " pieces - " + d.cost.Scaled(input.LineValidCount) : "Tap where the line should end";
+            return "";
+        }
+
+        // ---------------- Tapped building (CoC / Boom Beach style) ----------------
+
+        Building popupFor;
+
+        void BuildSelectionUI(Transform root, Transform screenRoot)
+        {
+            // world-following bits (timer bars, upgrade arrows) sit under every other control
+            overlayRoot = UIKit.Rect("MapOverlay", screenRoot);
+            overlayRoot.anchorMin = Vector2.zero; overlayRoot.anchorMax = Vector2.one;
+            overlayRoot.offsetMin = overlayRoot.offsetMax = Vector2.zero;
+            overlayRoot.SetAsFirstSibling();
+
+            selTitle = UIKit.OutlinedLabel(screenRoot, "", 36, TextAnchor.MiddleCenter);
+            selTitle.rectTransform.sizeDelta = new Vector2(700, 60);
+            selTitle.horizontalOverflow = HorizontalWrapMode.Overflow;
+
+            actionBar = UIKit.Rect("ActionBar", root);
+            UIKit.Anchor(actionBar, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 90), new Vector2(900, 170));
+
+            infoBtn = UIKit.IconButton(actionBar, "k_info", "Info", 124, () => ShowInfo(input.Selected), "blue");
+            upgradeBtn = UIKit.IconButton(actionBar, "k_up", "Upgrade", 124, () => ShowUpgrade(input.Selected), "green");
+            repairBtn = UIKit.IconButton(actionBar, "k_wrench", "Repair", 124, () => { var b = input.Selected; if (b != null) gm.Repair(b); }, "yellow");
+            speedBtn = UIKit.IconButton(actionBar, "k_fast", "Finish", 124, SpeedUp, "yellow");
+            speedCaption = speedBtn.GetComponentInChildren<Text>();
+            rotateBtn = UIKit.IconButton(actionBar, "k_rotate", "Rotate", 124, () => input.RotateCurrent(), "blue");
+            removeBtn = UIKit.IconButton(actionBar, "k_trash", "Remove", 124, OnRemovePressed, "red");
+            removeCaption = removeBtn.GetComponentInChildren<Text>();
+
+            // cost chips under the Upgrade / Repair buttons
+            upgradeCostHolder = CostHolder(upgradeBtn);
+            repairCostHolder = CostHolder(repairBtn);
+
+            // Info popup: name, level and two or three key numbers
+            infoPopup = UIKit.PanelBox("InfoPopup", root).rectTransform;
+            Header(infoPopup);
+            UIKit.Anchor(infoPopup, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 60), new Vector2(720, 400));
+            infoPopupTitle = UIKit.OutlinedLabel(infoPopup, "", 40, TextAnchor.UpperCenter);
+            infoPopupTitle.rectTransform.offsetMax = new Vector2(-90, -32);
+            infoPopupBody = UIKit.Label(infoPopup, "", 36, TextAnchor.MiddleCenter);
+            infoPopupBody.rectTransform.offsetMin = new Vector2(30, 40); infoPopupBody.rectTransform.offsetMax = new Vector2(-30, -90);
+            CloseX(infoPopup, () => infoPopup.gameObject.SetActive(false));
+            infoPopup.gameObject.SetActive(false);
+
+            // Upgrade popup: what gets better, the cost, the time, and one big button
+            upgradePopup = UIKit.PanelBox("UpgradePopup", root).rectTransform;
+            Header(upgradePopup);
+            UIKit.Anchor(upgradePopup, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 60), new Vector2(760, 560));
+            upPopupTitle = UIKit.OutlinedLabel(upgradePopup, "", 40, TextAnchor.UpperCenter);
+            upPopupTitle.rectTransform.offsetMax = new Vector2(-90, -32);
+            upPopupBody = UIKit.Label(upgradePopup, "", 36, TextAnchor.UpperCenter);
+            upPopupBody.rectTransform.offsetMin = new Vector2(30, 250); upPopupBody.rectTransform.offsetMax = new Vector2(-30, -100);
+            upPopupCost = UIKit.Rect("CostLine", upgradePopup);
+            UIKit.Anchor(upPopupCost, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 200), new Vector2(600, 44));
+            upPopupTime = UIKit.Label(upgradePopup, "", 32, TextAnchor.MiddleCenter);
+            UIKit.Anchor(upPopupTime.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 160), new Vector2(600, 40));
+            upPopupNote = UIKit.Label(upgradePopup, "", 30, TextAnchor.MiddleCenter, new Color(1f, 0.45f, 0.4f));
+            UIKit.Anchor(upPopupNote.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 125), new Vector2(700, 40));
+            upPopupGo = UIKit.Button(upgradePopup, "Upgrade", 40, () =>
+            {
+                var b = popupFor;
+                if (b != null && gm.TryUpgrade(b)) upgradePopup.gameObject.SetActive(false);
+            }, new Color(0.2f, 0.55f, 0.22f, 0.97f));
+            UIKit.Anchor(upPopupGo.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 26), new Vector2(380, 96));
+            CloseX(upgradePopup, () => upgradePopup.gameObject.SetActive(false));
+            upgradePopup.gameObject.SetActive(false);
+        }
+
+        static RectTransform CostHolder(Button b)
+        {
+            var h = UIKit.Rect("Cost", b.transform);
+            UIKit.Anchor(h, new Vector2(0.5f, 0), new Vector2(0.5f, 1), new Vector2(0, -2), new Vector2(300, 40));
+            return h;
+        }
+
+        /// <summary>Blue title strip across the top of a popup (the title label goes on top of it).</summary>
+        static void Header(RectTransform panel)
+        {
+            var h = UIKit.Skin("Header", panel, "blue", "button_rectangle_depth_flat").rectTransform;
+            h.anchorMin = new Vector2(0, 1); h.anchorMax = new Vector2(1, 1); h.pivot = new Vector2(0.5f, 1);
+            h.anchoredPosition = new Vector2(0, -10); h.sizeDelta = new Vector2(-20, 96);
+        }
+
+        void CloseX(RectTransform panel, System.Action onClose)
+        {
+            var x = UIKit.IconButton(panel, "k_cross", null, 84, onClose, "red");
+            UIKit.Anchor(x.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-18, -18), new Vector2(84, 84));
+        }
+
+        string Title(Building b)
+        {
+            if (b.Def.maxLevel <= 1) return b.Def.displayName;
+            return b.Def.displayName + "  Lv " + b.Data.level;
+        }
+
+        void UpdateSelectionUI()
+        {
             var sel = input.Selected;
-            if (sel != null && input.Ghost == null)
+            bool show = sel != null && input.Ghost == null;
+            actionBar.gameObject.SetActive(show);
+            selTitle.gameObject.SetActive(show);
+            mainButtons.gameObject.SetActive(!show);
+            if (show && buildPanel.gameObject.activeSelf) { buildPanel.gameObject.SetActive(false); openCategory = null; }
+            if (!show || popupFor != sel)
             {
-                selectButtons.gameObject.SetActive(sel.Def.Movable);
-                if (sel.Def.Movable) FollowSide(selectButtons, sel);
-                infoPanel.gameObject.SetActive(true);
-                infoText.text = Describe(sel);
-                removeButton.gameObject.SetActive(sel.Def.Movable);
-                UIKit.SetText(removeButton, sel.Def.removeLabel);
-                if (sel.Data.IsUpgrading)
-                {
-                    UIKit.SetText(upgradeButton, "Upgrading... " + Util.FormatTime(sel.UpgradeSecondsLeft));
-                    upgradeButton.interactable = false;
-                }
-                else if (sel.Data.level >= sel.Def.maxLevel)
-                {
-                    UIKit.SetText(upgradeButton, "Max level");
-                    upgradeButton.interactable = false;
-                }
-                else
-                {
-                    UIKit.SetText(upgradeButton, "Upgrade: " + sel.UpgradeCost + "  (" + Util.FormatTime(sel.UpgradeDuration) + ")");
-                    upgradeButton.interactable = s.CanAfford(sel.UpgradeCost);
-                }
+                infoPopup.gameObject.SetActive(false);
+                upgradePopup.gameObject.SetActive(false);
             }
-            else
+            if (!show) { costShownFor = null; return; }
+
+            selTitle.text = sel.Ruined ? sel.Def.displayName + "  (ruined)" : Title(sel);
+            var top = sel.transform.position + Vector3.up * (sel.Def.height + 1.0f);
+            PlaceAt(selTitle.rectTransform, top, new Vector2(0, 30));
+
+            bool broken = sel.Ruined || (sel.Damaged && !sel.UnderConstruction);
+            bool upgrading = sel.Data.IsUpgrading;
+            bool canLevel = !broken && !upgrading && sel.Data.level < sel.Def.maxLevel;
+            infoBtn.gameObject.SetActive(!sel.Ruined);
+            repairBtn.gameObject.SetActive(broken);
+            if (broken) repairBtn.GetComponentInChildren<Text>().text = sel.Ruined ? "Rebuild" : "Repair";
+            upgradeBtn.gameObject.SetActive(canLevel);
+            speedBtn.gameObject.SetActive(upgrading && !broken);
+            if (upgrading) speedCaption.text = "Finish  " + SpeedUpCost(sel);
+            rotateBtn.gameObject.SetActive(sel.Def.Movable && !sel.Ruined && sel.Def.width != sel.Def.depth);
+            removeBtn.gameObject.SetActive(sel.Def.Movable);
+            bool confirming = removeArmedFor == sel && Time.unscaledTime < removeArmedUntil;
+            removeCaption.text = confirming ? "Sure?" : sel.Ruined ? "Clear" : sel.Def.removeLabel;
+            LayoutActions();
+
+            // cost under the Upgrade / Repair button
+            int costKey = broken ? -1 - sel.Data.hp : sel.Data.level;
+            if ((broken || canLevel) && (costShownFor != sel || costShownLevel != costKey || costShownRepair != broken))
             {
-                selectButtons.gameObject.SetActive(false);
-                infoPanel.gameObject.SetActive(false);
+                costShownFor = sel; costShownLevel = costKey; costShownRepair = broken;
+                var holder = broken ? repairCostHolder : upgradeCostHolder;
+                foreach (Transform c in holder) Destroy(c.gameObject);
+                CostRow(holder, broken ? gm.RepairCost(sel) : sel.UpgradeCost);
+            }
+
+            if (infoPopup.gameObject.activeSelf) infoPopupBody.text = InfoText(sel);
+            if (upgradePopup.gameObject.activeSelf) RefreshUpgradePopup(sel);
+        }
+
+        /// <summary>Lines up the visible action buttons in the middle of the bar.</summary>
+        void LayoutActions()
+        {
+            var list = new List<RectTransform>();
+            foreach (var b in new[] { infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn })
+                if (b.gameObject.activeSelf) list.Add(b.GetComponent<RectTransform>());
+            const float step = 175f;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var r = list[i];
+                r.anchorMin = r.anchorMax = new Vector2(0.5f, 1f);
+                r.pivot = new Vector2(0.5f, 1f);
+                r.anchoredPosition = new Vector2((i - (list.Count - 1) * 0.5f) * step, 0f);
             }
         }
 
-        string Describe(Building b)
+        public void ShowInfo(Building b)
+        {
+            if (b == null) return;
+            popupFor = b;
+            upgradePopup.gameObject.SetActive(false);
+            infoPopupTitle.text = Title(b);
+            infoPopupBody.text = InfoText(b);
+            infoPopup.gameObject.SetActive(true);
+        }
+
+        /// <summary>Two or three key numbers, nothing else.</summary>
+        string InfoText(Building b)
         {
             var d = b.Def;
-            var text = d.displayName + "  -  Level " + b.Data.level + "\nHP " + Mathf.Max(0, b.Data.hp) + "/" + b.MaxHp;
-            if (d.workers > 0) text += "    Workers " + b.AssignedWorkers + "/" + d.workers;
-            if (b.Housing > 0) text += "    Homes " + b.Housing;
-            if (d.produces != ResourceType.None) text += "\nMakes " + d.produces + " every " + d.produceInterval + "s";
-            if (d.id == BuildingCatalog.Castle) text += "\nUpgrade the castle to get more land";
-            if (d.id == "canal") text = "Canal\n" + (b.HasWater ? "Water is flowing" : "Dry - connect it to the river or a well");
-            if ((d.id == "farm" || d.id == "well") && b.HasWater) text += "\nNext to water: +75%";
-            return text;
+            var lines = new List<string>();
+            if (d.maxHp < 9999) lines.Add("Health  " + Mathf.Max(0, b.Data.hp) + " / " + b.MaxHp);
+            if (d.attackRange > 0f) lines.Add("Damage  " + b.AttackDamage + "     Range  " + b.AttackRange.ToString("0"));
+            if (d.produces != ResourceType.None && d.produces != ResourceType.Coins)
+            {
+                int amount = Mathf.RoundToInt(d.produceAmount * (1f + 0.5f * (b.Data.level - 1)));
+                lines.Add("Makes  " + Mathf.RoundToInt(amount * 60f / d.produceInterval) + " " + d.produces.ToString().ToLower() + " / min");
+            }
+            if (d.housing > 0) lines.Add("Homes  " + b.Housing + "     Pays coins");
+            if (d.workers > 0) lines.Add("Workers  " + b.AssignedWorkers + " / " + d.workers);
+            if (d.penCapacity > 0) lines.Add("Tamed dinos  " + Mathf.Min(gm.State.tamedRaptors + gm.State.tamedTrikes, d.penCapacity * b.Data.level) + " / " + d.penCapacity * b.Data.level);
+            if (d.trap) lines.Add(Time.time < b.trapReadyAt ? "Resetting..." : "Ready to catch");
+            if (d.id == "canal") lines.Add(b.HasWater ? "Water is flowing" : "Dry: connect to the river or a pump");
+            if ((d.id == "farm" || d.id == "well") && b.HasWater) lines.Add("Next to water  +75%");
+            if (b.Starved) lines.Add("Needs energy!");
+            if (lines.Count > 3) lines.RemoveRange(3, lines.Count - 3);
+            return string.Join("\n", lines.ToArray());
+        }
+
+        public void ShowUpgrade(Building b)
+        {
+            if (b == null) return;
+            popupFor = b;
+            infoPopup.gameObject.SetActive(false);
+            foreach (Transform c in upPopupCost) Destroy(c.gameObject);
+            CostRow(upPopupCost, b.UpgradeCost);
+            upPopupCost.localScale = Vector3.one * 1.4f;
+            RefreshUpgradePopup(b);
+            upgradePopup.gameObject.SetActive(true);
+        }
+
+        void RefreshUpgradePopup(Building b)
+        {
+            var d = b.Def;
+            int L = b.Data.level, N = L + 1;
+            upPopupTitle.text = d.displayName + "  Lv " + L + "  >  " + N;
+            var lines = new List<string>();
+            if (d.maxHp < 9999) lines.Add("Health  " + b.MaxHp + "  >  " + Mathf.RoundToInt(d.maxHp * (1f + 0.5f * L)));
+            if (d.attackRange > 0f) lines.Add("Damage  " + b.AttackDamage + "  >  " + Mathf.RoundToInt(d.attackDamage * (1f + 0.4f * L)));
+            if (d.produces != ResourceType.None && d.produces != ResourceType.Coins) lines.Add("Output  +50%");
+            if (d.housing > 0) lines.Add("Homes  " + d.housing * L + "  >  " + d.housing * N);
+            if (d.penCapacity > 0) lines.Add("Dinos  " + d.penCapacity * L + "  >  " + d.penCapacity * N);
+            if (d.id == BuildingCatalog.Castle) lines.Add("More land and new buildings");
+            if (lines.Count > 3) lines.RemoveRange(3, lines.Count - 3);
+            upPopupBody.text = string.Join("\n", lines.ToArray());
+            upPopupTime.text = "Time  " + Util.FormatTime(b.UpgradeDuration);
+            string block = null;
+            if (b != gm.Castle && L >= gm.CastleLevel + 1) block = "Upgrade the HQ first";
+            else if (!gm.State.CanAfford(b.UpgradeCost)) block = "Need more " + gm.State.Missing(b.UpgradeCost);
+            upPopupNote.text = block ?? "";
+            upPopupGo.interactable = block == null;
+        }
+
+        /// <summary>Finishing an upgrade early costs coins (later: gems or a rewarded ad).</summary>
+        static int SpeedUpCost(Building b) { return Mathf.Max(1, Mathf.CeilToInt(b.UpgradeSecondsLeft / 20f)); }
+
+        void SpeedUp()
+        {
+            var b = input.Selected;
+            if (b == null || !b.Data.IsUpgrading) return;
+            int cost = SpeedUpCost(b);
+            if (gm.State.coins < cost) { gm.Toast("Need " + cost + " coins"); return; }
+            gm.State.coins -= cost;
+            AudioManager.Play("coin", 0.7f);
+            b.FinishUpgradeNow();
+        }
+
+        /// <summary>A progress bar with the time left above every building that is upgrading.</summary>
+        void UpdateTimerBars()
+        {
+            var seen = new HashSet<Building>();
+            foreach (var b in Building.All)
+            {
+                if (b.IsGhost || !b.Data.IsUpgrading) continue;
+                seen.Add(b);
+                RectTransform bar;
+                if (!timerBars.TryGetValue(b, out bar) || bar == null)
+                {
+                    bar = UIKit.Box("TimerBar", overlayRoot, new Color(0.05f, 0.05f, 0.05f, 0.85f)).rectTransform;
+                    bar.sizeDelta = new Vector2(190, 34);
+                    var fill = UIKit.Box("Fill", bar, new Color(0.35f, 0.8f, 0.3f, 1f)).rectTransform;
+                    fill.anchorMin = new Vector2(0, 0); fill.anchorMax = new Vector2(0, 1); fill.pivot = new Vector2(0, 0.5f);
+                    fill.offsetMin = new Vector2(3, 3); fill.offsetMax = new Vector2(3, -3);
+                    var t = UIKit.OutlinedLabel(bar, "", 24, TextAnchor.MiddleCenter);
+                    t.name = "T";
+                    timerBars[b] = bar;
+                }
+                float total = b.UpgradeDuration > 0f ? b.Def.upgradeSeconds * b.Data.level * b.Data.level : 1f;
+                float frac = 1f - Mathf.Clamp01(b.UpgradeSecondsLeft / Mathf.Max(1f, total));
+                var f = (RectTransform)bar.Find("Fill");
+                f.sizeDelta = new Vector2((bar.sizeDelta.x - 6f) * frac, f.sizeDelta.y);
+                bar.Find("T").GetComponent<Text>().text = Util.FormatTime(b.UpgradeSecondsLeft);
+                PlaceAt(bar, b.transform.position + Vector3.up * (b.Def.height + 0.6f), Vector2.zero);
+            }
+            var gone = new List<Building>();
+            foreach (var kv in timerBars) if (kv.Key == null || !seen.Contains(kv.Key)) gone.Add(kv.Key);
+            foreach (var b in gone) { if (timerBars[b] != null) Destroy(timerBars[b].gameObject); timerBars.Remove(b); }
+        }
+
+        /// <summary>A green arrow over buildings you can upgrade right now.</summary>
+        void UpdateUpgradeBadges()
+        {
+            var seen = new HashSet<Building>();
+            foreach (var b in Building.All)
+            {
+                if (b.IsGhost || b.Ruined || b.Data.IsUpgrading || b.UnderConstruction || b == input.Selected) continue;
+                var d = b.Def;
+                if (d.maxLevel <= 1 || d.id == "wall" || b.Data.level >= d.maxLevel) continue;
+                if (b != gm.Castle && b.Data.level >= gm.CastleLevel + 1) continue;
+                if (!gm.State.CanAfford(b.UpgradeCost)) continue;
+                seen.Add(b);
+                RectTransform badge;
+                if (!badges.TryGetValue(b, out badge) || badge == null)
+                {
+                    badge = UIKit.Icon(overlayRoot, "upgrade", 46).rectTransform;
+                    badges[b] = badge;
+                }
+                float bob = Mathf.Sin(Time.time * 3f + b.Data.x) * 4f;
+                PlaceAt(badge, b.transform.position + Vector3.up * (d.height + 0.4f), new Vector2(0, bob));
+            }
+            var gone = new List<Building>();
+            foreach (var kv in badges) if (kv.Key == null || !seen.Contains(kv.Key)) gone.Add(kv.Key);
+            foreach (var b in gone) { if (badges[b] != null) Destroy(badges[b].gameObject); badges.Remove(b); }
+        }
+
+        Building removeArmedFor;
+        float removeArmedUntil;
+
+        /// <summary>Remove needs two taps ("Remove" then "Sure?") so nothing is removed by mistake.</summary>
+        void OnRemovePressed()
+        {
+            var sel = input.Selected;
+            if (sel == null) return;
+            if (removeArmedFor == sel && Time.unscaledTime < removeArmedUntil)
+            {
+                removeArmedFor = null;
+                gm.Demolish(sel);
+                input.Deselect();
+                return;
+            }
+            removeArmedFor = sel;
+            removeArmedUntil = Time.unscaledTime + 3f;
+            AudioManager.Play("ui", 0.5f);
         }
 
         void Follow(RectTransform ui, Building b, float yOffsetWorld)

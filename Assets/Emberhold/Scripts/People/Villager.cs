@@ -14,6 +14,15 @@ namespace Emberhold
 
         public Building home;
         public Building work;
+
+        /// <summary>
+        /// Free gathering: until the city has a Lumberjack (or Quarry), a few townspeople fetch wood
+        /// (or stone) by hand, slowly but for free, so the economy can never get stuck at zero.
+        /// </summary>
+        [System.NonSerialized] public ResourceType? freeGather;
+        Vector3 gatherSpot;
+        float gatherUntil = -1f;
+        int trips;
         Transform body;
         Renderer clothes;
         Vector3 destination;
@@ -54,6 +63,34 @@ namespace Emberhold
             Util.Prim(PrimitiveType.Sphere, body, new Vector3(0, 1.4f, 0), new Vector3(0.31f, 0.18f, 0.31f), new Color(0.25f, 0.17f, 0.1f)); // hair/hat
         }
 
+        /// <summary>Walks to the scrap at the mountain foot, works there, and brings in a little steel.</summary>
+        bool GatherStep()
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || gm.Castle == null) return false;
+            if (gatherUntil > 0f)
+            {
+                if (Time.time < gatherUntil) return true;
+                // done: the scrap goes straight to the store
+                gatherUntil = -1f;
+                trips++;
+                gm.State.Add(ResourceType.Steel, 2);
+                gatherSpot = Vector3.zero;
+            }
+            if (gatherSpot == Vector3.zero)
+                gatherSpot = new Vector3(Random.Range(-10f, 10f), 0f, GridMap.BuildBackZ + 0.5f);
+            destination = gatherSpot;
+            var d = gatherSpot - transform.position; d.y = 0f;
+            if (d.sqrMagnitude < 0.05f)
+            {
+                gatherUntil = Time.time + 3f;
+                AudioManager.PlayAt("hammer", transform.position, 0.35f);
+                var look = Vector3.forward;
+                transform.rotation = Quaternion.LookRotation(look);
+            }
+            return true;
+        }
+
         public void SetJob(Building workplace)
         {
             work = workplace;
@@ -63,12 +100,13 @@ namespace Emberhold
                 switch (work.Def.id)
                 {
                     case "farm": c = new Color(0.6f, 0.5f, 0.25f); break;        // farmer: straw/tan
-                    case "lumberjack": c = new Color(0.25f, 0.4f, 0.2f); break;  // woodcutter: green
-                    case "quarry": c = new Color(0.45f, 0.45f, 0.5f); break;     // mason: grey
-                    case "workshop": c = new Color(0.35f, 0.2f, 0.15f); break;   // smith: leather apron
+                    case "well": c = new Color(0.2f, 0.45f, 0.7f); break;        // pump tech: blue overalls
+                    case "mine": c = new Color(0.95f, 0.6f, 0.1f); break;        // driller: hi-vis orange
+                    case "ballista": case "cannon": c = new Color(0.55f, 0.15f, 0.12f); break;
                     case "watchtower": c = new Color(0.55f, 0.15f, 0.12f); break; // guard: red
                 }
             }
+            if (work == null && freeGather == ResourceType.Steel) c = new Color(0.95f, 0.6f, 0.1f);
             if (clothes != null) Materials.SetColor(clothes.material, c);
         }
 
@@ -79,13 +117,22 @@ namespace Emberhold
             bool guard = work != null && work.Def.attackRange > 0f;
 
             Building goal = night && !guard ? home : (work != null ? work : home);
-            if (Time.time > idleUntil && goal != null)
+            if (!night && freeGather.HasValue && GatherStep()) { /* walking or working at a tree / rock */ }
+            else if (Time.time > idleUntil && goal != null)
             {
                 // pick a spot just outside the goal building, wander a little around it
                 var s = GridMap.Size(goal.Def, goal.Data.rotation);
                 var offset = new Vector3(Random.Range(-0.5f, 0.5f) * s.x, 0, -0.5f * s.y - 0.3f);
                 destination = goal.Center + offset;
                 idleUntil = Time.time + Random.Range(4f, 9f);
+            }
+
+            if (gatherUntil > 0f && Time.time < gatherUntil)
+            {
+                // chopping / picking: a little bob, facing the work
+                body.localPosition = new Vector3(0, Mathf.Abs(Mathf.Sin(Time.time * 7f)) * 0.06f, 0);
+                if (body.gameObject.activeSelf == false) body.gameObject.SetActive(true);
+                return;
             }
 
             var delta = destination - transform.position;

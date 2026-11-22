@@ -25,7 +25,7 @@ namespace Emberhold
             var go = new GameObject("Tree");
             go.transform.SetParent(parent, false);
             var pos = new Vector3(cell.x + 0.5f + Random.Range(-0.25f, 0.25f), 0f, cell.y + 0.5f + Random.Range(-0.25f, 0.25f));
-            pos.y = WorldBuilder.HeightAt(pos) - 0.05f;
+            pos.y = WorldBuilder.GroundUnder(pos.x, pos.z, 0.35f) - 0.08f; // planted in the ground, never hanging over a slope
             go.transform.position = pos;
             go.transform.rotation = Quaternion.Euler(0, Random.Range(0, 360f), 0);
             var t = go.AddComponent<TreeNode>();

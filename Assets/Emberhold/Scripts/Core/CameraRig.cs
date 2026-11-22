@@ -7,16 +7,18 @@ namespace Emberhold
     {
         public Camera Cam { get; private set; }
         public Vector3 focus = new Vector3(0f, 0f, 9f);
-        public float distance = 32f;
-        const float MinDistance = 9f, MaxDistance = 55f;
-        const float Pitch = 33f, Yaw = 0f;
+        // Phone framing: a long lens from far back (FOV 24, 50 degrees down) keeps buildings chunky and
+        // undistorted. Upright screen, so the mountain sits at the top and the shore at the bottom.
+        public float distance = 78f;
+        const float MinDistance = 42f, MaxDistance = 105f;   // 2.5x pinch range
+        const float Pitch = 50f, Yaw = 0f;
 
         public void Init(Camera cam)
         {
             Cam = cam;
-            Cam.fieldOfView = 40f;
-            Cam.nearClipPlane = 0.3f;
-            Cam.farClipPlane = 400f;
+            Cam.fieldOfView = 24f;
+            Cam.nearClipPlane = 5f;
+            Cam.farClipPlane = 500f;
             Apply();
         }
 
@@ -40,6 +42,9 @@ namespace Emberhold
             var rot = Quaternion.Euler(Pitch, Yaw, 0f);
             Cam.transform.rotation = rot;
             Cam.transform.position = focus - rot * Vector3.forward * distance;
+            // haze starts just behind the town, so the far map edge melts into the sky at any zoom
+            RenderSettings.fogStartDistance = distance + 12f;
+            RenderSettings.fogEndDistance = distance + 110f;
         }
 
         /// <summary>Where a screen point hits the ground (y = 0).</summary>

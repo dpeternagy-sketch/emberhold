@@ -3,33 +3,34 @@ using UnityEngine;
 
 namespace Emberhold
 {
-    public enum ResourceType { None, Food, Wood, Stone, Gold, Weapons, Water }
+    /// <summary>Five resources only: mobile players like short chains.</summary>
+    public enum ResourceType { None, Food, Water, Energy, Steel, Coins }
 
     public enum BuildingCategory { Core, Economy, Defense }
 
     [System.Serializable]
     public struct Cost
     {
-        public int wood, stone, gold, weapons;
+        public int steel, energy, coins;
 
-        public Cost(int wood = 0, int stone = 0, int gold = 0, int weapons = 0)
+        public Cost(int steel = 0, int energy = 0, int coins = 0)
         {
-            this.wood = wood; this.stone = stone; this.gold = gold; this.weapons = weapons;
+            this.steel = steel; this.energy = energy; this.coins = coins;
         }
 
         public Cost Scaled(float factor)
         {
-            return new Cost(Mathf.CeilToInt(wood * factor), Mathf.CeilToInt(stone * factor),
-                            Mathf.CeilToInt(gold * factor), Mathf.CeilToInt(weapons * factor));
+            return new Cost(Mathf.CeilToInt(steel * factor), Mathf.CeilToInt(energy * factor), Mathf.CeilToInt(coins * factor));
         }
+
+        public bool IsFree { get { return steel + energy + coins == 0; } }
 
         public override string ToString()
         {
             var parts = new List<string>();
-            if (wood > 0) parts.Add(wood + " Wood");
-            if (stone > 0) parts.Add(stone + " Stone");
-            if (gold > 0) parts.Add(gold + " Gold");
-            if (weapons > 0) parts.Add(weapons + " Weapons");
+            if (steel > 0) parts.Add(steel + " Steel");
+            if (energy > 0) parts.Add(energy + " Energy");
+            if (coins > 0) parts.Add(coins + " Coins");
             return parts.Count == 0 ? "Free" : string.Join(", ", parts);
         }
     }
@@ -57,14 +58,22 @@ namespace Emberhold
         public ResourceType produces = ResourceType.None;
         public int produceAmount;
         public float produceInterval = 10f;
-        public int consumeWood, consumeStone;  // per production cycle (workshop)
-        public float harvestRadius;            // lumberjack: how far it looks for trees
+        public int consumeEnergy;              // per production cycle
+        /// <summary>Must touch the foot of the mountain (mines).</summary>
+        public bool nearMountain;
+        /// <summary>One line for the build card / info panel, e.g. "Wood -> Planks".</summary>
+        public string recipe;
 
         // Night
         public float lightRadius;              // reveals enemies in fog
         public float attackRange;
         public int attackDamage;
         public float attackInterval = 1f;
+        public float splashRadius;             // cannon: hits every enemy this close to the target
+        public int projectile;                 // 0 arrow, 1 ballista bolt, 2 cannon ball
+
+        /// <summary>Castle level needed before this can be built. Locked cards show grey with the requirement.</summary>
+        public int unlockLevel = 1;
 
         /// <summary>Optional prefab at Resources/Models/{id}. If missing, a placeholder is generated.</summary>
         public string PrefabPath { get { return "Models/" + id; } }
@@ -73,6 +82,11 @@ namespace Emberhold
 
         /// <summary>Enemies walk through it (slowly) instead of attacking it, e.g. canals.</summary>
         public bool passable;
+        /// <summary>Catches a dinosaur that walks over it (if a pen has room).</summary>
+        public bool trap;
+        /// <summary>How many tamed dinosaurs this pen keeps.</summary>
+        public int penCapacity;
+
         /// <summary>Label of the remove button ("Remove", or "Fill in" for canals).</summary>
         public string removeLabel = "Remove";
     }
@@ -84,10 +98,14 @@ namespace Emberhold
 
         public const string Castle = "castle";
 
+        /// <summary>Build menu order: food and water first, then the wood, stone and iron chains, then defenses.</summary>
+        static readonly string[] MenuOrder = { "house", "farm", "well", "canal", "solar", "mine",
+                                               "trap", "pen", "wall", "watchtower", "ballista", "cannon" };
+
         static BuildingCatalog()
         {
             Add(new BuildingDef {
-                id = Castle, displayName = "Castle", category = BuildingCategory.Core,
+                id = Castle, displayName = "HQ", category = BuildingCategory.Core,
                 width = 4, depth = 4, height = 4f, color = new Color(0.62f, 0.6f, 0.56f),
                 maxHp = 1500, maxLevel = 5, upgradeSeconds = 60f, housing = 4, lightRadius = 7f,
                 attackRange = 7f, attackDamage = 6, attackInterval = 1.4f
@@ -95,55 +113,74 @@ namespace Emberhold
             Add(new BuildingDef {
                 id = "house", displayName = "House", category = BuildingCategory.Economy,
                 width = 2, depth = 2, height = 1.6f, color = new Color(0.78f, 0.62f, 0.45f),
-                cost = new Cost(wood: 20), maxHp = 150, housing = 4,
-                produces = ResourceType.Gold, produceAmount = 2, produceInterval = 15f
+                cost = new Cost(steel: 20), maxHp = 150, housing = 4,
+                produces = ResourceType.Coins, produceAmount = 2, produceInterval = 15f, recipe = "Homes for 4. They pay coins"
             });
             Add(new BuildingDef {
-                id = "farm", displayName = "Farm", category = BuildingCategory.Economy,
+                id = "farm", displayName = "Greenhouse", category = BuildingCategory.Economy,
                 width = 3, depth = 3, height = 0.3f, color = new Color(0.82f, 0.72f, 0.3f),
-                cost = new Cost(wood: 15), maxHp = 80, workers = 2,
-                produces = ResourceType.Food, produceAmount = 4, produceInterval = 10f
+                cost = new Cost(steel: 15), maxHp = 80, workers = 2,
+                produces = ResourceType.Food, produceAmount = 4, produceInterval = 10f, recipe = "Grows food (+75% next to water)"
             });
             Add(new BuildingDef {
-                id = "lumberjack", displayName = "Lumberjack", category = BuildingCategory.Economy,
-                width = 2, depth = 2, height = 1.4f, color = new Color(0.45f, 0.32f, 0.2f),
-                cost = new Cost(wood: 10, stone: 5), maxHp = 120, workers = 2,
-                produces = ResourceType.Wood, produceAmount = 3, produceInterval = 7f, harvestRadius = 10f
-            });
-            Add(new BuildingDef {
-                id = "quarry", displayName = "Quarry", category = BuildingCategory.Economy,
-                width = 2, depth = 2, height = 1.0f, color = new Color(0.5f, 0.5f, 0.52f),
-                cost = new Cost(wood: 25), maxHp = 160, workers = 2,
-                produces = ResourceType.Stone, produceAmount = 2, produceInterval = 9f
-            });
-            Add(new BuildingDef {
-                id = "workshop", displayName = "Workshop", category = BuildingCategory.Economy,
-                width = 2, depth = 2, height = 1.8f, color = new Color(0.55f, 0.27f, 0.2f),
-                cost = new Cost(wood: 30, stone: 20), maxHp = 180, workers = 2,
-                produces = ResourceType.Weapons, produceAmount = 1, produceInterval = 20f,
-                consumeWood = 4, consumeStone = 2
-            });
-            Add(new BuildingDef {
-                id = "well", displayName = "Well", category = BuildingCategory.Economy,
+                id = "well", displayName = "Water Pump", category = BuildingCategory.Economy,
                 width = 1, depth = 1, height = 1.2f, color = new Color(0.55f, 0.6f, 0.68f),
-                cost = new Cost(wood: 4, stone: 8), maxHp = 120, workers = 1,
-                produces = ResourceType.Water, produceAmount = 3, produceInterval = 12f
+                cost = new Cost(steel: 10, coins: 5), maxHp = 120, workers = 1,
+                produces = ResourceType.Water, produceAmount = 3, produceInterval = 12f, recipe = "Pumps water, fills canals"
             });
             Add(new BuildingDef {
                 id = "canal", displayName = "Canal", category = BuildingCategory.Economy,
                 width = 1, depth = 1, height = 0.05f, color = new Color(0.25f, 0.45f, 0.6f),
-                cost = new Cost(gold: 2), maxHp = 9999, maxLevel = 1, passable = true, removeLabel = "Fill in"
+                cost = new Cost(coins: 2), maxHp = 9999, maxLevel = 1, passable = true, removeLabel = "Fill in",
+                recipe = "Carries water to greenhouses"
             });
             Add(new BuildingDef {
-                id = "wall", displayName = "Wall", category = BuildingCategory.Defense,
+                id = "solar", displayName = "Solar Panels", category = BuildingCategory.Economy,
+                width = 2, depth = 2, height = 0.8f, color = new Color(0.2f, 0.3f, 0.5f),
+                cost = new Cost(steel: 15), maxHp = 100,
+                produces = ResourceType.Energy, produceAmount = 3, produceInterval = 8f, recipe = "Makes energy by day"
+            });
+            Add(new BuildingDef {
+                id = "mine", displayName = "Steel Drill", category = BuildingCategory.Economy,
+                width = 2, depth = 2, height = 1.6f, color = new Color(0.4f, 0.37f, 0.35f),
+                cost = new Cost(steel: 25, coins: 10), maxHp = 200, workers = 2, nearMountain = true,
+                produces = ResourceType.Steel, produceAmount = 4, produceInterval = 9f,
+                consumeEnergy = 1, recipe = "Energy -> Steel (build at the mountain)"
+            });
+            Add(new BuildingDef {
+                id = "trap", displayName = "Dino Trap", category = BuildingCategory.Defense,
+                width = 1, depth = 1, height = 0.2f, color = new Color(0.4f, 0.4f, 0.42f),
+                cost = new Cost(steel: 15, energy: 5), maxHp = 9999, maxLevel = 1, passable = true, trap = true,
+                recipe = "Catches a raptor or triceratops"
+            });
+            Add(new BuildingDef {
+                id = "pen", displayName = "Dino Pen", category = BuildingCategory.Defense,
+                width = 3, depth = 3, height = 1.2f, color = new Color(0.4f, 0.5f, 0.35f),
+                cost = new Cost(steel: 40, coins: 20), maxHp = 300, maxLevel = 3, penCapacity = 2,
+                recipe = "Keeps 2 tamed dinos. They guard you"
+            });
+            Add(new BuildingDef {
+                id = "wall", displayName = "Barrier", category = BuildingCategory.Defense,
                 width = 1, depth = 1, height = 1.5f, color = new Color(0.6f, 0.58f, 0.55f),
-                cost = new Cost(stone: 3), maxHp = 300, upgradeSeconds = 15f
+                cost = new Cost(steel: 3), maxHp = 300, upgradeSeconds = 15f
             });
             Add(new BuildingDef {
-                id = "watchtower", displayName = "Watchtower", category = BuildingCategory.Defense,
+                id = "watchtower", displayName = "Gun Turret", category = BuildingCategory.Defense,
                 width = 2, depth = 2, height = 3.5f, color = new Color(0.5f, 0.38f, 0.25f),
-                cost = new Cost(wood: 20, stone: 10, weapons: 2), maxHp = 250, workers = 1,
+                cost = new Cost(steel: 30, coins: 10), maxHp = 250,
                 lightRadius = 8f, attackRange = 9f, attackDamage = 12, attackInterval = 1f
+            });
+            Add(new BuildingDef {
+                id = "ballista", displayName = "Laser Turret", category = BuildingCategory.Defense,
+                width = 2, depth = 2, height = 1.3f, color = new Color(0.5f, 0.38f, 0.25f),
+                cost = new Cost(steel: 45, energy: 20, coins: 20), maxHp = 220, unlockLevel = 2,
+                attackRange = 12f, attackDamage = 40, attackInterval = 2.6f, projectile = 1
+            });
+            Add(new BuildingDef {
+                id = "cannon", displayName = "Missile Launcher", category = BuildingCategory.Defense,
+                width = 2, depth = 2, height = 2.1f, color = new Color(0.55f, 0.53f, 0.5f),
+                cost = new Cost(steel: 70, energy: 30, coins: 40), maxHp = 400, unlockLevel = 3,
+                attackRange = 9f, attackDamage = 28, attackInterval = 3.2f, splashRadius = 2.2f, projectile = 2
             });
         }
 
@@ -157,7 +194,9 @@ namespace Emberhold
 
         public static IEnumerable<BuildingDef> InCategory(BuildingCategory c)
         {
-            foreach (var d in ordered) if (d.category == c) yield return d;
+            var list = ordered.FindAll(d => d.category == c);
+            list.Sort((a, b) => System.Array.IndexOf(MenuOrder, a.id).CompareTo(System.Array.IndexOf(MenuOrder, b.id)));
+            foreach (var d in list) yield return d;
         }
     }
 }

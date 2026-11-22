@@ -43,7 +43,7 @@ namespace Emberhold
             Phase = Phase.Day;
             RenderSettings.ambientMode = AmbientMode.Flat;
             RenderSettings.fog = true;
-            RenderSettings.fogMode = FogMode.ExponentialSquared;
+            RenderSettings.fogMode = FogMode.Linear;   // start/end follow the camera zoom (CameraRig)
             Apply(0f);
         }
 
@@ -53,7 +53,7 @@ namespace Emberhold
             Phase = Phase.Dusk;
             transition = 0f;
             AudioManager.Play("horn");
-            AudioManager.SetAmbience("night_ambience");
+            AudioManager.SetAmbience("night_amb");
         }
 
         public void EndNight()
@@ -62,11 +62,24 @@ namespace Emberhold
             Phase = Phase.Dawn;
             transition = 0f;
             AudioManager.Play("rooster");
-            AudioManager.SetAmbience("day_ambience");
+            AudioManager.SetAmbience("day_amb");
+            nextCall = Time.time + 3f;   // birds wake up right after the rooster
+        }
+
+        float nextCall;
+
+        /// <summary>Owls hoot through the night; birds sing now and then by day.</summary>
+        void AnimalCalls()
+        {
+            if (Time.time < nextCall) return;
+            if (Phase == Phase.Night) { AudioManager.Play("owl", 0.55f); nextCall = Time.time + UnityEngine.Random.Range(14f, 28f); }
+            else if (Phase == Phase.Day) { AudioManager.Play("birds", 0.45f); nextCall = Time.time + UnityEngine.Random.Range(25f, 50f); }
+            else nextCall = Time.time + 2f;
         }
 
         void Update()
         {
+            AnimalCalls();
             switch (Phase)
             {
                 case Phase.Day:
@@ -80,6 +93,7 @@ namespace Emberhold
                     if (transition >= 1f)
                     {
                         Phase = Phase.Night;
+                        nextCall = Time.time + 4f;   // first owl soon after dark
                         if (OnNightStarted != null) OnNightStarted();
                     }
                     break;

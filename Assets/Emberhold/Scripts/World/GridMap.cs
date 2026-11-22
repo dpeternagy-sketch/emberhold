@@ -47,6 +47,15 @@ namespace Emberhold
             return new Vector2Int(Mathf.FloorToInt(world.x), Mathf.FloorToInt(world.z));
         }
 
+        /// <summary>True if any part of the cell touches the river bed or its muddy bank.</summary>
+        public static bool OnRiverBank(Vector2Int c)
+        {
+            for (int i = 0; i <= 2; i++)
+                for (int j = 0; j <= 2; j++)
+                    if (River.Mask(c.x + i * 0.5f, c.y + j * 0.5f) > 0.02f) return true;
+            return false;
+        }
+
         public static bool IsTerrainBuildable(Vector2Int c)
         {
             return c.x > -ForestX && c.x < ForestX - 1 && c.y >= SeaZ + 2 && c.y < MountainZ - 1;
@@ -87,6 +96,8 @@ namespace Emberhold
             {
                 if (!IsTerrainBuildable(c)) return false;
                 if (!InBuildArea(c, buildRadius)) return false;
+                // nothing but canals on the river banks (and nothing at all in the river)
+                if (def.id != "canal" && OnRiverBank(c)) return false;
                 var o = At(c);
                 if (o != null && o != ignore) return false;
             }

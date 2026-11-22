@@ -68,6 +68,9 @@ namespace Emberhold
             var gm = root.AddComponent<GameManager>();
             gm.Init(world, cycle, spawner, new LocalSaveBackend());
             cycle.Init(sun, cam, gm.State.dayTimeLeft > 0 ? gm.State.dayTimeLeft : DayNightCycle.DayLength);
+            var raids = root.AddComponent<RaidDirector>();
+            raids.Init(gm);
+            gm.Raids = raids;
 
             var interaction = root.AddComponent<InteractionController>();
             interaction.Init(rig, gm);
@@ -75,7 +78,7 @@ namespace Emberhold
             var hud = root.AddComponent<HUD>();
             hud.Init(gm, interaction, rig);
 
-            AudioManager.SetAmbience("day_ambience");
+            AudioManager.SetAmbience("day_amb");
             gm.Toast("Welcome to Emberhold");
         }
     }

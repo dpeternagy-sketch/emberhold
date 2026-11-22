@@ -13,8 +13,51 @@ namespace Emberhold
         public BuildingData Data { get; private set; }
         public bool IsGhost { get; private set; }
         public int AssignedWorkers { get; set; }
+        /// <summary>A workshop that is waiting for its input (e.g. a smelter with no ore).</summary>
+        public bool Starved { get; set; }
         /// <summary>Canals: connected to the river or a well. Farms and wells: next to water.</summary>
         public bool HasWater { get; private set; }
+
+        /// <summary>Corner / T-junction post for walls (joins the two directions).</summary>
+        public void SetWallJoint(bool on, bool unused)
+        {
+            var j = transform.Find("Joint");
+            if (on && j == null)
+            {
+                var root = new GameObject("Joint").transform;
+                root.SetParent(transform, false);
+                var stone = new Color(0.62f, 0.6f, 0.55f);
+                Util.Prim(PrimitiveType.Cube, root, new Vector3(0, 0.8f, 0), new Vector3(0.82f, 1.6f, 0.82f), stone);
+                Util.Prim(PrimitiveType.Cube, root, new Vector3(0, 1.66f, 0), new Vector3(0.92f, 0.12f, 0.92f), stone * 0.8f);
+                foreach (var x in new[] { -0.3f, 0.3f })
+                    foreach (var z in new[] { -0.3f, 0.3f })
+                        Util.Prim(PrimitiveType.Cube, root, new Vector3(x, 1.85f, z), new Vector3(0.24f, 0.26f, 0.24f), stone);
+                // also fill the other direction so both arms meet the post
+                Util.Prim(PrimitiveType.Cube, root, new Vector3(0, 0.7f, 0), new Vector3(0.62f, 1.2f, 1.0f), stone);
+                RefreshRenderers();
+            }
+            else if (!on && j != null) { DestroyImmediate(j.gameObject); RefreshRenderers(); }
+        }
+
+        /// <summary>Call after adding/removing child meshes so tinting covers the new parts.</summary>
+        void RefreshRenderers()
+        {
+            if (originalMaterials != null)
+                for (int i = 0; i < renderers.Length; i++) if (renderers[i] != null) renderers[i].sharedMaterials = originalMaterials[i];
+            originalMaterials = null;
+            renderers = GetComponentsInChildren<Renderer>();
+        }
+
+        int canalBankMask = -1;
+
+        public void SetCanalBanks(bool n, bool s, bool e, bool w)
+        {
+            int mask = (n ? 1 : 0) | (s ? 2 : 0) | (e ? 4 : 0) | (w ? 8 : 0);
+            if (mask == canalBankMask || model == null) return;
+            canalBankMask = mask;
+            BuildingVisuals.CanalBanks(model, n, s, e, w);
+            RefreshRenderers();
+        }
 
         public void SetWater(bool on)
         {
@@ -27,12 +70,15 @@ namespace Emberhold
         public float LightRadius { get { return Def.lightRadius * (1f + 0.2f * (Data.level - 1)); } }
         public float AttackRange { get { return Def.attackRange * (1f + 0.1f * (Data.level - 1)); } }
         public int AttackDamage { get { return Mathf.RoundToInt(Def.attackDamage * (1f + 0.4f * (Data.level - 1))); } }
-        public int Housing { get { return Def.housing * Data.level; } }
+        public int Housing { get { return Ruined ? 0 : Def.housing * Data.level; } }
+        /// <summary>Destroyed in a raid. A ruin houses nobody, makes nothing and does not shoot until rebuilt.</summary>
+        public bool Ruined { get { return Data != null && Data.ruined; } }
+        public bool Damaged { get { return !Ruined && Data.hp < MaxHp; } }
         public Vector3 Center { get { return GridMap.FootprintCenter(Data.x, Data.z, Def, Data.rotation); } }
 
         public float WorkerEfficiency
         {
-            get { return Def.workers <= 0 ? 1f : Mathf.Clamp01((float)AssignedWorkers / Def.workers); }
+            get { if (Ruined) return 0f; return Def.workers <= 0 ? 1f : Mathf.Clamp01((float)AssignedWorkers / Def.workers); }
         }
 
         public IEnumerable<Vector2Int> Cells
@@ -45,9 +91,9 @@ namespace Emberhold
             get
             {
                 var baseCost = Def.cost;
-                if (Def.id == BuildingCatalog.Castle) baseCost = new Cost(wood: 60, stone: 40, gold: 40);
+                if (Def.id == BuildingCatalog.Castle) baseCost = new Cost(steel: 80, energy: 20, coins: 40);
                 var c = baseCost.Scaled(1.2f * Data.level);
-                c.gold += 10 * Data.level;
+                c.coins += 10 * Data.level;
                 return c;
             }
         }
@@ -64,6 +110,9 @@ namespace Emberhold
         }
 
         Transform model;
+        Transform turret;
+        Transform damageFx;
+        int damageFxLevel = -1;
         Transform upgradeScaffold;
         LightSource lightSource;
         float produceTimer;
@@ -71,6 +120,9 @@ namespace Emberhold
         Renderer[] renderers;
         Material[][] originalMaterials;
         Material tintMaterial;
+        Material xrayMaterial;
+        /// <summary>Traps reset for a while after catching something.</summary>
+        [NonSerialized] public float trapReadyAt;
         float hitFlash;
         float buildTime, buildDuration;
         Transform dust;
@@ -106,9 +158,10 @@ namespace Emberhold
             b.Def = def;
             b.Data = data;
             b.IsGhost = ghost;
-            if (data.hp <= 0) data.hp = b.MaxHp;
+            if (data.hp <= 0 && !data.ruined) data.hp = b.MaxHp;
             b.model = BuildingVisuals.Create(def, go.transform).transform;
             b.renderers = go.GetComponentsInChildren<Renderer>();
+            b.turret = b.model.Find("Turret");
             b.ApplyTransform();
             if (!ghost)
             {
@@ -117,6 +170,7 @@ namespace Emberhold
             }
             b.produceTimer = UnityEngine.Random.Range(0f, def.produceInterval);
             b.RefreshUpgradeVisual();
+            if (!ghost) b.RefreshDamageVisual();
             return b;
         }
 
@@ -139,10 +193,19 @@ namespace Emberhold
             {
                 if (tintMaterial == null) tintMaterial = Materials.Unique(tint.Value);
                 Materials.SetColor(tintMaterial, tint.Value);
+                // plus a see-through outline wherever other buildings hide it
+                if (xrayMaterial == null)
+                {
+                    var sh = Resources.Load<Shader>("Shaders/XRay");
+                    if (sh != null) xrayMaterial = new Material(sh);
+                }
+                if (xrayMaterial != null) xrayMaterial.SetColor("_Color", new Color(tint.Value.r, tint.Value.g, tint.Value.b, 0.6f));
                 for (int i = 0; i < renderers.Length; i++)
                 {
-                    var mats = new Material[originalMaterials[i].Length];
-                    for (int m = 0; m < mats.Length; m++) mats[m] = tintMaterial;
+                    int n = originalMaterials[i].Length;
+                    var mats = new Material[n + (xrayMaterial != null ? 1 : 0)];
+                    for (int m = 0; m < n; m++) mats[m] = tintMaterial;
+                    if (xrayMaterial != null) mats[n] = xrayMaterial;
                     renderers[i].sharedMaterials = mats;
                 }
             }
@@ -154,7 +217,7 @@ namespace Emberhold
 
         public void SetRaised(bool raised)
         {
-            model.localPosition = raised ? new Vector3(0, 0.3f, 0) : Vector3.zero;
+            model.localPosition = raised ? new Vector3(0, 0.45f, 0) : Vector3.zero;
         }
 
         // ---------- Upgrades (real-time, keep running while the app is closed) ----------
@@ -196,14 +259,67 @@ namespace Emberhold
             if (model != null) model.localScale = Vector3.one * (1f + 0.06f * (Data.level - 1));
         }
 
+        // ---------- Ruins & damage ----------
+
+        static readonly Color Charred = new Color(0.2f, 0.17f, 0.15f);
+
+        /// <summary>0 = fine, 1 = damaged (light smoke), 2 = ruined (collapsed, heavy smoke and embers).</summary>
+        public void RefreshDamageVisual()
+        {
+            if (IsGhost || model == null) return;
+            int level = Ruined ? 2 : (Data.hp < MaxHp * 0.6f ? 1 : 0);
+            if (level == damageFxLevel) return;
+            damageFxLevel = level;
+            if (damageFx != null) Destroy(damageFx.gameObject);
+            damageFx = null;
+            var s = GridMap.Size(Def, Data.rotation);
+            if (level == 2)
+            {
+                // collapsed: sunk, tilted, burnt
+                model.localScale = new Vector3(1f, 0.38f, 1f);
+                model.localRotation = Quaternion.Euler(UnityEngine.Random.Range(-7f, 7f), Data.rotation * 90f, UnityEngine.Random.Range(-7f, 7f));
+                SetTint(Charred);
+                damageFx = new GameObject("Ruins").transform;
+                damageFx.SetParent(transform, false);
+                if (Def.id != "wall" && Def.id != "canal")
+                {
+                    DamageEffects.Rubble(damageFx, s);
+                    DamageEffects.Smoke(damageFx, new Vector3(0, 0.3f, 0), Mathf.Clamp(s.x * s.y / 4f, 0.6f, 2f));
+                    DamageEffects.Embers(damageFx, new Vector3(0, 0.2f, 0));
+                }
+                else DamageEffects.Smoke(damageFx, new Vector3(0, 0.2f, 0), 0.4f);
+            }
+            else
+            {
+                model.localScale = Vector3.one * (1f + 0.06f * (Data.level - 1));
+                model.localRotation = Quaternion.Euler(0, Data.rotation * 90f, 0);
+                SetTint(null);
+                if (level == 1 && Def.id != "canal")
+                {
+                    damageFx = new GameObject("Damage").transform;
+                    damageFx.SetParent(transform, false);
+                    DamageEffects.Smoke(damageFx, new Vector3(s.x * 0.2f, Def.height * 0.8f, 0), 0.45f);
+                }
+            }
+        }
+
+        public void SetRuined(bool ruined)
+        {
+            Data.ruined = ruined;
+            if (lightSource != null) lightSource.enabled = !ruined;
+            damageFxLevel = -1;
+            RefreshDamageVisual();
+        }
+
         // ---------- Combat ----------
 
         public void TakeDamage(int amount)
         {
-            if (IsGhost) return;
+            if (IsGhost || Ruined) return;
             Data.hp -= amount;
             hitFlash = 0.15f;
             if (Data.hp <= 0) GameManager.Instance.DestroyBuilding(this);
+            else RefreshDamageVisual();
         }
 
         void Update()
@@ -214,11 +330,12 @@ namespace Emberhold
                 buildTime += Time.deltaTime;
                 float k = Mathf.Clamp01(buildTime / buildDuration);
                 model.localScale = new Vector3(1f, Mathf.Max(0.02f, Mathf.SmoothStep(0f, 1f, k)), 1f) * (1f + 0.06f * (Data.level - 1));
-                if (Mathf.Repeat(buildTime, 0.6f) < Time.deltaTime) AudioManager.Play("impact", 0.15f);
+                if (Mathf.Repeat(buildTime, 0.6f) < Time.deltaTime) AudioManager.PlayAt("hammer", transform.position, 0.35f);
                 if (!UnderConstruction)
                 {
                     if (dust != null) Destroy(dust.gameObject);
                     AudioManager.Play("coin", 0.5f);
+                    if (Def.id == "well" || Def.id == "canal") GameManager.Instance.RecalculateWater();   // a rebuilt well fills its canals again
                 }
                 return;
             }
@@ -237,7 +354,7 @@ namespace Emberhold
             if (Def.produces != ResourceType.None && !Data.IsUpgrading && !gm.Cycle.IsNight)
             {
                 float eff = WorkerEfficiency * gm.FoodEfficiency;
-                if (Def.produces == ResourceType.Gold) eff = Mathf.Clamp01(gm.PopulationIn(this) / (float)Mathf.Max(1, Housing));
+                if (Def.produces == ResourceType.Coins) eff = Mathf.Clamp01(gm.PopulationIn(this) / (float)Mathf.Max(1, Housing));
                 if (eff > 0f)
                 {
                     produceTimer += Time.deltaTime * eff;
@@ -249,18 +366,25 @@ namespace Emberhold
                 }
             }
 
-            if (Def.attackRange > 0f && gm.Cycle.IsNight && (Def.workers == 0 || AssignedWorkers > 0))
+            // Weapons defend day and night (raids can come any time). A guard is not required to fire.
+            if (Def.attackRange > 0f && !Ruined)
             {
                 attackTimer -= Time.deltaTime;
-                if (attackTimer <= 0f)
+                var aim = Enemy.NearestVisible(Center, AttackRange);
+                if (aim != null && turret != null)
                 {
-                    var target = Enemy.NearestVisible(Center, AttackRange);
-                    if (target != null)
-                    {
-                        attackTimer = Def.attackInterval;
-                        Projectile.Fire(Center + Vector3.up * Def.height, target, AttackDamage);
-                        AudioManager.Play("shoot", 0.5f);
-                    }
+                    var d = aim.transform.position - turret.position; d.y = 0;
+                    if (d.sqrMagnitude > 0.01f)
+                        turret.rotation = Quaternion.Slerp(turret.rotation, Quaternion.LookRotation(-d), Time.deltaTime * 6f);
+                }
+                if (attackTimer <= 0f && aim != null)
+                {
+                    attackTimer = Def.attackInterval / (AssignedWorkers > 0 ? 1.25f : 1f);
+                    var from = turret != null ? turret.position + Vector3.up * 0.3f : Center + Vector3.up * Def.height;
+                    Projectile.Fire(from, aim, AttackDamage, Def.projectile, Def.splashRadius);
+                    if (Def.projectile == 2) AudioManager.PlayAt("cannon", from, 0.9f);
+                    else if (Def.projectile == 1) AudioManager.PlayAt("ballista", from, 0.8f);
+                    else AudioManager.PlayAt(UnityEngine.Random.value < 0.5f ? "bow" : "bow2", from, 0.7f);
                 }
             }
         }

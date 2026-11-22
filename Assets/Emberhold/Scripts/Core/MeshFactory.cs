@@ -13,7 +13,7 @@ namespace Emberhold
         {
             string key = "cone" + segments;
             Mesh m;
-            if (cache.TryGetValue(key, out m)) return m;
+            if (cache.TryGetValue(key, out m) && m != null) return m;
             var v = new List<Vector3>(); var t = new List<int>();
             float off = segments == 4 ? Mathf.PI / 4f : 0f;
             for (int i = 0; i < segments; i++)
@@ -33,10 +33,42 @@ namespace Emberhold
         }
 
         /// <summary>Gable roof (triangular prism): 1 wide (x), 1 deep (z), 1 high, base at y=0, ridge along z.</summary>
+        static readonly System.Collections.Generic.Dictionary<int, Mesh> rocks = new System.Collections.Generic.Dictionary<int, Mesh>();
+
+        /// <summary>A lumpy, faceted boulder (a sphere pushed in and out by noise), flat-ish underneath.</summary>
+        public static Mesh Rock(int seed)
+        {
+            Mesh m;
+            if (rocks.TryGetValue(seed, out m) && m != null) return m;
+            var src = PrimitiveMesh(PrimitiveType.Sphere);
+            var v = src.vertices;
+            var tris = src.triangles;
+            // unshare vertices so every face is flat-shaded (reads as chipped stone)
+            var nv = new Vector3[tris.Length];
+            var nt = new int[tris.Length];
+            for (int i = 0; i < tris.Length; i++)
+            {
+                var p = v[tris[i]];
+                float n = Mathf.PerlinNoise(seed * 7.1f + p.x * 2.3f + 5f, seed * 3.3f + p.z * 2.3f + p.y * 1.7f + 5f);
+                float k = 0.75f + 0.5f * n;
+                p *= k;
+                if (p.y < -0.15f) p.y = -0.15f + (p.y + 0.15f) * 0.3f; // flattened base
+                nv[i] = p;
+                nt[i] = i;
+            }
+            m = new Mesh { name = "Rock" + seed };
+            m.vertices = nv;
+            m.triangles = nt;
+            m.RecalculateNormals();
+            m.RecalculateBounds();
+            rocks[seed] = m;
+            return m;
+        }
+
         public static Mesh Gable()
         {
             Mesh m;
-            if (cache.TryGetValue("gable", out m)) return m;
+            if (cache.TryGetValue("gable", out m) && m != null) return m;
             var v = new List<Vector3>(); var t = new List<int>();
             Vector3 a = new Vector3(-0.5f, 0, -0.5f), b = new Vector3(0.5f, 0, -0.5f), c = new Vector3(0, 1, -0.5f);
             Vector3 a2 = new Vector3(-0.5f, 0, 0.5f), b2 = new Vector3(0.5f, 0, 0.5f), c2 = new Vector3(0, 1, 0.5f);
@@ -90,7 +122,7 @@ namespace Emberhold
         public static Mesh PrimitiveMesh(PrimitiveType type)
         {
             Mesh m;
-            if (primitiveMeshes.TryGetValue(type, out m)) return m;
+            if (primitiveMeshes.TryGetValue(type, out m) && m != null) return m;
             var go = GameObject.CreatePrimitive(type);
             m = go.GetComponent<MeshFilter>().sharedMesh;
             Object.Destroy(go);

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Emberhold
 {
     /// <summary>
-    /// Sends a wave each night from random, unannounced directions (forest sides, mountain passes, the shore).
+    /// Sends a wave each night from random, unannounced directions (forest sides and the shore, never over the mountain).
     /// The first 3 nights are gentle. Every 5th night has a boss.
     /// </summary>
     public class EnemySpawner : MonoBehaviour
@@ -51,12 +51,38 @@ namespace Emberhold
             Enemy.Spawn(pending.Dequeue(), SpawnPoint(groupAngle + Random.Range(-15f, 15f)), night, transform);
         }
 
+        /// <summary>Spawn a raid group from one hidden direction (used for daytime raids).</summary>
+        public void SpawnGroup(List<EnemyKind> troops, float angleDeg, int strength)
+        {
+            StartCoroutine(SpawnSpread(troops, angleDeg, strength));
+        }
+
+        System.Collections.IEnumerator SpawnSpread(List<EnemyKind> troops, float angleDeg, int strength)
+        {
+            foreach (var k in troops)
+            {
+                Enemy.Spawn(k, SpawnPoint(angleDeg + Random.Range(-12f, 12f)), strength, transform);
+                yield return new WaitForSeconds(Random.Range(0.5f, 1.4f));
+            }
+        }
+
+        /// <summary>
+        /// A point on the open edges of the map: the west forest, the southern shore or the east forest.
+        /// Never on the mountain behind the castle - it is a natural wall.
+        /// Nearby angles give nearby points, so a group arrives together. Enemies start outside the
+        /// city and walk in, so the player sees them coming.
+        /// </summary>
         static Vector3 SpawnPoint(float angleDeg)
         {
-            float a = angleDeg * Mathf.Deg2Rad;
-            var p = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 30f;
-            p.x = Mathf.Clamp(p.x, -GridMap.Half, GridMap.Half);
-            p.z = Mathf.Clamp(p.z, GridMap.SeaZ + 1f, GridMap.MountainZ - 1f); // land from the shore / mountain foot
+            float t = Mathf.Repeat(angleDeg, 360f) / 360f;      // 0..1 around a U-shaped path
+            const float zTop = 10f, zBottom = -17f, edge = 33f;
+            float side = zTop - zBottom, bottom = edge * 2f;
+            float d = t * (side * 2f + bottom);
+            Vector3 p;
+            if (d < side) p = new Vector3(-edge, 0f, zTop - d);                                  // west forest
+            else if (d < side + bottom) p = new Vector3(-edge + (d - side), 0f, zBottom - 1f);    // southern shore
+            else p = new Vector3(edge, 0f, zBottom + (d - side - bottom));                       // east forest
+            p.y = WorldBuilder.HeightAt(p);
             return p;
         }
     }

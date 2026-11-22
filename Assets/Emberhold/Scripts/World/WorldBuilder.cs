@@ -28,12 +28,29 @@ namespace Emberhold
         /// <summary>Ground height at a world position. The city area is perfectly flat (y = 0).</summary>
         public static float HeightAt(float x, float z)
         {
-            // Mountain range to the north
-            float m = Smooth(GridMap.MountainZ - 1f, GridMap.MountainZ + 8f, z);
+            float mz = GridMap.MountainZ;
+            // 1) Rolling green foothills right behind the city
+            float m = Smooth(mz - 1f, mz + 7f, z);
+            float hFoot = m * (1.6f + 2.4f * Noise(x, z, 0.08f));
+            // 2) The main range. Its front edge wanders in and out, so it never reads as one straight wall,
+            //    and it rises over ~30 units: forest, then rock, then snow.
+            float front = mz + 7f + 8f * Noise(x, 3f, 0.05f);
+            float rise = Smooth(front, front + 30f, z);
             float ridge = 0.55f * Noise(x, z, 0.035f) + 0.3f * Noise(x + 40f, z, 0.09f) + 0.15f * Noise(x, z + 40f, 0.22f);
-            float peaks = Mathf.Pow(ridge, 1.6f) * 46f;
-            float back = Mathf.Clamp01((z - GridMap.MountainZ - 4f) / 22f);
-            float hm = m * (5f + peaks * (0.9f + 1.1f * back) + back * 10f);
+            float peaks = Mathf.Pow(ridge, 1.6f) * 34f;
+            float back = Mathf.Clamp01((z - mz - 30f) / 20f);
+            float hMain = rise * (6f + peaks + back * 12f);
+            float rn = 1f - Mathf.Abs(2f * Noise(x + 200f, z, 0.11f) - 1f);
+            hMain += rise * rise * rn * rn * 3f;                // rocky spurs up high
+            float band = 3.2f;                                   // light terraces: ledges between rock faces
+            float tq = hMain / band, fl = Mathf.Floor(tq), fr = tq - fl;
+            float terr = (fl + Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((fr - 0.55f) / 0.45f))) * band;
+            hMain = Mathf.Lerp(hMain, terr, 0.35f * rise);
+            float hm = hFoot + hMain;
+            // 3) A rock ledge the river falls over (the waterfall), blending into the hills on both sides
+            float nearRiver = 1f - Smooth(2.5f, 8f, Mathf.Abs(x - River.CenterX(z)));
+            float step = nearRiver * Smooth(River.FallZ - 0.3f, River.FallZ + 0.3f, z);
+            hm = Mathf.Max(hm, step * (5.2f + Noise(x, z, 0.3f) * 0.6f));
 
             // Forested hills east and west
             float ax = Mathf.Abs(x);
@@ -47,7 +64,7 @@ namespace Emberhold
 
             // River bed
             float rv = River.Mask(x, z);
-            if (rv > 0f) h -= rv * 0.7f;
+            if (rv > 0f) h -= rv * (0.7f + 0.7f * m);   // a little deeper where it cuts through the hills
 
             // Tiny unevenness outside the city only
             float outside = Mathf.Max(m, f);
@@ -56,6 +73,29 @@ namespace Emberhold
         }
 
         public static float HeightAt(Vector3 p) { return HeightAt(p.x, p.z); }
+
+        public static Vector3 NormalAt(float x, float z)
+        {
+            const float e = 0.4f;
+            float dx = HeightAt(x + e, z) - HeightAt(x - e, z);
+            float dz = HeightAt(x, z + e) - HeightAt(x, z - e);
+            return new Vector3(-dx, 2f * e, -dz).normalized;
+        }
+
+        /// <summary>0 = flat, ~1 = 45 degrees.</summary>
+        public static float SlopeAt(float x, float z) { var n = NormalAt(x, z); return Mathf.Sqrt(1f - n.y * n.y) / Mathf.Max(0.05f, n.y); }
+
+        /// <summary>Lowest ground under a round base, so things never hang over a slope.</summary>
+        public static float GroundUnder(float x, float z, float radius)
+        {
+            float h = HeightAt(x, z);
+            for (int k = 0; k < 4; k++)
+            {
+                float a = k * Mathf.PI * 0.5f;
+                h = Mathf.Min(h, HeightAt(x + Mathf.Cos(a) * radius, z + Mathf.Sin(a) * radius));
+            }
+            return h;
+        }
 
         // ---------------- Build ----------------
 
@@ -83,9 +123,11 @@ namespace Emberhold
         int hnx, hnz;
 
         /// <summary>Fast bilinear height lookup from the terrain grid (used while painting).</summary>
+        const float TerrainStep = 0.5f;
+
         float SampleH(float x, float z)
         {
-            float fx = Mathf.Clamp(x - MinX, 0, hnx - 1.001f), fz = Mathf.Clamp(z - MinZ, 0, hnz - 1.001f);
+            float fx = Mathf.Clamp((x - MinX) / TerrainStep, 0, hnx - 1.001f), fz = Mathf.Clamp((z - MinZ) / TerrainStep, 0, hnz - 1.001f);
             int i = (int)fx, j = (int)fz;
             float tx = fx - i, tz = fz - j;
             float a = heights[j * hnx + i], b = heights[j * hnx + i + 1], c = heights[(j + 1) * hnx + i], d = heights[(j + 1) * hnx + i + 1];
@@ -94,7 +136,7 @@ namespace Emberhold
 
         void BuildTerrain(Transform root)
         {
-            const float step = 1f;
+            const float step = TerrainStep;
             int nx = Mathf.RoundToInt((MaxX - MinX) / step) + 1;
             int nz = Mathf.RoundToInt((MaxZ - MinZ) / step) + 1;
             hnx = nx; hnz = nz;
@@ -138,7 +180,7 @@ namespace Emberhold
         /// <summary>Paints the ground colors into one texture: grass shades, dirt, paths, sand, rock and snow.</summary>
         Texture2D PaintGround()
         {
-            const int ppu = 5; // pixels per world unit
+            const int ppu = 6; // pixels per world unit
             int w = Mathf.RoundToInt((MaxX - MinX) * ppu), h = Mathf.RoundToInt((MaxZ - MinZ) * ppu);
             var px = new Color32[w * h];
 
@@ -188,9 +230,18 @@ namespace Emberhold
                     c = Color.Lerp(c, sand, beach);
                     if (hh < WaterLevel + 0.15f) c = Color.Lerp(sand, wetSand, Mathf.Clamp01((WaterLevel + 0.15f - hh) * 2f));
                     // mountain: rock on steep or high ground, snow on top
-                    float rockMask = Mathf.Clamp01((slope - 0.55f) * 1.5f) + Mathf.Clamp01((hh - 7f) * 0.15f);
+                    float rockMask = Mathf.Clamp01((slope - 0.45f) * 2.2f) + Mathf.Clamp01((hh - 13f) * 0.12f);
                     if (z > GridMap.MountainZ - 2f || Mathf.Abs(wx) > GridMap.ForestX)
-                        c = Color.Lerp(c, Color.Lerp(rock, rockDark, Noise(wx, z, 0.3f)), Mathf.Clamp01(rockMask));
+                    {
+                        // ledges between the cliffs keep tough alpine grass and scree
+                        if (z > GridMap.MountainZ - 1f) c = Color.Lerp(c, Color.Lerp(new Color(0.33f, 0.4f, 0.2f), new Color(0.5f, 0.47f, 0.4f), Noise(wx, z, 0.4f)), Mathf.Clamp01((hh - 7f) * 0.2f));
+                        // rock faces: warm and cool stone, horizontal strata, dark cracks
+                        var rc = Color.Lerp(Color.Lerp(rock, new Color(0.55f, 0.5f, 0.44f), Noise(wx + 7f, z, 0.08f)), rockDark, Noise(wx, z, 0.3f) * 0.8f);
+                        float strata = 0.82f + 0.18f * Mathf.Sin(hh * 5.5f + Noise(wx, z, 0.2f) * 4f);
+                        float crack = Noise(wx * 3f, z * 0.6f, 0.9f) > 0.72f ? 0.6f : 1f;
+                        rc *= strata * crack; rc.a = 1f;
+                        c = Color.Lerp(c, rc, Mathf.Clamp01(rockMask));
+                    }
                     float snowLine = 17f + (Noise(wx, z, 0.12f) - 0.5f) * 6f;
                     if (hh > snowLine) c = Color.Lerp(c, snow, Mathf.Clamp01((hh - snowLine) * 0.6f) * (1f - Mathf.Clamp01(slope - 1.6f)));
 
@@ -240,14 +291,15 @@ namespace Emberhold
                     bool forestEdge = ax >= GridMap.ForestX - 4 && ax < GridMap.ForestX;
                     bool nearCity = ax < GridMap.ForestX + 7 && z < GridMap.MountainZ + 3;
                     float chance = 0f;
-                    if (mountain) chance = hh < 6f ? 0.14f : hh < 10f ? 0.04f : 0f;   // pines up the lower slopes
+                    float slope = mountain ? SlopeAt(x + 0.5f, z + 0.5f) : 0f;
+                    if (mountain) chance = slope > 0.9f ? 0f : hh < 6f ? 0.16f : hh < 11f ? 0.06f : hh < 14f ? 0.015f : 0f;   // forested foothills, thinning pines higher up, none on cliffs
                     else if (deepForest) chance = nearCity ? 0.4f : 0.3f;
                     else if (forestEdge) chance = 0.12f;
                     if (chance <= 0f || Random.value >= chance) continue;
                     var cell = new Vector2Int(x, z);
                     if (River.Mask(x + 0.5f, z + 0.5f) > 0.1f) continue;
                     if (nearCity) PlaceTree(grid, cell, mountain);
-                    else AddFarPine(far, new Vector3(x + Random.value, 0, z + Random.value), Random.Range(0.9f, 1.5f));
+                    else AddFarPine(far, new Vector3(x + Random.value, 0, z + Random.value), Random.Range(0.9f, 1.5f) * (mountain ? Mathf.Lerp(1f, 0.55f, hh / 14f) : 1f));
                 }
             }
             far.Build(TreesRoot, "FarForest", true);
@@ -271,7 +323,7 @@ namespace Emberhold
 
         static void AddFarPine(MeshFactory.Batcher b, Vector3 p, float scale)
         {
-            p.y = HeightAt(p) - 0.1f;
+            p.y = GroundUnder(p.x, p.z, 0.4f * scale) - 0.1f;
             var g = FarGreens[Random.Range(0, FarGreens.Length)];
             float hgt = Random.Range(2.4f, 3.2f) * scale;
             var cone = MeshFactory.Cone(7);
@@ -303,12 +355,13 @@ namespace Emberhold
             var flowerCols = new[] { new Color(0.95f, 0.85f, 0.25f), new Color(0.92f, 0.92f, 0.95f), new Color(0.75f, 0.35f, 0.75f), new Color(0.9f, 0.35f, 0.25f), new Color(0.45f, 0.55f, 0.95f) };
             var pebble = new Color(0.55f, 0.53f, 0.5f);
 
-            for (int i = 0; i < 2200; i++)
+            for (int i = 0; i < 600; i++)
             {
                 float x = Random.Range(-GridMap.ForestX - 6f, GridMap.ForestX + 6f);
                 float z = Random.Range(GridMap.SeaZ + 2.5f, GridMap.MountainZ + 3f);
                 if (Mathf.Abs(x - GameManager.CastleCenter.x) < 3.5f && Mathf.Abs(z - GameManager.CastleCenter.z) < 3.5f) continue; // castle yard
                 if (River.Mask(x, z) > 0.2f) continue;
+                if (Noise(x + 50f, z, 0.08f) < 0.5f) continue;   // only in natural clumps, never an even carpet
                 float y = HeightAt(x, z);
                 // grass tuft: 3 thin blades
                 var col = grassCols[Random.Range(0, grassCols.Length)];
@@ -319,7 +372,7 @@ namespace Emberhold
                     batch.Add(cube, new Vector3(x + Random.Range(-0.08f, 0.08f), y + hgt * 0.5f, z + Random.Range(-0.08f, 0.08f)), rot, new Vector3(0.03f, hgt, 0.09f), col);
                 }
             }
-            for (int i = 0; i < 140; i++)
+            for (int i = 0; i < 45; i++)
             {
                 // flowers in meadow clusters
                 float cx = Random.Range(-GridMap.ForestX, GridMap.ForestX), cz = Random.Range(GridMap.SeaZ + 4f, GridMap.MountainZ);
@@ -334,7 +387,7 @@ namespace Emberhold
                     batch.Add(sphere, new Vector3(x, y + hgt, z), Quaternion.identity, Vector3.one * Random.Range(0.07f, 0.11f), col);
                 }
             }
-            for (int i = 0; i < 250; i++)
+            for (int i = 0; i < 70; i++)
             {
                 float x = Random.Range(-GridMap.ForestX - 8f, GridMap.ForestX + 8f), z = Random.Range(GridMap.SeaZ + 1f, GridMap.MountainZ + 4f);
                 float y = HeightAt(x, z);
@@ -355,14 +408,24 @@ namespace Emberhold
                     batch.Add(sphere, new Vector3(x + Random.Range(-0.35f, 0.35f), y + s * 0.35f, z + Random.Range(-0.35f, 0.35f)), Quaternion.identity, new Vector3(s, s * 0.75f, s), col);
                 }
             }
-            // boulders on the mountain foot and in the hills
-            var rockCols = new[] { new Color(0.5f, 0.48f, 0.46f), new Color(0.42f, 0.41f, 0.4f) };
-            for (int i = 0; i < 160; i++)
+            // Boulders: always sitting IN the ground (lowest point under them, partly buried, tilted with the slope).
+            var rockCols = new[] { new Color(0.5f, 0.48f, 0.46f), new Color(0.42f, 0.41f, 0.4f), new Color(0.46f, 0.43f, 0.39f) };
+            var rockMeshes = new[] { MeshFactory.Rock(1), MeshFactory.Rock(2), MeshFactory.Rock(3) };
+            for (int i = 0; i < 220; i++)
             {
                 float x = Random.Range(-60f, 60f), z = Random.Range(GridMap.MountainZ - 1f, GridMap.MountainZ + 30f);
-                float y = HeightAt(x, z);
-                float s = Random.Range(0.6f, 2.6f);
-                batch.Add(sphere, new Vector3(x, y + s * 0.15f, z), Quaternion.Euler(Random.Range(-20, 20), Random.Range(0, 360), Random.Range(-20, 20)), new Vector3(s * 1.3f, s * 0.8f, s), rockCols[Random.Range(0, 2)]);
+                if (River.Mask(x, z) > 0.2f) continue;
+                float s = Random.Range(0.5f, 2.2f);
+                float lowest = float.MaxValue;
+                for (int k = 0; k < 6; k++)
+                {
+                    float a = k * Mathf.PI / 3f;
+                    lowest = Mathf.Min(lowest, HeightAt(x + Mathf.Cos(a) * s * 0.6f, z + Mathf.Sin(a) * s * 0.6f));
+                }
+                var n = NormalAt(x, z);
+                var rot = Quaternion.FromToRotation(Vector3.up, Vector3.Lerp(Vector3.up, n, 0.7f)) * Quaternion.Euler(0, Random.Range(0, 360), 0);
+                var pos = new Vector3(x, lowest - s * 0.12f, z);
+                batch.Add(rockMeshes[Random.Range(0, rockMeshes.Length)], Matrix4x4.TRS(pos, rot, new Vector3(s * 1.25f, s * 0.75f, s)), rockCols[Random.Range(0, rockCols.Length)]);
             }
             batch.Build(detail, "Detail", false);
         }
@@ -390,6 +453,8 @@ namespace Emberhold
         void Marker(Vector3 p, Color c)
         {
             if (!GridMap.IsTerrainBuildable(GridMap.CellOf(p)) && !GridMap.IsTerrainBuildable(GridMap.CellOf(p) - Vector2Int.one)) return;
+            if (River.Mask(p.x, p.z) > 0.02f) return;   // never float over the river
+            p.y = HeightAt(p);
             Util.Prim(PrimitiveType.Cube, borderRoot, p + Vector3.up * 0.06f, new Vector3(0.22f, 0.12f, 0.22f), c);
         }
     }

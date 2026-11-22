@@ -69,10 +69,10 @@ namespace Emberhold
             cam.targetTexture = null;
             RenderTexture.ReleaseTemporary(rt);
 
-            Object.Destroy(light.gameObject);
-            Object.Destroy(camGo);
-            Object.Destroy(holder);
-            Object.Destroy(floor);
+            // Destroy NOW (not at the end of the frame), otherwise the next picture would show this model too.
+            Object.DestroyImmediate(light.gameObject);
+            Object.DestroyImmediate(camGo);
+            Object.DestroyImmediate(holder);
             return tex;
         }
     }
