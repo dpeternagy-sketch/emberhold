@@ -66,6 +66,21 @@ namespace Emberhold
         /// <summary>Builder time for a side to reach the next level: 5, 20, 45, 80 minutes.</summary>
         public static float WallUpgradeSeconds(int level) { return 300f * level * level; }
 
+        /// <summary>Buys a whole side: every piece, its gate and its two guns, built in one go.</summary>
+        public bool BuyWallSide(WallSide side)
+        {
+            if (WallLevel(side) > 0) return false;
+            var cost = WallBuyCost(side);
+            if (!State.Pay(cost)) { Toast("Need more " + State.Missing(cost)); return false; }
+            EnsureWallState();
+            State.wallSides[(int)side] = 1;
+            RebuildWalls(true);
+            Toast(WallSideNames[(int)side] + " built");
+            AudioManager.Play("step", 0.6f);
+            SaveNow();
+            return true;
+        }
+
         public Building GateOf(WallSide side)
         {
             foreach (var b in Building.All) if (!b.IsGhost && b.Def.id == "gate" && WallSideOf(b) == (int)side) return b;
