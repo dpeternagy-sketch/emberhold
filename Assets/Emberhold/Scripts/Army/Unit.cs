@@ -57,7 +57,7 @@ namespace Emberhold
             u.def = def; u.maxHp = def.hp; u.damage = def.damage; u.range = def.range; u.speed = def.speed;
             u.interval = def.interval; u.flies = def.flies; u.hitsAir = def.hitsAir;
             u.home = home;
-            u.portrait = def.id == "heavy" ? "soldier_2" : def.id == "rifleman" ? "soldier_1" : null;
+            u.portrait = def.id == "heavy" ? "heavy_1" : def.id == "rifleman" ? "rifleman_1" : null;   // Peter's visor suits
             u.Build(def.model, def.height, def.id == "heavy" ? 1.3f : 1f, Color.clear);
             u.Place(home);
             return u;
@@ -73,7 +73,7 @@ namespace Emberhold
             u.damage = Mathf.RoundToInt(16 * Mathf.Pow(1.12f, level - 1));
             u.range = 3f; u.speed = 1.05f; u.interval = 1f; u.hitsAir = true;
             u.home = home;
-            u.portrait = "commander_3";
+            u.portrait = "commander_" + Mathf.Clamp(1 + (level - 1) / 3, 1, 3);   // Commander levels 1-3 / 4-6 / 7+
             u.Build("Models/Space/astronautB", 0.95f, 1.1f, new Color(1f, 0.78f, 0.2f));
             u.Place(home);
             return u;
