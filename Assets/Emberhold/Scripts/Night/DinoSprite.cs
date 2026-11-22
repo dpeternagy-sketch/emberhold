@@ -56,12 +56,30 @@ namespace Emberhold
             if (tex == null) tex = Resources.Load<Texture2D>("Sprites/Portraits/" + Base(kind) + "_1");
             if (tex == null) return null;
 
+            return CreateWith(owner, tex, Size(kind) * scale, kind == EnemyKind.Flyer, kind == EnemyKind.Flyer,
+                kind == EnemyKind.Raider ? 11f : kind == EnemyKind.Boss ? 5f : 7f);
+        }
+
+        /// <summary>Our own soldiers and the Commander, from the white-and-gold portraits.</summary>
+        public static DinoSprite CreateUnit(Transform owner, string portrait, float height)
+        {
+            if (!Available) return null;
+            var tex = Resources.Load<Texture2D>("Sprites/Portraits/" + portrait);
+            if (tex == null) return null;
+            var d = CreateWith(owner, tex, height, false, true, 9f);
+            d.fade = 1f;      // our troops are simply there (no spawn-in fade)
+            return d;
+        }
+
+        /// <param name="lookRight">true when the picture is painted facing right</param>
+        static DinoSprite CreateWith(Transform owner, Texture2D tex, float height, bool isFlyer, bool lookRight, float steps)
+        {
             var d = owner.gameObject.AddComponent<DinoSprite>();
-            d.h = Size(kind) * scale;
+            d.h = height;
             d.aspect = tex.width / (float)tex.height;
-            d.flyer = kind == EnemyKind.Flyer;
-            d.lookRightInPicture = kind == EnemyKind.Flyer;      // the pterosaur is painted facing right, the others left
-            d.stepFreq = kind == EnemyKind.Raider ? 11f : kind == EnemyKind.Boss ? 5f : 7f;
+            d.flyer = isFlyer;
+            d.lookRightInPicture = lookRight;
+            d.stepFreq = steps;
             d.seed = Random.Range(0f, 10f);
 
             if (quadMesh == null)

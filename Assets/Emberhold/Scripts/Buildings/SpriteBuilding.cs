@@ -220,8 +220,10 @@ namespace Emberhold
             var post = Load("wallpost_t" + t);
 
             // +x segment (or -x into a gate)
-            Vector3? xc = r > 0 ? ground + new Vector3(0.5f, 0, 0) : l == 2 ? ground - new Vector3(0.5f, 0, 0) : (Vector3?)null;
-            Vector3? zc = u > 0 ? ground + new Vector3(0, 0, 0.5f) : d == 2 ? ground - new Vector3(0, 0, 0.5f) : (Vector3?)null;
+            // no segment runs into a gate: the gate picture itself spans from this cell to the next wall cell
+            bool gateArt = LowestTier("gate") > 0;
+            Vector3? xc = (r == 1 || (r == 2 && !gateArt)) ? ground + new Vector3(0.5f, 0, 0) : (l == 2 && !gateArt) ? ground - new Vector3(0.5f, 0, 0) : (Vector3?)null;
+            Vector3? zc = (u == 1 || (u == 2 && !gateArt)) ? ground + new Vector3(0, 0, 0.5f) : (d == 2 && !gateArt) ? ground - new Vector3(0, 0, 0.5f) : (Vector3?)null;
             SetSeg(segX, matX, seg, xc, false, shake);
             SetSeg(segZ, matZ, seg, zc, true, shake);
 
@@ -296,6 +298,12 @@ namespace Emberhold
             var rot = cam.transform.rotation;
             int rotation = building != null && building.Data != null ? building.Data.rotation : 0;
             bool flip = (rotation & 1) == 1;
+            if (def.id == "gate" && building != null && building.Data != null)
+            {
+                // the gate picture runs along +x; in a wall that runs along z it is mirrored
+                var gc = new Vector2Int(building.Data.x, building.Data.z);
+                flip = WallAt(gc + Vector2Int.up) > 0 || WallAt(gc + Vector2Int.down) > 0;
+            }
             var size = GridMap.Size(def, rotation);
             float diamond = Mathf.Max(size.x, size.y) * 1.41421356f;     // footprint diagonal as seen from 45 degrees
             float w = diamond * art.tex.width / art.plate;

@@ -57,6 +57,7 @@ namespace Emberhold
             u.def = def; u.maxHp = def.hp; u.damage = def.damage; u.range = def.range; u.speed = def.speed;
             u.interval = def.interval; u.flies = def.flies; u.hitsAir = def.hitsAir;
             u.home = home;
+            u.portrait = def.id == "heavy" ? "soldier_2" : def.id == "rifleman" ? "soldier_1" : null;
             u.Build(def.model, def.height, def.id == "heavy" ? 1.3f : 1f, Color.clear);
             u.Place(home);
             return u;
@@ -72,6 +73,7 @@ namespace Emberhold
             u.damage = Mathf.RoundToInt(16 * Mathf.Pow(1.12f, level - 1));
             u.range = 3f; u.speed = 1.05f; u.interval = 1f; u.hitsAir = true;
             u.home = home;
+            u.portrait = "commander_3";
             u.Build("Models/Space/astronautB", 0.95f, 1.1f, new Color(1f, 0.78f, 0.2f));
             u.Place(home);
             return u;
@@ -85,10 +87,26 @@ namespace Emberhold
             hp = maxHp;
         }
 
+        string portrait;
+        DinoSprite sprite;
+
         void Build(string model, float height, float bulk, Color trim)
         {
             body = new GameObject("Body").transform;
             body.SetParent(transform, false);
+            // Peter's painted white-and-gold soldiers and Commander (Resources/Sprites/Portraits)
+            var pic = !flies && portrait != null ? DinoSprite.CreateUnit(transform, portrait, height * 2.1f) : null;
+            if (pic != null)
+            {
+                sprite = pic;
+                var team = trim.a > 0f ? trim : new Color(0.18f, 0.49f, 0.96f);
+                var tr = Util.Prim(PrimitiveType.Cylinder, transform, new Vector3(0, 0.02f, 0), new Vector3(height * 0.9f, 0.01f, height * 0.9f), team);
+                tr.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(team, trim.a > 0f ? 1.6f : 0.8f);
+                hpBar = Util.Prim(PrimitiveType.Cube, transform, new Vector3(0, height * 1.7f + 0.2f, 0), new Vector3(0.6f, 0.06f, 0.06f), new Color(0.3f, 0.85f, 0.35f)).transform;
+                renderers = GetComponentsInChildren<Renderer>();
+                bobPhase = Random.value * 6f;
+                return;
+            }
             Transform m = flies ? ModelLibrary.Spawn(model, body, height, height, height * 0.5f) : ModelLibrary.Spawn(model, body, height, height, height);
             if (m == null)
                 m = Util.Prim(PrimitiveType.Capsule, body, new Vector3(0, height * 0.5f, 0), new Vector3(height * 0.4f, height * 0.5f, height * 0.4f), new Color(0.9f, 0.92f, 0.95f)).transform;
@@ -132,6 +150,7 @@ namespace Emberhold
         {
             if (KnockedOut) return;
             hp -= amount;
+            if (sprite != null) sprite.Flash();
             calmFor = 0f;
             if (hp > 0) return;
             KnockedOut = true;
@@ -229,6 +248,7 @@ namespace Emberhold
         {
             int dmg = damage;
             e.Hit(dmg);
+            if (sprite != null) sprite.Attack();
             if (range > 1.6f) Projectile.Tracer(Center, e.transform.position + Vector3.up * 0.5f, isHero ? new Color(1f, 0.8f, 0.3f) : new Color(0.4f, 0.8f, 1f));
             AudioManager.PlayAt(range > 1.6f ? "arrow_hit2" : "sword", transform.position, 0.2f);
         }

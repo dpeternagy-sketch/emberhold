@@ -63,7 +63,8 @@ namespace Emberhold
 
             // ---- one wild dino walks up to the gate in the wall (stills) ----
             var gatePos = gateCell + new Vector3(0.5f, 0f, 0.5f);
-            Enemy.Spawn(EnemyKind.Raider, gatePos + new Vector3(-9f, 0, 0.5f), 2, gm.transform);
+            var raptor = Enemy.Spawn(EnemyKind.Raider, gatePos + new Vector3(-4f, 0, 0.5f), 2, gm.transform);
+            raptor.maxHp = raptor.hp = 400;      // tough enough to still be standing for the stills
             View(gatePos + new Vector3(3f, 0, 1f), 30f);
             yield return WaitGateHit(12f);
             yield return Shot("10_dino_attack");
@@ -81,7 +82,8 @@ namespace Emberhold
             hud.PreviewCloseAll(); input.Deselect();
             hud.PreviewOpenBuild(BuildingCategory.Defense); yield return Hold(1.5f);
             hud.PreviewCloseAll();
-            Enemy.Spawn(EnemyKind.Brute, gatePos + new Vector3(-10f, 0, -1f), 2, gm.transform);
+            var trike = Enemy.Spawn(EnemyKind.Brute, gatePos + new Vector3(-8f, 0, -1f), 2, gm.transform);
+            trike.maxHp = trike.hp = 900;
             yield return Glide(gm.Castle.Center + new Vector3(0, 0, -4f), 36f, gatePos + new Vector3(2f, 0, 1f), 34f, 2.5f);
             yield return Hold(9f);
             yield return Glide(gatePos + new Vector3(2f, 0, 1f), 34f, new Vector3(0, 0, 4f), 70f, 4f);
@@ -101,6 +103,7 @@ namespace Emberhold
             var s = gm.State;
             s.steel += 20000; s.energy += 20000; s.coins += 20000; s.food += 5000; s.water += 5000;
             while (gm.CastleLevel < 3) { gm.Castle.Data.level++; gm.OnBuildingUpgraded(gm.Castle); }
+            gm.Castle.Data.hp = gm.Castle.MaxHp;
             var c = GameManager.CastleCenter;
             Place("house", c + new Vector3(-9, 0, -2)); Place("house", c + new Vector3(-9, 0, -6)); Place("house", c + new Vector3(-6, 0, -9));
             Place("house", c + new Vector3(7, 0, -2)); Place("house", c + new Vector3(7, 0, -6));
@@ -139,7 +142,18 @@ namespace Emberhold
             var g = gm.Grid.At(new Vector2Int(Mathf.FloorToInt(gateCell.x), Mathf.FloorToInt(gateCell.z))) as Building;
             int hp0 = g != null ? g.Data.hp : 0;
             float t = 0f;
-            while (t < maxSeconds && (g == null || g.Data.hp >= hp0)) { t += Time.deltaTime; yield return null; }
+            float log = 0f;
+            while (t < maxSeconds && (g == null || g.Data.hp >= hp0))
+            {
+                t += Time.deltaTime;
+                if ((log -= Time.deltaTime) <= 0f)
+                {
+                    log = 1f;
+                    foreach (var e in Enemy.All) Debug.Log("[Preview] dino " + e.kind + " at " + e.transform.position + " hp " + e.hp + " gate hp " + (g != null ? g.Data.hp : -1));
+                }
+                yield return null;
+            }
+            Debug.Log("[Preview] gate wait " + t.ToString("0.0") + "s, dinos " + Enemy.All.Count);
             yield return new WaitForSeconds(0.15f);
         }
 
