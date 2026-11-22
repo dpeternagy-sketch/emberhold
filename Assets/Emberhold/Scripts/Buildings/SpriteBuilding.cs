@@ -346,7 +346,7 @@ namespace Emberhold
         const float SegDiamond = 0.70710678f;      // one cell along an axis, seen from 45 degrees
         bool wall, gun;
         Transform segX, segZ;
-        const float GunDiamond = 1.0f;   // a wall gun: the gun turret image shrunk onto one wall cell
+        const float GunDiamond = 1.35f;   // a wall gun: the gun turret image shrunk onto one wall cell
         Material matX, matZ;
 
         static int WallTier(int level)
@@ -424,7 +424,7 @@ namespace Emberhold
             q.gameObject.SetActive(on);
             if (!on) return;
             if (m.GetTexture("_MainTex") != a.tex) Show(m, a);
-            Place(q, m, a, centre.Value, SegDiamond, flip, shake);
+            Place(q, m, a, centre.Value, SegDiamond * 1.04f, flip, shake);   // QC: a hair of overlap so neighbouring segments never show a seam
             Finish(m);
         }
 

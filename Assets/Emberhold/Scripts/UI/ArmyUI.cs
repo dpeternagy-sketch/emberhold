@@ -17,6 +17,7 @@ namespace Emberhold
         Button strikeBtn; Text strikeCaption;
         Button troopsBtn, homeBtn, doneBtn, repairAllBtn;
         float repairAllArmedUntil;
+        Button cancel;
         Building trainFor;
         readonly List<KeyValuePair<Button, UnitDef>> unitButtons = new List<KeyValuePair<Button, UnitDef>>();
         readonly List<Text> unitNotes = new List<Text>();
@@ -40,7 +41,7 @@ namespace Emberhold
             trainStatus = UIKit.Label(trainPopup, "", 32, TextAnchor.MiddleCenter);
             trainStatus.supportRichText = true;
             UIKit.Anchor(trainStatus.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 150), new Vector2(800, 100));
-            var cancel = UIKit.SkinButton(trainPopup, "Cancel last", 30, () => { if (trainFor != null) gm.Troops.CancelLast(trainFor); }, "red");
+            cancel = UIKit.SkinButton(trainPopup, "Cancel last", 30, () => { if (trainFor != null) gm.Troops.CancelLast(trainFor); }, "red");
             UIKit.Anchor(cancel.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 40), new Vector2(300, 90));
             trainPopup.gameObject.SetActive(false);
 
@@ -64,7 +65,7 @@ namespace Emberhold
 
             // ---- Orbital Strike (bottom left, only during an attack) ----
             strikeBtn = UIKit.IconButton(root, "icon_attack", "Strike", 108, () => { if (!gm.Troops.Strike()) gm.Toast("Strike not ready"); }, "red");
-            UIKit.Anchor(strikeBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 300), new Vector2(112, 142));
+            UIKit.Anchor(strikeBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 336), new Vector2(112, 142));
             strikeCaption = strikeBtn.GetComponentInChildren<Text>();
 
             // ---- Troop orders (bottom left): select all, call home, done. Tap units / ground for the rest ----
@@ -81,7 +82,7 @@ namespace Emberhold
                 repairAllArmedUntil = Time.unscaledTime + 3f;
                 gm.Toast("Repair everything for " + gm.RepairAllCost() + ". Tap again");
             }, "yellow");
-            UIKit.Anchor(repairAllBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 300), new Vector2(112, 142));
+            UIKit.Anchor(repairAllBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 336), new Vector2(112, 142));
             UIKit.Anchor(doneBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(242, 180), new Vector2(96, 126));
         }
 
@@ -180,6 +181,7 @@ namespace Emberhold
             }
             var q = Army.Queue(b);
             string training = q.Count == 0 ? "Nothing in training" : "Training " + UnitDef.Get(q[0]).displayName + "  " + Mathf.CeilToInt(gm.Troops.SecondsLeft(b)) + "s   (" + q.Count + " in queue)";
+            cancel.interactable = q.Count > 0;   // QC: no "Cancel last" with nothing in training
             trainStatus.text = training + "\nArmy space  " + (gm.Troops.Used + gm.Troops.Queued) + " / " + gm.Troops.Capacity;
         }
     }

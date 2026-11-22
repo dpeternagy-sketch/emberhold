@@ -33,6 +33,8 @@ namespace Emberhold
         {
             int n = 0;
             foreach (var b in Building.All) if (b.Def == def && !b.IsGhost) n++;
+            // the two guns that come with each bought wall side are part of the side, not the player's own wall guns
+            if (def.id == "wallgun") n = Mathf.Max(0, n - IncludedWallGuns());
             return n;
         }
 

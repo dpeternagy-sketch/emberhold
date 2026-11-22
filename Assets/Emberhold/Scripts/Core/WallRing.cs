@@ -164,6 +164,33 @@ namespace Emberhold
         /// Lays every bought side on the loop for the current HQ level. Wall guns keep their place along their side
         /// and their level; a gate keeps its damage only when the loop did not move.
         /// </summary>
+        /// <summary>Wall guns that came with the bought sides (2 per side long enough to carry them).</summary>
+        public int IncludedWallGuns()
+        {
+            if (State == null || State.wallSides == null) return 0;
+            int n = 0, hq = CastleLevel;
+            for (int s = 0; s < 4 && s < State.wallSides.Length; s++)
+                if (State.wallSides[s] > 0 && WallCells((WallSide)s, hq).Count >= 6) n += 2;
+            return n;
+        }
+
+        /// <summary>Where a side's gate goes: where the painted path meets that side (South on the north-south path,
+        /// East and West on the east-west path), else the middle. Never at either end.</summary>
+        static int GateIndex(WallSide side, List<Vector2Int> cells)
+        {
+            int at = cells.Count / 2;
+            if (cells.Count < 5 || side == WallSide.North) return at;
+            float best = float.MaxValue;
+            for (int i = 2; i < cells.Count - 2; i++)
+            {
+                var c = cells[i];
+                float d = side == WallSide.South ? Mathf.Abs(c.x + 0.5f - WorldBuilder.PathX(c.y + 0.5f))
+                                                 : Mathf.Abs(c.y + 0.5f - WorldBuilder.PathZ(c.x + 0.5f));
+                if (d < best) { best = d; at = i; }
+            }
+            return at;
+        }
+
         public void RebuildWalls(bool clearAround)
         {
             EnsureWallState();
@@ -193,7 +220,7 @@ namespace Emberhold
                 int lv = State.wallSides[s];
                 if (lv <= 0) continue;
                 var cells = WallCells((WallSide)s, hq);
-                int gateAt = cells.Count / 2;
+                int gateAt = GateIndex((WallSide)s, cells);
                 var gunAt = new Dictionary<int, int>();
                 // Peter: every side comes with its own two guns (a quarter of the way in from each end); they level with the side
                 if (cells.Count >= 6) { gunAt[cells.Count / 4] = lv; gunAt[cells.Count - 1 - cells.Count / 4] = lv; }

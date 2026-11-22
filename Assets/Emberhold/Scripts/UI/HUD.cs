@@ -23,6 +23,7 @@ namespace Emberhold
 
         RectTransform buildPanel, buildRow;
         BuildingCategory? openCategory;
+        Button wallsCard;
         readonly List<KeyValuePair<Button, BuildingDef>> cards = new List<KeyValuePair<Button, BuildingDef>>();
 
         Button nightButton;
@@ -244,6 +245,7 @@ namespace Emberhold
             openCategory = category;
             foreach (var kv in cards) Destroy(kv.Key.gameObject);
             cards.Clear();
+            if (wallsCard != null) { Destroy(wallsCard.gameObject); wallsCard = null; }
             costLabels.Clear();
             if (category == BuildingCategory.Defense) WallsCard();
             foreach (var def in BuildingCatalog.InCategory(category))
@@ -313,6 +315,7 @@ namespace Emberhold
         {
             var wallDef = BuildingCatalog.Get("wall");
             var card = UIKit.Button(buildRow, "", 30, () => { buildPanel.gameObject.SetActive(false); openCategory = null; wallPanel.Show(); });
+            wallsCard = card;
             var cimg = card.GetComponent<Image>();
             var cardShape = UIKit.Shape("grey", "button_square_depth_flat");
             if (cardShape != null) cimg.sprite = cardShape;
@@ -325,13 +328,17 @@ namespace Emberhold
             raw.texture = Thumbnails.Get(wallDef);
             raw.raycastTarget = false;
             raw.uvRect = new Rect(0.07f, 0.12f, 0.86f, 0.62f);
-            var name = UIKit.Label(card.transform, "Walls", 26, TextAnchor.LowerCenter, new Color(0.13f, 0.16f, 0.26f));
-            name.rectTransform.offsetMin = new Vector2(4, 48);
+            card.GetComponent<RectTransform>().sizeDelta = new Vector2(230, 0);
             int built = 0;
             for (int i = 0; i < 4; i++) if (gm.WallLevel((GameManager.WallSide)i) > 0) built++;
-            var sub = UIKit.Label(card.transform, built + " / 4 sides", 22, TextAnchor.LowerCenter, new Color(0.2f, 0.24f, 0.36f));
-            sub.rectTransform.offsetMin = new Vector2(4, 12);
-            cards.Add(new KeyValuePair<Button, BuildingDef>(card, wallDef));
+            var name = UIKit.Label(card.transform, "Walls", 26, TextAnchor.LowerCenter, new Color(0.13f, 0.16f, 0.26f));
+            name.rectTransform.offsetMin = new Vector2(4, 48);
+            name.horizontalOverflow = HorizontalWrapMode.Overflow;
+            // "Sides 3/4": one short line under the name, never wrapping into it
+            var sub = UIKit.OutlinedLabel(card.transform, "Sides " + built + "/4", 22, TextAnchor.LowerCenter);
+            sub.rectTransform.offsetMin = new Vector2(4, 12); sub.rectTransform.offsetMax = new Vector2(-4, 0);
+            sub.horizontalOverflow = HorizontalWrapMode.Overflow;
+            // not in the affordability list: the wall is never "full", the card always opens the Walls panel
         }
 
         public void PreviewOpenWalls(int side) { wallPanel.Show(side); }

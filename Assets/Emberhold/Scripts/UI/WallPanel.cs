@@ -27,21 +27,21 @@ namespace Emberhold
         {
             gm = game;
             panel = UIKit.PanelBox("WallPanel", root).rectTransform;
-            UIKit.Anchor(panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 60), new Vector2(900, 980));
+            UIKit.Anchor(panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 60), new Vector2(900, 1040));
             var header = UIKit.Skin("Header", panel, "blue", "button_rectangle_depth_flat").rectTransform;
             header.anchorMin = new Vector2(0, 1); header.anchorMax = new Vector2(1, 1); header.pivot = new Vector2(0.5f, 1);
             header.anchoredPosition = new Vector2(0, -10); header.sizeDelta = new Vector2(-20, 96);
             title = UIKit.OutlinedLabel(panel, "Walls", 42, TextAnchor.UpperCenter);
             title.rectTransform.offsetMax = new Vector2(-90, -30);
             var x = UIKit.IconButton(panel, "icon_close", null, 72, Close, "red");
-            UIKit.Anchor(x.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-18, -18), new Vector2(84, 84));
+            UIKit.Anchor(x.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-58, -58), new Vector2(84, 84));
 
             for (int i = 0; i < 4; i++)
             {
                 int side = i;
                 var row = UIKit.Pill("Row" + i, panel);
                 rowBacks[i] = row;
-                UIKit.Anchor(row.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130 - i * 170), new Vector2(840, 150));
+                UIKit.Anchor(row.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -128 - i * 166), new Vector2(840, 150));
                 names[i] = UIKit.OutlinedLabel(row.transform, GameManager.WallSideNames[i], 36, TextAnchor.UpperLeft);
                 names[i].rectTransform.offsetMin = new Vector2(26, 0); names[i].rectTransform.offsetMax = new Vector2(-330, -16);
                 levels[i] = UIKit.Label(row.transform, "", 30, TextAnchor.MiddleLeft);
@@ -52,9 +52,10 @@ namespace Emberhold
                 UIKit.Anchor(buttons[i].GetComponent<RectTransform>(), new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-18, 0), new Vector2(300, 110));
             }
             allBtn = UIKit.SkinButton(panel, "Upgrade all", 36, () => { gm.UpgradeAllWalls(); Refresh(); }, "yellow");
-            UIKit.Anchor(allBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 60), new Vector2(460, 104));
+            UIKit.Anchor(allBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 46), new Vector2(460, 104));
             allNote = UIKit.Label(panel, "", 28, TextAnchor.MiddleCenter, new Color(0.85f, 0.88f, 0.95f));
-            UIKit.Anchor(allNote.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 170), new Vector2(840, 50));
+            UIKit.Anchor(allNote.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 162), new Vector2(840, 46));
+            allNote.horizontalOverflow = HorizontalWrapMode.Wrap; allNote.resizeTextForBestFit = true; allNote.resizeTextMinSize = 18; allNote.resizeTextMaxSize = 28;
             panel.gameObject.SetActive(false);
         }
 
@@ -129,7 +130,7 @@ namespace Emberhold
             int sides;
             var all = gm.WallUpgradeAllCost(out sides);
             allBtn.gameObject.SetActive(sides > 1);
-            allNote.text = sides > 1 ? sides + " sides:  " + all + (gm.State.CanAfford(all) ? "" : "   (need more)") : "";
+            allNote.text = sides > 1 ? "All " + sides + " sides:  " + Short(all) + (gm.State.CanAfford(all) ? "" : "   (need more)") : "";
             allBtn.interactable = sides > 1;
         }
 

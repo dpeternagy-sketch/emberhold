@@ -130,6 +130,8 @@ namespace Emberhold
                 hero.Order(null);
             }
             View(new Vector3(0f, 0f, 6f), 105f); yield return new WaitForSeconds(0.3f); yield return Shot("16_max_zoom");   // QC: backdrop edges at the widest zoom
+            // QC: Peter's mountain and waterfall behind the HQ (the player pans up to see it)
+            View(gm.Castle.Center + new Vector3(2f, 0f, 9f), 70f); yield return new WaitForSeconds(0.3f); yield return Shot("18_hq_mountain");
             yield return WallYard();
             Debug.Log("[Preview] done: " + frame + " video frames in " + Dir + "/frames");
             Running = false; Finished = true;
@@ -235,6 +237,7 @@ namespace Emberhold
         void Place(string id, Vector3 at)
         {
             var def = BuildingCatalog.Get(id);
+            if (!gm.CanOwnMore(def, false)) return;   // the stills never show a count above the HQ cap
             int x0 = Mathf.FloorToInt(at.x), z0 = Mathf.FloorToInt(at.z);
             for (int r = 0; r < 10; r++)
                 for (int dx = -r; dx <= r; dx++)

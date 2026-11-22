@@ -45,7 +45,11 @@ namespace Emberhold
             mr.receiveShadows = false;
             mf.sharedMesh = QuadMesh();
             var rc = go.AddComponent<RangeCircle>();
-            rc.mat = DamageEffects.ParticleMaterial(false, RingTexture());
+            rc.mat = new Material(DamageEffects.ParticleMaterial(false, RingTexture()));
+            // QC: drawn before the building sprites and the water, so plates and the river sit on top of the ring
+            // (it used to tint plates and wash the river grey inside the circle)
+            if (rc.mat.HasProperty("_ZWrite")) rc.mat.SetFloat("_ZWrite", 0f);
+            rc.mat.renderQueue = 2010;
             mr.sharedMaterial = rc.mat;
             return rc;
         }

@@ -112,17 +112,7 @@ namespace Emberhold
             if (pic != null)
             {
                 sprite = pic;
-                // QC: no team discs under soldiers (they read as splotches on the camp pad); only the Commander
-                // keeps a gold ring, drawn under building plates so a plate always covers it cleanly
-                if (trim.a > 0f)
-                {
-                    var tr = Util.Prim(PrimitiveType.Cylinder, transform, new Vector3(0, 0.02f, 0), new Vector3(height * 0.6f, 0.01f, height * 0.6f), trim);
-                    var col = tr.GetComponent<Collider>(); if (col != null) Destroy(col);
-                    var rr = tr.GetComponent<Renderer>();
-                    rr.sharedMaterial = UnderPlates(trim);
-                    rr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                    rr.receiveShadows = false;
-                }
+                // QC: no discs under any unit, the Commander included (a solid gold half-disc showed through the plates)
                 hpBar = Util.Prim(PrimitiveType.Cube, transform, new Vector3(0, height * 1.0f + 0.15f, 0), new Vector3(0.45f, 0.05f, 0.05f), new Color(0.3f, 0.85f, 0.35f)).transform;
                 renderers = GetComponentsInChildren<Renderer>();
                 bobPhase = Random.value * 6f;

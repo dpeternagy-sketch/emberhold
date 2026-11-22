@@ -23,6 +23,10 @@ namespace Emberhold
 
         static float Noise(float x, float z, float f) { return Mathf.PerlinNoise(seedX + x * f, seedZ + z * f); }
 
+        /// <summary>The painted north-south path's centre x at a given z, and the east-west path's centre z at a given x
+        /// (the wall's gates sit where these paths meet the wall).</summary>
+        public static float PathX(float z) { return (Noise(0, z, 0.08f) - 0.5f) * 3f; }
+        public static float PathZ(float x) { return 4f + (Noise(x, 0, 0.07f) - 0.5f) * 3f; }
         static float Smooth(float a, float b, float v) { return Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(a, b, v)); }
 
         /// <summary>Ground height at a world position. The city area is perfectly flat (y = 0).</summary>
@@ -241,8 +245,8 @@ namespace Emberhold
                     c = Color.Lerp(c, forestFloor, forest * 0.8f);
                     float cBright = Noise(wx, z, 0.09f) * 0.6f + (1f - Noise(wx + 99, z, 0.035f)) * 0.4f - forest * 0.45f;
                     // worn paths: from the castle gate to the beach, and east-west
-                    float p1 = Mathf.Abs(wx - (Noise(0, z, 0.08f) - 0.5f) * 3f);
-                    float p2 = Mathf.Abs(z - 4f - (Noise(wx, 0, 0.07f) - 0.5f) * 3f);
+                    float p1 = Mathf.Abs(wx - PathX(z));
+                    float p2 = Mathf.Abs(z - PathZ(wx));
                     float pathMask = 0f;
                     if (z < GameManager.CastleCenter.z - 2f && z > GridMap.SeaZ) pathMask = Mathf.Max(pathMask, 1f - Smooth(0.6f, 1.4f, p1));
                     if (Mathf.Abs(wx) < GridMap.ForestX) pathMask = Mathf.Max(pathMask, 1f - Smooth(0.5f, 1.2f, p2));
