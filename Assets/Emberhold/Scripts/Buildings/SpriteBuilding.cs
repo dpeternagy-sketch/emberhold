@@ -59,10 +59,14 @@ namespace Emberhold
             return 0;
         }
 
-        public static bool Has(string id) { return LowestTier(id) > 0; }
+        public static bool Has(string id) { return id == "wall" ? Load("wallpost_t1") != null : LowestTier(id) > 0; }
 
         /// <summary>Build-menu picture: the lowest-tier image itself.</summary>
-        public static Texture2D Thumbnail(string id) { int t = LowestTier(id); return t > 0 ? Load(id + "_t" + t).tex : null; }
+        public static Texture2D Thumbnail(string id)
+        {
+            if (id == "wall") { var w = Load("wallseg_t1") ?? Load("wallpost_t1"); return w != null ? w.tex : null; }
+            int t = LowestTier(id); return t > 0 ? Load(id + "_t" + t).tex : null;
+        }
 
         /// <summary>
         /// The three images (files _t1, _t3, _t5) are spread over the building's level range:
@@ -84,6 +88,18 @@ namespace Emberhold
             root.transform.SetParent(parent, false);
             var sb = root.AddComponent<SpriteBuilding>();
             sb.def = def;
+            sb.quad = NewQuad(parent, out sb.mat);
+            if (def.id == "wall")
+            {
+                sb.wall = true;
+                sb.segX = NewQuad(parent, out sb.matX);
+                sb.segZ = NewQuad(parent, out sb.matZ);
+            }
+            return root;
+        }
+
+        static Transform NewQuad(Transform parent, out Material m)
+        {
             if (shader == null) shader = Resources.Load<Shader>("Shaders/IsoSprite");
             var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
             q.name = QuadName;
@@ -92,10 +108,33 @@ namespace Emberhold
             var r = q.GetComponent<MeshRenderer>();
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             r.receiveShadows = false;
-            sb.mat = new Material(shader);
-            r.sharedMaterial = sb.mat;
-            sb.quad = q.transform;
-            return root;
+            m = new Material(shader);
+            r.sharedMaterial = m;
+            return q.transform;
+        }
+
+        /// <summary>
+        /// Puts an image on a camera-facing quad so that its plate centre (art.cx, art.cy) lands on ground,
+        /// with the plate's pixel width (art.plate) covering diamond world units across the screen.
+        /// </summary>
+        static void Place(Transform q, Material m, Art a, Vector3 ground, float diamond, bool flip, Vector3 shake)
+        {
+            var rot = Camera.main.transform.rotation;
+            float w = diamond * a.tex.width / a.plate;
+            float ox = (a.cx / a.tex.width - 0.5f) * w * (flip ? -1f : 1f);
+            float oy = (0.5f - a.cy / a.tex.height) * w;
+            q.rotation = rot;
+            q.localScale = new Vector3(flip ? -w : w, w, 1f);
+            q.position = ground - (rot * Vector3.right) * ox - (rot * Vector3.up) * oy + shake;
+            var fwd = rot * Vector3.forward;
+            m.SetVector("_Center", ground);
+            m.SetVector("_Normal", -new Vector3(fwd.x, 0f, fwd.z).normalized);
+        }
+
+        static void Show(Material m, Art a)
+        {
+            m.SetTexture("_MainTex", a.tex);
+            m.SetTexture("_EmisTex", a.emis != null ? a.emis : Texture2D.blackTexture);
         }
 
         /// <summary>Ghost colouring (placement) and charred ruins: Building.SetTint routes here.</summary>
@@ -124,11 +163,94 @@ namespace Emberhold
         {
             if (quad != null) Destroy(quad.gameObject);
             if (mat != null) Destroy(mat);
+            if (segX != null) Destroy(segX.gameObject);
+            if (segZ != null) Destroy(segZ.gameObject);
+            if (matX != null) Destroy(matX);
+            if (matZ != null) Destroy(matZ);
+        }
+
+        // ---------- walls ----------
+        // A wall cell shows a straight segment (cap to cap, one cell long) to each neighbour wall or gate on +x / +z,
+        // and towards a gate on -x / -z (gates don't draw segments). Corners, ends and junctions also get a post.
+        // The segment image runs along +x (lower-left to upper-right on screen); +z segments are its mirror.
+        // Walls have no upgrades of their own: their look follows the HQ level (HQ 1-2, 3-4, 5+).
+        const float PostDiamond = 0.36f;           // post footprint width across the screen, world units
+        const float SegDiamond = 0.70710678f;      // one cell along an axis, seen from 45 degrees
+        bool wall;
+        Transform segX, segZ;
+        Material matX, matZ;
+
+        static int WallTier()
+        {
+            var gm = GameManager.Instance;
+            int hq = gm != null ? gm.CastleLevel : 1;
+            int t = Tiers[Mathf.Clamp((hq - 1) / 2, 0, 2)];
+            while (t > 1 && Load("wallseg_t" + t) == null) t -= 2;
+            return t;
+        }
+
+        static int WallAt(Vector2Int c)
+        {
+            var gm = GameManager.Instance;
+            var o = gm != null && gm.Grid != null ? gm.Grid.At(c) as Building : null;
+            if (o == null || o.IsGhost) return 0;
+            return o.Def.id == "wall" ? 1 : o.Def.id == "gate" ? 2 : 0;
+        }
+
+        void WallUpdate()
+        {
+            if (building == null) building = GetComponentInParent<Building>();
+            if (building == null || building.Data == null) return;
+            int t = WallTier();
+            var c = new Vector2Int(building.Data.x, building.Data.z);
+            int l = WallAt(c + Vector2Int.left), r = WallAt(c + Vector2Int.right);
+            int d = WallAt(c + Vector2Int.down), u = WallAt(c + Vector2Int.up);
+            bool straight = (l > 0 && r > 0 && u == 0 && d == 0) || (u > 0 && d > 0 && l == 0 && r == 0);
+            var ground = transform.parent.position;
+            var shake = transform.localPosition;
+            var seg = Load("wallseg_t" + t);
+            var post = Load("wallpost_t" + t);
+
+            // +x segment (or -x into a gate)
+            Vector3? xc = r > 0 ? ground + new Vector3(0.5f, 0, 0) : l == 2 ? ground - new Vector3(0.5f, 0, 0) : (Vector3?)null;
+            Vector3? zc = u > 0 ? ground + new Vector3(0, 0, 0.5f) : d == 2 ? ground - new Vector3(0, 0, 0.5f) : (Vector3?)null;
+            SetSeg(segX, matX, seg, xc, false, shake);
+            SetSeg(segZ, matZ, seg, zc, true, shake);
+
+            bool showPost = post != null && !straight;
+            quad.gameObject.SetActive(showPost);
+            if (showPost)
+            {
+                string key = "wallpost_t" + t;
+                if (key != shownKey) { shownKey = key; Show(mat, post); }
+                Place(quad, mat, post, ground, PostDiamond, false, shake);
+                Finish(mat);
+            }
+        }
+
+        void SetSeg(Transform q, Material m, Art a, Vector3? centre, bool flip, Vector3 shake)
+        {
+            bool on = a != null && centre.HasValue;
+            q.gameObject.SetActive(on);
+            if (!on) return;
+            if (m.GetTexture("_MainTex") != a.tex) Show(m, a);
+            Place(q, m, a, centre.Value, SegDiamond, flip, shake);
+            Finish(m);
+        }
+
+        void Finish(Material m)
+        {
+            bool building_ = building.UnderConstruction && !building.IsGhost;
+            float reveal = building_ ? Mathf.Clamp01(transform.localScale.y) : 1f;
+            m.SetFloat("_Cut", Mathf.Lerp(0.18f, 1f, reveal));
+            m.SetFloat("_Shade", 1f);
+            m.SetColor("_Overlay", overlay);
         }
 
         void LateUpdate()
         {
-            if (quad == null) return;
+            if (quad == null || Camera.main == null) return;
+            if (wall) { WallUpdate(); return; }
             if (building == null) building = GetComponentInParent<Building>();
             int level = building != null && building.Data != null ? building.Data.level : 1;
             string key = def.id + "_t" + TierFor(def, level);

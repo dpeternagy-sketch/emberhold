@@ -21,6 +21,7 @@ namespace Emberhold
         /// <summary>Corner / T-junction post for walls (joins the two directions).</summary>
         public void SetWallJoint(bool on, bool unused)
         {
+            if (sprite != null) return;   // image walls draw their own posts
             var j = transform.Find("Joint");
             if (on && j == null)
             {
