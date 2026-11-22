@@ -9,8 +9,8 @@ Shader "Emberhold/GroundSplat"
         _Painted ("Painted colour map", 2D) = "white" {}
         _Control ("Control map", 2D) = "black" {}
         _Grass ("Grass", 2D) = "white" {}
-        _GroundSat ("Ground saturation", Float) = 0.72
-        _GroundBright ("Ground brightness", Float) = 0.9
+        _GroundSat ("Ground saturation", Float) = 1.05
+        _GroundBright ("Ground brightness", Float) = 1.0
         _Dirt ("Dirt", 2D) = "white" {}
         _Stone ("Stone", 2D) = "white" {}
         _Tile ("World units per texture tile", Float) = 6
@@ -95,7 +95,8 @@ Shader "Emberhold/GroundSplat"
                 // painted look like the (unlit) building pictures: flat sunlit ground shows the texture's own
                 // colour, slopes and shadows only darken it (no blown-out yellow-green from sun + sky adding up)
                 half sun = ndl * light.shadowAttenuation;
-                half3 lit = albedo * lerp(half3(0.58, 0.62, 0.72), half3(1, 1, 1), sun / max(n.y * 0.86, 0.5));
+                // full sun = the texture colour (x1.0); only real shadows and steep slopes darken, never below 0.75
+                half3 lit = albedo * lerp(half3(0.75, 0.78, 0.86), half3(1, 1, 1), saturate(sun / max(n.y * 0.86, 0.5)));
                 lit = min(lit, albedo * 1.05);
                 lit = MixFog(lit, i.fog);
                 return half4(lit, 1);

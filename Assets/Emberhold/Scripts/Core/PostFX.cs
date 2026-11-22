@@ -13,11 +13,13 @@ namespace Emberhold
     {
         static ColorAdjustments grade;
         static WhiteBalance balance;
+        // Peter: "colours that pop". Saturation leaves whites untouched (no chroma); contrast kept small so whites don't clip
+        const float DaySaturation = 18f, DayContrast = 6f;
 
         /// <summary>0 = day grade, 1 = night grade (less saturated, cooler), driven by the day/night cycle.</summary>
         public static void SetNight(float dark)
         {
-            if (grade != null) grade.saturation.Override(Mathf.Lerp(0f, -25f, dark));
+            if (grade != null) grade.saturation.Override(Mathf.Lerp(DaySaturation, -25f, dark));
             if (balance != null) balance.temperature.Override(Mathf.Lerp(0f, -20f, dark));
         }
 
@@ -38,14 +40,14 @@ namespace Emberhold
             var p = ScriptableObject.CreateInstance<VolumeProfile>();
 
             var tm = p.Add<Tonemapping>(true);
-            // Peter's painted colours go to the screen untouched: no tonemapping curve, no extra
-            // exposure, contrast or saturation (those washed the white buildings out and made the grass neon)
+            // no tonemapping curve; a small saturation lift and a little contrast (Peter wants colours that pop),
+            // no extra exposure (that washed the white buildings out)
             tm.mode.Override(TonemappingMode.None);
 
             var ca = p.Add<ColorAdjustments>(true);
             ca.postExposure.Override(0f);
-            ca.contrast.Override(0f);
-            ca.saturation.Override(0f);
+            ca.contrast.Override(DayContrast);
+            ca.saturation.Override(DaySaturation);
             grade = ca;
             var wb = p.Add<WhiteBalance>(true);
             wb.temperature.Override(0f);
@@ -57,7 +59,7 @@ namespace Emberhold
             bl.scatter.Override(0.6f);
 
             var vg = p.Add<Vignette>(true);
-            vg.intensity.Override(0.12f);
+            vg.intensity.Override(0.05f);
             vg.smoothness.Override(0.4f);
 
             v.sharedProfile = p;

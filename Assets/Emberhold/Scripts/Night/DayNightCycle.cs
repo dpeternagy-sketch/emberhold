@@ -34,7 +34,7 @@ namespace Emberhold
         Color nightSky = Hex("#2A3A66"), nightEquator = Hex("#1F2A44"), nightGround = Hex("#141A26");
         Color dayAmbient = new Color(0.55f, 0.58f, 0.62f);
         Color nightAmbient = new Color(0.2f, 0.23f, 0.36f);
-        Color dayFog = Hex("#BFE2F5");
+        Color dayFog = Hex("#A9D8F2");
         Color nightFog = new Color(0.08f, 0.1f, 0.18f);
         Camera cam;
 

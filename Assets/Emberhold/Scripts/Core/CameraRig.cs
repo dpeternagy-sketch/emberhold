@@ -51,8 +51,8 @@ namespace Emberhold
             Cam.transform.rotation = rot;
             Cam.transform.position = focus - rot * Vector3.forward * distance;
             // haze starts just behind the town, so the far map edge melts into the sky at any zoom
-            RenderSettings.fogStartDistance = distance + 12f;
-            RenderSettings.fogEndDistance = distance + 110f;
+            RenderSettings.fogStartDistance = distance + 70f;   // horizon haze only (QC: +12 washed out the upper frame)
+            RenderSettings.fogEndDistance = distance + 220f;
         }
 
         /// <summary>Where a screen point hits the ground (y = 0).</summary>
