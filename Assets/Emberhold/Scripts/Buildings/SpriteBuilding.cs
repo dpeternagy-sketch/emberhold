@@ -426,7 +426,7 @@ namespace Emberhold
             q.gameObject.SetActive(on);
             if (!on) return;
             if (m.GetTexture("_MainTex") != a.tex) Show(m, a);
-            Place(q, m, a, centre.Value, SegDiamond * 1.04f, flip, shake);   // QC: a hair of overlap so neighbouring segments never show a seam
+            Place(q, m, a, centre.Value, SegDiamond * 1.1f, flip, shake);   // QC: a hair of overlap so neighbouring segments never show a seam
             Finish(m);
         }
 
