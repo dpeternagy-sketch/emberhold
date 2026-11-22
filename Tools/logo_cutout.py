@@ -1,7 +1,8 @@
 import numpy as np
 from PIL import Image
 from scipy import ndimage
-src='/mnt/user-data/uploads/Desktop/game/New/last/Mega Fort Chrome Logo-1.png'
+import os,sys
+src=os.path.expanduser('~/Desktop/game/New/last/Mega Fort Chrome Logo-1.png')
 im=np.asarray(Image.open(src).convert('RGB')).astype(np.float32)
 h,w,_=im.shape
 v=im.max(-1)
@@ -33,9 +34,5 @@ rgb=np.where(a[...,None]>0.02,rgb,0)
 out=np.dstack([rgb,a*255]).astype(np.uint8)
 ys,xs=np.nonzero(a>0.01)
 img=Image.fromarray(out).crop((max(0,xs.min()-4),max(0,ys.min()-4),min(w,xs.max()+5),min(h,ys.max()+5)))
-s=1024/img.width; img=img.resize((1024,int(img.height*s)),Image.LANCZOS); img.save('logo_new.png')
+s=1024/img.width; img=img.resize((1024,int(img.height*s)),Image.LANCZOS); img.save(sys.argv[1] if len(sys.argv)>1 else 'logo_new.png')
 A=np.asarray(img)[...,3]; print(img.size,'edge max alpha top/bottom/left/right',A[0].max(),A[-1].max(),A[:,0].max(),A[:,-1].max())
-t=Image.open('/home/user/emberhold-git/Assets/Emberhold/Resources/UI/Backgrounds/title.png').convert('RGBA')
-t=t.resize((1080,int(t.height*1080/t.width)))
-lg=img.resize((900,int(img.height*900/1024)))
-t.alpha_composite(lg,(90,150)); t.convert('RGB').crop((0,0,1080,1100)).save('logo_title_chk.jpg')
