@@ -1,8 +1,18 @@
 import sys, json, numpy as np
 from PIL import Image
 from scipy import ndimage
+def _load_rgb(path):
+    # transparent PNGs: flatten onto flat white so the usual backdrop logic applies
+    img = Image.open(path)
+    if img.mode in ('RGBA', 'LA', 'P'):
+        img = img.convert('RGBA')
+        if (np.asarray(img)[..., 3] < 10).mean() > 0.05:
+            flat = Image.new('RGBA', img.size, (255, 255, 255, 255))
+            flat.alpha_composite(img)
+            img = flat
+    return img.convert('RGB')
 src, out, emis = sys.argv[1], sys.argv[2], sys.argv[3]
-im = np.asarray(Image.open(src).convert('RGB')).astype(np.float32)
+im = np.asarray(_load_rgb(src)).astype(np.float32)
 h, w, _ = im.shape
 # background colour = median of the border
 border = np.concatenate([im[0], im[-1], im[:,0], im[:,-1]])
