@@ -64,11 +64,17 @@ namespace Emberhold
         /// <summary>Build-menu picture: the lowest-tier image itself.</summary>
         public static Texture2D Thumbnail(string id) { int t = LowestTier(id); return t > 0 ? Load(id + "_t" + t).tex : null; }
 
-        /// <summary>Highest tier at or below the level; until the L1 art exists, the lowest tier we have.</summary>
-        static int TierFor(string id, int level)
+        /// <summary>
+        /// The three images (files _t1, _t3, _t5) are spread over the building's level range:
+        /// max 3 -> L1, L2, L3; max 5 -> L1-2, L3-4, L5. Falls back to the nearest lower image we have,
+        /// or the lowest one until the L1 art exists.
+        /// </summary>
+        static int TierFor(BuildingDef def, int level)
         {
-            int best = LowestTier(id);
-            foreach (var t in Tiers) if (t <= level && Load(id + "_t" + t) != null) best = t;
+            int idx = def.maxLevel <= 1 ? 0 : Mathf.Clamp(2 * (level - 1) / (def.maxLevel - 1), 0, 2);
+            int want = Tiers[idx];
+            int best = LowestTier(def.id);
+            foreach (var t in Tiers) if (t <= want && Load(def.id + "_t" + t) != null) best = t;
             return best;
         }
 
@@ -116,7 +122,7 @@ namespace Emberhold
             if (quad == null) return;
             if (building == null) building = GetComponentInParent<Building>();
             int level = building != null && building.Data != null ? building.Data.level : 1;
-            int tier = TierFor(def.id, level);
+            int tier = TierFor(def, level);
             if (tier != shownTier)
             {
                 shownTier = tier;
