@@ -234,7 +234,7 @@ namespace Emberhold
         }
 
         // ---------- walls ----------
-        // A wall cell shows a straight segment (cap to cap, one cell long) to each neighbour wall or gate on +x / +z,
+        // A wall cell shows a seamless straight segment (one cell long, no end caps: Tools/wall_strip.py) to each neighbour wall or gate on +x / +z,
         // and towards a gate on -x / -z (gates don't draw segments). Corners, ends and junctions also get a post.
         // The segment image runs along +x (lower-left to upper-right on screen); +z segments are its mirror.
         // Walls have no upgrades of their own: their look follows the HQ level (HQ 1-2, 3-4, 5+).
@@ -297,7 +297,9 @@ namespace Emberhold
                 if (building.Ruined) { mat.SetFloat("_Shade", 0.42f); mat.SetColor("_Overlay", new Color(0.2f, 0.17f, 0.15f, 0.35f)); }
                 return;
             }
-            bool showPost = post != null && !straight;
+            // posts only at ends, corners and junctions, plus either side of a gate (a clean frame for the gate picture)
+            bool nextToGate = l == 2 || r == 2 || u == 2 || d == 2;
+            bool showPost = post != null && (!straight || nextToGate);
             quad.gameObject.SetActive(showPost);
             if (showPost)
             {
