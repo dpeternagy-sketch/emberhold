@@ -67,3 +67,30 @@ if __name__ == '__main__':
     Image.fromarray(o).save(sys.argv[2])
     _, l2, r2 = edges(o)
     print(sys.argv[1], 'before %.1f/%.1f' % before, 'after %.1f/%.1f' % (math.degrees(math.atan(l2)), math.degrees(math.atan(r2))))
+
+def full_fix(a, cx, cy, plate):
+    """For pictures drawn from a turned view (one face too wide): re-width each half around the front
+    corner so both faces show at 45 degrees, then shear the rest. Returns a square image (padded so
+    nothing is cut) and the new cx, cy, plate."""
+    xB, tl, tr = edges(a)
+    sp = math.sqrt(max(tl * tr, 1e-6))                 # sin(pitch) of the picture's camera
+    phiL = math.atan(tl / sp); phiR = math.atan(tr / sp)
+    sL = math.cos(math.radians(45)) / math.cos(phiL)    # left half width factor
+    sR = math.cos(math.radians(45)) / math.cos(phiR)
+    h, w = a.shape[:2]
+    left = Image.fromarray(a[:, :xB]); right = Image.fromarray(a[:, xB:])
+    lw = max(1, int(round(left.width * sL))); rw = max(1, int(round(right.width * sR)))
+    left = np.asarray(left.resize((lw, h), Image.LANCZOS)); right = np.asarray(right.resize((rw, h), Image.LANCZOS))
+    W = max(w, lw + rw) + 40
+    W += W % 2
+    pady = int(h * 0.12)
+    H = h + 2 * pady
+    S = max(W, H)
+    canvas = np.zeros((S, S, 4), a.dtype)
+    ox = (S - (lw + rw)) // 2; oy = (S - h) // 2
+    canvas[oy:oy + h, ox:ox + lw] = left; canvas[oy:oy + h, ox + lw:ox + lw + rw] = right
+    ncx = ox + (lw - (xB - cx) * sL if cx < xB else lw + (cx - xB) * sR)
+    sh, _ = shifts(canvas)
+    out = apply(canvas, sh)
+    ncy = oy + cy + sh[int(round(ncx))]
+    return out, ncx, ncy, plate * (sL + sR) / 2, (math.degrees(phiL), math.degrees(phiR), sL, sR)
