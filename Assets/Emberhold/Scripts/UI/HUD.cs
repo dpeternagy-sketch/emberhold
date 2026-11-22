@@ -242,7 +242,7 @@ namespace Emberhold
                 bool locked = gm.CastleLevel < d.unlockLevel;
                 var card = UIKit.Button(buildRow, "", 30, () =>
                 {
-                    if (gm.CastleLevel < d.unlockLevel) { gm.Toast(d.displayName + " unlocks at HQ level " + d.unlockLevel); AudioManager.Play("ui", 0.5f); return; }
+                    if (!gm.CanOwnMore(d, true)) { AudioManager.Play("ui", 0.5f); return; }
                     input.BeginPlacing(d);
                 });
                 var cimg = card.GetComponent<Image>();
@@ -279,7 +279,18 @@ namespace Emberhold
                     var lockIcon = UIKit.OutlinedLabel(card.transform, "LOCKED", 26, TextAnchor.UpperCenter);
                     lockIcon.rectTransform.offsetMax = new Vector2(0, -60);
                 }
-                else CostRow(card.transform, d.cost);
+                else
+                {
+                    CostRow(card.transform, d.cost);
+                    // how many you have / may have at this HQ level
+                    int cap = d.CapAt(gm.CastleLevel);
+                    if (cap < int.MaxValue)
+                    {
+                        var cnt = UIKit.OutlinedLabel(card.transform, gm.CountOf(d) + "/" + cap, 24, TextAnchor.UpperRight);
+                        cnt.rectTransform.offsetMin = new Vector2(0, 0); cnt.rectTransform.offsetMax = new Vector2(-14, -8);
+                        if (gm.CountOf(d) >= cap) cnt.color = new Color(1f, 0.55f, 0.45f);
+                    }
+                }
                 cards.Add(new KeyValuePair<Button, BuildingDef>(card, d));
             }
             buildPanel.gameObject.SetActive(true);
@@ -400,7 +411,7 @@ namespace Emberhold
             RefreshCostColors();
             foreach (var kv in cards)
             {
-                bool ok = s.CanAfford(kv.Value.cost) && gm.CastleLevel >= kv.Value.unlockLevel;
+                bool ok = s.CanAfford(kv.Value.cost) && gm.CastleLevel >= kv.Value.unlockLevel && gm.CountOf(kv.Value) < kv.Value.CapAt(gm.CastleLevel);
                 var cg = kv.Key.GetComponent<CanvasGroup>();
                 if (cg == null) cg = kv.Key.gameObject.AddComponent<CanvasGroup>();
                 cg.alpha = ok ? 1f : 0.6f;
@@ -830,7 +841,7 @@ namespace Emberhold
                 {
                     if (d.workers > 0 && b.AssignedWorkers < d.workers) status = "workers";
                     else if (b.Starved) status = "energy";
-                    else if (arrows.Contains(b)) status = "upgrade";
+                    // Peter: no upgrade arrows on the map; the Upgrade button shows when you tap the building
                 }
                 if (!levelled && status == null) continue;
                 seen.Add(b);
@@ -883,14 +894,15 @@ namespace Emberhold
             mb.root = UIKit.Rect("Badge", overlayRoot);
             mb.root.anchorMin = mb.root.anchorMax = Vector2.zero; mb.root.sizeDelta = Vector2.zero;
 
-            var lvlBtn = UIKit.IconButton(overlayRoot, "k_info", null, 50, () => { input.Select(b); ShowInfo(b); }, "blue");
+            var lvlBtn = UIKit.IconButton(overlayRoot, "k_info", null, 36, () => { input.Select(b); ShowInfo(b); }, "blue");
             mb.level = lvlBtn.GetComponent<RectTransform>();
             mb.level.SetParent(mb.root, false);
             foreach (var raw in mb.level.GetComponentsInChildren<RawImage>()) raw.enabled = false;   // number instead of the icon
-            mb.levelText = UIKit.OutlinedLabel(mb.level, "1", 28, TextAnchor.MiddleCenter);
+            mb.levelText = UIKit.OutlinedLabel(mb.level, "1", 22, TextAnchor.MiddleCenter);
+            mb.level.gameObject.AddComponent<CanvasGroup>().alpha = 0.7f;   // small and see-through so the city stays readable
             mb.levelText.rectTransform.offsetMin = mb.levelText.rectTransform.offsetMax = Vector2.zero;
 
-            var stBtn = UIKit.IconButton(overlayRoot, "k_up", null, 64, () =>
+            var stBtn = UIKit.IconButton(overlayRoot, "k_up", null, 46, () =>
             {
                 input.Select(b);
                 if (mb.statusKind == "upgrade") ShowUpgrade(b); else ShowInfo(b);
@@ -900,6 +912,7 @@ namespace Emberhold
             mb.statusIcon = mb.status.GetComponentInChildren<RawImage>();
             mb.statusBg = stBtn.GetComponent<Image>();
             mb.statusKind = "upgrade";
+            mb.status.gameObject.AddComponent<CanvasGroup>().alpha = 0.8f;
             return mb;
         }
 

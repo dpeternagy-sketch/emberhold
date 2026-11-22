@@ -14,6 +14,8 @@ namespace Emberhold
         RectTransform trainPopup, rows, heroPill, xpFill;
         Text trainTitle, trainStatus, heroText;
         Button strikeBtn; Text strikeCaption;
+        Button troopsBtn, homeBtn, doneBtn, repairAllBtn;
+        float repairAllArmedUntil;
         Building trainFor;
         readonly List<KeyValuePair<Button, UnitDef>> unitButtons = new List<KeyValuePair<Button, UnitDef>>();
         readonly List<Text> unitNotes = new List<Text>();
@@ -63,6 +65,23 @@ namespace Emberhold
             strikeBtn = UIKit.IconButton(root, "weapons", "Strike", 150, () => { if (!gm.Troops.Strike()) gm.Toast("Strike not ready"); }, "red");
             UIKit.Anchor(strikeBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 360), new Vector2(150, 190));
             strikeCaption = strikeBtn.GetComponentInChildren<Text>();
+
+            // ---- Troop orders (bottom left): select all, call home, done. Tap units / ground for the rest ----
+            troopsBtn = UIKit.IconButton(root, "people", "Troops", 120, () => input.SelectAllUnits(), "blue");
+            UIKit.Anchor(troopsBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 210), new Vector2(120, 140));
+            homeBtn = UIKit.IconButton(root, "k_rotate", "Home", 120, () => input.RecallUnits(), "green");
+            UIKit.Anchor(homeBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(164, 210), new Vector2(120, 140));
+            doneBtn = UIKit.IconButton(root, "k_cross", "Done", 120, () => input.ClearUnits(), "red");
+
+            // ---- Repair all (same corner as Strike, which only shows during an attack) ----
+            repairAllBtn = UIKit.IconButton(root, "k_wrench", "Repair all", 150, () =>
+            {
+                if (Time.unscaledTime < repairAllArmedUntil) { repairAllArmedUntil = 0f; gm.RepairAll(); return; }
+                repairAllArmedUntil = Time.unscaledTime + 3f;
+                gm.Toast("Repair everything for " + gm.RepairAllCost() + ". Tap again");
+            }, "yellow");
+            UIKit.Anchor(repairAllBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 360), new Vector2(150, 190));
+            UIKit.Anchor(doneBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(294, 210), new Vector2(120, 140));
         }
 
         public void ShowTrain(Building b)
@@ -134,6 +153,12 @@ namespace Emberhold
 
             // only while it can be used: Commander up, attackers on the map, cooldown over
             strikeBtn.gameObject.SetActive(hasHero && gm.Troops.StrikeReady);
+            input.SelectedUnits.RemoveAll(u => u == null);
+            bool anyUnits = Unit.All.Count > 0, picked = input.SelectedUnits.Count > 0;
+            troopsBtn.gameObject.SetActive(anyUnits && input.Ghost == null);
+            homeBtn.gameObject.SetActive(picked);
+            repairAllBtn.gameObject.SetActive(Enemy.All.Count == 0 && Time.frameCount % 15 == 0 ? gm.BrokenBuildings().Count > 0 : repairAllBtn.gameObject.activeSelf && Enemy.All.Count == 0);
+            doneBtn.gameObject.SetActive(picked);
             strikeCaption.text = "Strike";
         }
 

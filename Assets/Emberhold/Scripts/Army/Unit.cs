@@ -18,6 +18,26 @@ namespace Emberhold
         public float range, speed, interval;
         public bool flies, hitsAir;
         public Vector3 home;
+        /// <summary>Where the player sent this unit (null = stay home). It guards that spot until called back.</summary>
+        public Vector3? order;
+        Vector3 Post { get { return order ?? home; } }
+        GameObject ring;
+
+        /// <summary>Blue ring under the unit while the player has it selected.</summary>
+        public void SetSelected(bool on)
+        {
+            if (on && ring == null)
+            {
+                ring = Util.Prim(PrimitiveType.Cylinder, transform, new Vector3(0, 0.03f, 0), new Vector3(0.9f, 0.01f, 0.9f), new Color(0.18f, 0.49f, 0.96f));
+                var c = ring.GetComponent<Collider>(); if (c != null) Destroy(c);
+                ring.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(new Color(0.18f, 0.49f, 0.96f), 1.4f);
+            }
+            if (ring != null) ring.SetActive(on);
+        }
+
+        /// <summary>Send to a spot (null = back home). The unit fights anything near that spot and stays there.</summary>
+        public void Order(Vector3? spot) { order = spot; wanderAt = 0f; }
+        float altitude = 0.25f;
         public bool KnockedOut { get; private set; }
 
         const float GuardRadius = 14f, Leash = 24f, ReviveSeconds = 60f;
@@ -166,17 +186,25 @@ namespace Emberhold
                 // calm: heal up and stroll around home
                 calmFor += Time.deltaTime;
                 if (calmFor > 4f && hp < maxHp) hp = Mathf.Min(maxHp, hp + Mathf.CeilToInt(maxHp * 0.08f * Time.deltaTime * 4f));
-                if (Time.time > wanderAt) { wanderAt = Time.time + Random.Range(3f, 7f); wanderGoal = home + Random.insideUnitSphere.Flat() * (isHero ? 0.8f : 0.25f); }
+                // drones don't roam: they fly straight back to their pad and land (Peter)
+                if (flies) wanderGoal = Post;
+                else if (Time.time > wanderAt) { wanderAt = Time.time + Random.Range(3f, 7f); wanderGoal = Post + Random.insideUnitSphere.Flat() * (isHero ? 0.8f : 0.25f); }
                 var to = wanderGoal - transform.position; to.y = 0f;
-                if (to.magnitude > 0.3f) { Face(to); Move(to.normalized, 0.5f); }
+                if (to.magnitude > 0.3f) { Face(to); Move(to.normalized, to.magnitude > 2f ? 1.25f : 0.5f); }
                 else Play("Idle");
             }
 
             if (flies)
             {
+                // take off only to fight; parked on the pad otherwise
+                var flat = transform.position - Post; flat.y = 0f;
+                bool parked = target == null && flat.magnitude < 0.35f;
+                altitude = Mathf.MoveTowards(altitude, parked ? 0.25f : 1.6f, Time.deltaTime * (parked ? 0.8f : 1.6f));
                 var p = transform.position;
-                p.y = WorldBuilder.HeightAt(p) + 1.6f + Mathf.Sin(Time.time * 2f + bobPhase) * 0.12f;
+                float bob = parked ? 0f : Mathf.Sin(Time.time * 2f + bobPhase) * 0.12f * Mathf.InverseLerp(0.25f, 1.6f, altitude);
+                p.y = WorldBuilder.HeightAt(p) + altitude + bob;
                 transform.position = p;
+                if (parked && anim == null) body.localPosition = Vector3.zero;
             }
         }
 
@@ -188,7 +216,7 @@ namespace Emberhold
             {
                 if (e == null || !e.Visible) continue;
                 if (e.Flying && !hitsAir) continue;
-                float fromHome = Vector3.Distance(e.transform.position, home);
+                float fromHome = Vector3.Distance(e.transform.position, Post);
                 float fromMe = Vector3.Distance(e.transform.position, transform.position);
                 if (fromHome > GuardRadius && fromMe > 7f) continue;
                 if (fromHome > Leash) continue;

@@ -27,6 +27,31 @@ namespace Emberhold
         public static readonly Vector3 CastleCenter = new Vector3(CastleX + 2f, 0f, CastleZ + 2f);
 
         public int CastleLevel { get { return Castle != null ? Castle.Data.level : 1; } }
+
+        /// <summary>How many of this building the player owns (ruins count: they can be repaired).</summary>
+        public int CountOf(BuildingDef def)
+        {
+            int n = 0;
+            foreach (var b in Building.All) if (b.Def == def && !b.IsGhost) n++;
+            return n;
+        }
+
+        /// <summary>Room for one more of this at the current HQ level? If not, says why in a toast.</summary>
+        public bool CanOwnMore(BuildingDef def, bool toast)
+        {
+            int hq = CastleLevel, have = CountOf(def), cap = def.CapAt(hq);
+            if (have < cap) return true;
+            if (toast)
+            {
+                if (cap == 0) Toast(def.displayName + " unlocks at HQ level " + def.unlockLevel);
+                else
+                {
+                    int next = def.NextCapLevel(hq, have);
+                    Toast(next > 0 ? "Upgrade the HQ to level " + next + " to build more" : "You have the most " + def.displayName + " allowed");
+                }
+            }
+            return false;
+        }
         public int BuildRadius { get { return 9 + 3 * CastleLevel; } }
 
         /// <summary>Builders: how many upgrades can run at the same time. 1 at the start, a 2nd at HQ level 3
@@ -150,6 +175,7 @@ namespace Emberhold
 
         public bool CanPlace(BuildingDef def, int x, int z, int rotation, Building ignore = null)
         {
+            if (def.id == "wallgun") return WallPieceAt(x, z) != null;   // only on top of a wall piece
             if (def.nearMountain && !TouchesMountain(def, x, z, rotation)) return false;
             if (!Grid.CanPlace(x, z, def, rotation, ignore, BuildRadius)) return false;
             if (def.indestructible && SealsCity(def, x, z, rotation, ignore)) return false;
@@ -193,6 +219,7 @@ namespace Emberhold
                 return null;
             }
             if (!State.Pay(def.cost)) { Toast("Need more " + State.Missing(def.cost)); return null; }
+            if (def.id == "wallgun") RemoveInternal(WallPieceAt(x, z));   // the gun replaces that wall piece (and blocks like it)
             var b = PlaceInternal(def, x, z, rotation);
             b.StartConstruction(def.width * def.depth > 1 ? 4f : 1.5f);
             AudioManager.Play("step", 0.6f);
@@ -215,6 +242,18 @@ namespace Emberhold
 
         public void Demolish(Building b)
         {
+            if (b.Def.id == "wallgun")
+            {
+                // taking a gun off puts the plain wall piece back
+                int wx = b.Data.x, wz = b.Data.z;
+                State.Refund(b.Def.cost, 1f);
+                RemoveInternal(b);
+                var wall = BuildingCatalog.Get("wall");
+                if (wall != null) PlaceInternal(wall, wx, wz, 0);
+                RefreshWallJoins();
+                Toast("Wall Gun removed - refunded");
+                return;
+            }
             if (!b.Def.Movable) return;
             if (b.Ruined)
             {
@@ -300,6 +339,47 @@ namespace Emberhold
             return true;
         }
 
+        /// <summary>Everything broken or ruined (not ghosts). Defenses first, so a short purse fixes those.</summary>
+        public List<Building> BrokenBuildings()
+        {
+            var list = new List<Building>();
+            foreach (var b in Building.All) if (!b.IsGhost && (b.Ruined || b.Damaged)) list.Add(b);
+            list.Sort((a, c) => (a.Def.category == BuildingCategory.Defense ? 0 : 1).CompareTo(c.Def.category == BuildingCategory.Defense ? 0 : 1));
+            return list;
+        }
+
+        public Cost RepairAllCost()
+        {
+            var t = new Cost();
+            foreach (var b in BrokenBuildings()) { var c = RepairCost(b); t.steel += c.steel; t.energy += c.energy; t.coins += c.coins; t.food += c.food; }
+            return t;
+        }
+
+        /// <summary>Peter: one button fixes every broken building and wall gun. Fixes as many as you can pay for.</summary>
+        public int RepairAll()
+        {
+            int fixedCount = 0, skipped = 0;
+            foreach (var b in BrokenBuildings())
+            {
+                if (State.CanAfford(RepairCost(b))) { if (RepairQuiet(b)) fixedCount++; }
+                else skipped++;
+            }
+            if (fixedCount > 0) { AudioManager.Play("hammer", 0.8f); RecalculateCity(); SaveNow(); }
+            Toast(fixedCount == 0 ? "Need more resources to repair" : "Repaired " + fixedCount + (skipped > 0 ? ". " + skipped + " still need resources" : ""));
+            return fixedCount;
+        }
+
+        bool RepairQuiet(Building b)
+        {
+            var cost = RepairCost(b);
+            if (!State.Pay(cost)) return false;
+            bool wasRuin = b.Ruined;
+            b.Data.hp = b.MaxHp;
+            if (wasRuin) { b.SetRuined(false); b.StartConstruction(b.Def.width * b.Def.depth > 1 ? 5f : 1.5f); }
+            else b.RefreshDamageVisual();
+            return true;
+        }
+
         public bool TryUpgrade(Building b)
         {
             if (b.Data.IsUpgrading) return false;
@@ -347,7 +427,7 @@ namespace Emberhold
             foreach (var v in Villager.All) { if (v.home == b) v.home = null; if (v.work == b) v.SetJob(null); }
             Destroy(b.gameObject);
             Building.All.Remove(b);
-            if (b.Def.id == "wall") RefreshWallJoins();
+            if (b.Def.id == "wall" || b.Def.id == "wallgun") RefreshWallJoins();
             RecalculateCity();
             SaveNow();
         }
@@ -474,7 +554,7 @@ namespace Emberhold
         {
             foreach (var b in Building.All)
             {
-                if (b.Def.id != "wall" && b.Def.id != "gate") continue;
+                if (b.Def.id != "wall" && b.Def.id != "gate" && b.Def.id != "wallgun") continue;
                 var c = new Vector2Int(b.Data.x, b.Data.z);
                 bool l = IsWall(c + Vector2Int.left), r = IsWall(c + Vector2Int.right);
                 bool u = IsWall(c + Vector2Int.up), d = IsWall(c + Vector2Int.down);
@@ -488,7 +568,13 @@ namespace Emberhold
         bool IsWall(Vector2Int c)
         {
             var o = Grid.At(c) as Building;
-            return o != null && (o.Def.id == "wall" || o.Def.id == "gate");
+            return o != null && (o.Def.id == "wall" || o.Def.id == "gate" || o.Def.id == "wallgun");
+        }
+
+        Building WallPieceAt(int x, int z)
+        {
+            var o = Grid.At(new Vector2Int(x, z)) as Building;
+            return o != null && !o.IsGhost && o.Def.id == "wall" ? o : null;
         }
 
         /// <summary>Would a canal on this cell get water? (next to the river, a well, or a canal that already has water)</summary>
@@ -593,10 +679,13 @@ namespace Emberhold
 
         // ---------------- Night ----------------
 
+        // Peter: night is only a look. No night waves; dinos wander in one at a time at any hour (RaidDirector).
+        const float NightSeconds = 75f;
+        float nightEndsAt;
+
         void HandleNightStarted()
         {
-            Spawner.BeginWave(State.night + 1);
-            Toast("Night " + (State.night + 1) + " - defend the city!");
+            nightEndsAt = Time.time + NightSeconds;
         }
 
         void HandleDawn()
@@ -720,11 +809,7 @@ namespace Emberhold
         {
             if (!started) return;
 
-            if (Cycle.Phase == Phase.Night && Spawner.Finished)
-            {
-                Spawner.EndWave();
-                Cycle.EndNight();
-            }
+            if (Cycle.Phase == Phase.Night && !Spawner.WaveActive && Time.time >= nightEndsAt) Cycle.EndNight();
 
             workerTimer += Time.deltaTime;
             if (workerTimer > 2f) { workerTimer = 0f; RecalculateWorkersOnly(); }

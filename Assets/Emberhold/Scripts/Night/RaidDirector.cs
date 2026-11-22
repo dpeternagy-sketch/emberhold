@@ -114,17 +114,24 @@ namespace Emberhold
                 nextInChain = Time.time + Random.Range(18f, 35f);
             }
 
-            // Daytime raids start after the first night; at night the regular wave comes instead.
+            // Peter: no dino waves. One dinosaur wanders in at a time, at any hour, and the towers deal with it.
+            // Real damage comes from friends' raids (PvP), not from the wild.
             if (Time.time >= nextRaidCheck)
             {
-                nextRaidCheck = Time.time + Random.Range(110f, 220f);
-                if (gm.State.night >= 1 && gm.Cycle.Phase == Phase.Day && chain.Count == 0 && Random.value < 0.7f)
-                {
-                    var plans = source.NextRaids(gm.State.night);
-                    if (plans != null) foreach (var p in plans) chain.Enqueue(p);
-                    nextInChain = Time.time;
-                }
+                nextRaidCheck = Time.time + Random.Range(60f, 150f);
+                if (Enemy.All.Count == 0 && chain.Count == 0) Wanderer();
             }
+        }
+
+        void Wanderer()
+        {
+            int n = gm.State.night;
+            var kind = EnemyKind.Raider;
+            float r = Random.value;
+            if (n >= 3 && r < 0.2f) kind = EnemyKind.Flyer;
+            else if (n >= 2 && r < 0.45f) kind = EnemyKind.Brute;
+            gm.Spawner.SpawnGroup(new List<EnemyKind> { kind }, Random.Range(0f, 360f), Mathf.Max(1, n));
+            gm.Toast(kind == EnemyKind.Flyer ? "A pterosaur is circling in" : kind == EnemyKind.Brute ? "A triceratops wandered in" : "A raptor wandered in");
         }
 
         void Launch(RaidPlan plan, int stillComing)

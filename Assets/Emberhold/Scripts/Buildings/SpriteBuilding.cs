@@ -59,12 +59,18 @@ namespace Emberhold
             return 0;
         }
 
-        public static bool Has(string id) { return id == "wall" ? Load("wallpost_t1") != null : LowestTier(id) > 0; }
+        public static bool Has(string id)
+        {
+            if (id == "wall") return Load("wallpost_t1") != null;
+            if (id == "wallgun") return Load("wallpost_t1") != null && LowestTier("watchtower") > 0;
+            return LowestTier(id) > 0;
+        }
 
         /// <summary>Build-menu picture: the lowest-tier image itself.</summary>
         public static Texture2D Thumbnail(string id)
         {
             if (id == "wall") { var w = Load("wallseg_t1") ?? Load("wallpost_t1"); return w != null ? w.tex : null; }
+            if (id == "wallgun") id = "watchtower";
             int t = LowestTier(id); return t > 0 ? Load(id + "_t" + t).tex : null;
         }
 
@@ -89,9 +95,10 @@ namespace Emberhold
             var sb = root.AddComponent<SpriteBuilding>();
             sb.def = def;
             sb.quad = NewQuad(parent, out sb.mat);
-            if (def.id == "wall")
+            if (def.id == "wall" || def.id == "wallgun")
             {
                 sb.wall = true;
+                sb.gun = def.id == "wallgun";
                 sb.segX = NewQuad(parent, out sb.matX);
                 sb.segZ = NewQuad(parent, out sb.matZ);
             }
@@ -176,8 +183,9 @@ namespace Emberhold
         // Walls have no upgrades of their own: their look follows the HQ level (HQ 1-2, 3-4, 5+).
         const float PostDiamond = 0.36f;           // post footprint width across the screen, world units
         const float SegDiamond = 0.70710678f;      // one cell along an axis, seen from 45 degrees
-        bool wall;
+        bool wall, gun;
         Transform segX, segZ;
+        const float GunDiamond = 1.0f;   // a wall gun: the gun turret image shrunk onto one wall cell
         Material matX, matZ;
 
         static int WallTier()
@@ -194,7 +202,7 @@ namespace Emberhold
             var gm = GameManager.Instance;
             var o = gm != null && gm.Grid != null ? gm.Grid.At(c) as Building : null;
             if (o == null || o.IsGhost) return 0;
-            return o.Def.id == "wall" ? 1 : o.Def.id == "gate" ? 2 : 0;
+            return o.Def.id == "wall" || o.Def.id == "wallgun" ? 1 : o.Def.id == "gate" ? 2 : 0;
         }
 
         void WallUpdate()
@@ -217,6 +225,19 @@ namespace Emberhold
             SetSeg(segX, matX, seg, xc, false, shake);
             SetSeg(segZ, matZ, seg, zc, true, shake);
 
+            if (gun)
+            {
+                // the gun turret image, shrunk to sit on this wall cell (its level picks the image)
+                string key = "watchtower_t" + TierFor(BuildingCatalog.Get("watchtower") ?? def, building.Data.level);
+                var g = Load(key);
+                quad.gameObject.SetActive(g != null);
+                if (g == null) return;
+                if (key != shownKey) { shownKey = key; Show(mat, g); }
+                Place(quad, mat, g, ground, GunDiamond, false, shake);
+                Finish(mat);
+                if (building.Ruined) { mat.SetFloat("_Shade", 0.42f); mat.SetColor("_Overlay", new Color(0.2f, 0.17f, 0.15f, 0.35f)); }
+                return;
+            }
             bool showPost = post != null && !straight;
             quad.gameObject.SetActive(showPost);
             if (showPost)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Emberhold
@@ -42,6 +43,13 @@ namespace Emberhold
 
         public void BeginPlacing(BuildingDef def)
         {
+            if (!gm.CanOwnMore(def, true)) return;
+            if (def.id == "wallgun")
+            {
+                bool anyWall = false;
+                foreach (var w in Building.All) if (w.Def.id == "wall" && !w.IsGhost) { anyWall = true; break; }
+                if (!anyWall) { gm.Toast("Build a wall first. The gun sits on a wall piece"); return; }
+            }
             CancelPlacement();
             Deselect();
             Vector3 center;
@@ -165,6 +173,7 @@ namespace Emberhold
                 foreach (var c in cells)
                 {
                     if (!gm.CanPlace(def, c.x, c.y, 0) || !gm.State.CanAfford(def.cost)) continue;
+                    if (!gm.CanOwnMore(def, built == 0)) break;
                     if (gm.PlaceNew(def, c.x, c.y, 0) != null) { built++; last = c; }
                 }
                 if (built == 0)
@@ -178,10 +187,11 @@ namespace Emberhold
                 // the preview waits one step further, ready for the next stretch
                 var dir = cells.Count > 1 ? cells[cells.Count - 1] - cells[cells.Count - 2] : new Vector2Int(1, 0);
                 d.x = last.x + dir.x; d.z = last.y + dir.y;
-                if (!gm.State.CanAfford(def.cost)) { CancelPlacement(); return; }
+                if (!gm.State.CanAfford(def.cost) || !gm.CanOwnMore(def, true)) { CancelPlacement(); return; }
                 RefreshGhost();
                 return;
             }
+            if (!gm.CanOwnMore(def, true)) { CancelPlacement(); return; }
             var placed = gm.PlaceNew(def, d.x, d.z, d.rotation);
             if (placed == null) return;
             CancelPlacement();
@@ -325,6 +335,8 @@ namespace Emberhold
             }
 
             var b = gm.Grid.At(cell) as Building;
+            if (b != null && SelectedUnits.Count > 0 && Ghost == null) { mode = Mode.Pan; return; }   // the tap sends troops (PointerUp)
+            if (b != null && Ghost == null && UnitAt(screen) != null) { mode = Mode.Pan; return; }    // the tap picks a unit standing there
             if (b != null)
             {
                 Select(b);
@@ -394,6 +406,9 @@ namespace Emberhold
                 Vector3 g;
                 Building tapped = null;
                 if (rig.GroundPoint(screen, out g)) tapped = gm.Grid.At(GridMap.CellOf(g)) as Building;
+                var unitHit = Ghost == null ? UnitAt(screen) : null;
+                if (unitHit != null) { ToggleUnit(unitHit); mode = Mode.None; return; }
+                if (Ghost == null && SelectedUnits.Count > 0 && rig.GroundPoint(screen, out g)) { SendUnits(g); mode = Mode.None; return; }
                 if (Ghost != null)
                 {
                     // tap on the ground while placing: jump the preview there
@@ -407,6 +422,72 @@ namespace Emberhold
                 else if (tapped == null) Deselect();
             }
             mode = Mode.None;
+        }
+
+        // ---------------- Troop orders ----------------
+        // Tap a soldier, robot or drone to select it (tap again to drop it). "All" selects the whole army.
+        // With troops selected, tap the ground: they go there and guard that spot. "Home" calls them back.
+
+        public readonly List<Unit> SelectedUnits = new List<Unit>();
+        const float UnitTapPixels = 70f;
+
+        Unit UnitAt(Vector2 screen)
+        {
+            Unit best = null; float bestD = UnitTapPixels;
+            foreach (var u in Unit.All)
+            {
+                if (u == null || u.KnockedOut) continue;
+                var sp = rig.Cam.WorldToScreenPoint(u.Center);
+                if (sp.z <= 0f) continue;
+                float d = Vector2.Distance(screen, new Vector2(sp.x, sp.y));
+                if (d < bestD) { bestD = d; best = u; }
+            }
+            return best;
+        }
+
+        public void ToggleUnit(Unit u)
+        {
+            if (SelectedUnits.Remove(u)) u.SetSelected(false);
+            else { SelectedUnits.Add(u); u.SetSelected(true); }
+            AudioManager.Play("ui", 0.4f);
+            Changed();
+        }
+
+        public void SelectAllUnits()
+        {
+            ClearUnits();
+            foreach (var u in Unit.All) if (u != null && !u.KnockedOut) { SelectedUnits.Add(u); u.SetSelected(true); }
+            if (SelectedUnits.Count == 0) gm.Toast("No troops yet. Train some at the Barracks");
+            Changed();
+        }
+
+        public void ClearUnits()
+        {
+            foreach (var u in SelectedUnits) if (u != null) u.SetSelected(false);
+            SelectedUnits.Clear();
+            Changed();
+        }
+
+        public void RecallUnits()
+        {
+            foreach (var u in SelectedUnits) if (u != null) u.Order(null);
+            gm.Toast("Troops are going home");
+            ClearUnits();
+        }
+
+        void SendUnits(Vector3 spot)
+        {
+            SelectedUnits.RemoveAll(u => u == null);
+            int n = SelectedUnits.Count;
+            // spread them a little so they don't stack on one point
+            for (int i = 0; i < n; i++)
+            {
+                float a = i * 2.4f, r = i == 0 ? 0f : 0.6f + 0.25f * Mathf.Sqrt(i);
+                SelectedUnits[i].Order(spot + new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r));
+            }
+            DamageEffects.Puff(spot + Vector3.up * 0.1f, 0.5f);
+            AudioManager.Play("step", 0.6f);
+            gm.Toast("Sent " + n + (n == 1 ? " unit" : " units"));
         }
 
         void EndBuildingDrag(bool commit)

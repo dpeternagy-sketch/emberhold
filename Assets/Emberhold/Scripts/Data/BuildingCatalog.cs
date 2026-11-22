@@ -76,10 +76,28 @@ namespace Emberhold
         /// <summary>Castle level needed before this can be built. Locked cards show grey with the requirement.</summary>
         public int unlockLevel = 1;
 
+        /// <summary>How many of this building the player may own at each HQ level (index 0 = HQ 1). Null = no cap.</summary>
+        public int[] caps;
+
+        /// <summary>Max count at this HQ level (0 = locked). The HQ itself and uncapped defs return int.MaxValue.</summary>
+        public int CapAt(int hq)
+        {
+            if (caps == null || caps.Length == 0) return hq >= unlockLevel ? int.MaxValue : 0;
+            return caps[Mathf.Clamp(hq - 1, 0, caps.Length - 1)];
+        }
+
+        /// <summary>First HQ level at which at least one more can be owned than now (for "Upgrade HQ to build more").</summary>
+        public int NextCapLevel(int hq, int owned)
+        {
+            if (caps == null) return 0;
+            for (int l = hq + 1; l <= caps.Length; l++) if (caps[l - 1] > owned) return l;
+            return 0;
+        }
+
         /// <summary>Optional prefab at Resources/Models/{id}. If missing, a placeholder is generated.</summary>
         public string PrefabPath { get { return "Models/" + id; } }
 
-        public bool Movable { get { return category != BuildingCategory.Core; } }
+        public bool Movable { get { return category != BuildingCategory.Core && id != "wallgun"; } }
 
         /// <summary>Enemies walk through it (slowly) instead of attacking it, e.g. canals.</summary>
         public bool passable;
@@ -111,7 +129,7 @@ namespace Emberhold
 
         /// <summary>Build menu order: food and water first, then the wood, stone and iron chains, then defenses.</summary>
         static readonly string[] MenuOrder = { "house", "apartment", "farm", "well", "canal", "solar", "mine",
-                                               "powerplant", "factory", "wall", "gate", "watchtower", "ballista", "cannon", "dronepad", "trap", "pen",
+                                               "powerplant", "factory", "wall", "gate", "wallgun", "watchtower", "ballista", "cannon", "dronepad", "trap", "pen",
                                                "barracks", "camp", "command", "robotfactory" };
 
         static BuildingCatalog()
@@ -190,6 +208,13 @@ namespace Emberhold
                 recipe = "The way in. Dinos must break it"
             });
             Add(new BuildingDef {
+                id = "wallgun", displayName = "Wall Gun", category = BuildingCategory.Defense,
+                width = 1, depth = 1, height = 1.8f, color = new Color(0.6f, 0.62f, 0.66f),
+                cost = new Cost(steel: 20, coins: 10), maxHp = 200,
+                attackRange = 7f, attackDamage = 8, attackInterval = 0.8f,
+                recipe = "Sits on a wall. Place it on a wall piece"
+            });
+            Add(new BuildingDef {
                 id = "watchtower", displayName = "Gun Turret", category = BuildingCategory.Defense,
                 width = 2, depth = 2, height = 3.5f, color = new Color(0.5f, 0.38f, 0.25f),
                 cost = new Cost(steel: 30, coins: 10), maxHp = 250,
@@ -258,6 +283,47 @@ namespace Emberhold
                 cost = new Cost(steel: 50, energy: 40), maxHp = 450, maxLevel = 5, unlockLevel = 3, upgradeSeconds = 120f,
                 trains = new[] { "drone" }, recipe = "Builds attack drones (they fly)"
             });
+            ApplyCaps();
+        }
+
+        // Max count per HQ level 1..5 (0 = still locked). Each HQ level opens something new and raises a few caps,
+        // so the player grows by upgrading, not by spamming. unlockLevel is derived from the first non-zero entry.
+        static readonly Dictionary<string, int[]> Caps = new Dictionary<string, int[]>
+        {
+            { "house",        new[] { 2, 3, 4, 5, 6 } },
+            { "apartment",    new[] { 0, 0, 1, 2, 3 } },
+            { "farm",         new[] { 2, 3, 4, 4, 5 } },
+            { "well",         new[] { 1, 2, 2, 3, 3 } },
+            { "canal",        new[] { 20, 30, 40, 50, 60 } },
+            { "solar",        new[] { 1, 2, 3, 4, 5 } },
+            { "mine",         new[] { 1, 1, 2, 2, 3 } },
+            { "powerplant",   new[] { 0, 1, 1, 2, 2 } },
+            { "factory",      new[] { 0, 0, 1, 1, 2 } },
+            { "wall",         new[] { 20, 40, 60, 80, 100 } },
+            { "gate",         new[] { 1, 1, 2, 2, 3 } },
+            { "wallgun",      new[] { 0, 2, 4, 6, 8 } },
+            { "watchtower",   new[] { 1, 2, 3, 4, 5 } },
+            { "ballista",     new[] { 0, 1, 1, 2, 3 } },
+            { "cannon",       new[] { 0, 1, 1, 2, 2 } },
+            { "dronepad",     new[] { 0, 0, 0, 1, 2 } },
+            { "trap",         new[] { 0, 0, 2, 4, 6 } },
+            { "pen",          new[] { 0, 0, 1, 1, 1 } },
+            { "barracks",     new[] { 0, 1, 1, 1, 1 } },
+            { "camp",         new[] { 0, 1, 1, 2, 2 } },
+            { "command",      new[] { 0, 1, 1, 1, 1 } },
+            { "robotfactory", new[] { 0, 0, 1, 1, 1 } },
+        };
+
+        static void ApplyCaps()
+        {
+            foreach (var kv in Caps)
+            {
+                var d = Get(kv.Key);
+                if (d == null) continue;
+                d.caps = kv.Value;
+                int first = System.Array.FindIndex(kv.Value, n => n > 0);
+                d.unlockLevel = first < 0 ? 99 : first + 1;
+            }
         }
 
         static void Add(BuildingDef d) { defs[d.id] = d; ordered.Add(d); }
