@@ -72,7 +72,7 @@ namespace Emberhold
 
             // River bed
             float rv = River.Mask(x, z);
-            if (rv > 0f) h -= rv * (0.7f + 0.7f * m);   // a little deeper where it cuts through the hills
+            if (rv > 0f) h -= rv * (0.7f + 0.2f * m);   // only a little deeper in the hills: steep cut banks shaded into a dark band (QC run 25)
 
             // Tiny unevenness outside the city only
             float outside = Mathf.Max(m, f);

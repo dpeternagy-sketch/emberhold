@@ -225,8 +225,26 @@ namespace Emberhold
         /// <summary>The Commander idles on open ground just in front of the Command Center's pad (never on a neighbour's plate).</summary>
         static Vector3 HeroHome(Building cc)
         {
+            // in front of the Command Center on open ground, never behind another building
+            // (QC run 25: idling behind the camp watchtower he looked like he stood on its roof)
             float d = Mathf.Max(cc.Def.width, cc.Def.depth) * 0.70710678f;
-            return cc.Center + new Vector3(-0.70710678f, 0f, -0.70710678f) * (d + 0.45f);
+            var toCam = new Vector3(-0.70710678f, 0f, -0.70710678f);
+            var dirs = new[] { toCam, new Vector3(-1f, 0f, 0f), new Vector3(0f, 0f, -1f), new Vector3(-0.70710678f, 0f, 0.70710678f), new Vector3(0.70710678f, 0f, -0.70710678f) };
+            var grid = GameManager.Instance != null ? GameManager.Instance.Grid : null;
+            foreach (var dir in dirs)
+            {
+                var spot = cc.Center + dir * (d + 0.6f);
+                if (grid == null) return spot;
+                bool clear = true;
+                for (float k = 0f; k <= 2.2f && clear; k += 0.55f)   // the spot and the ground between it and the camera
+                {
+                    var p = spot + toCam * k;
+                    var o = grid.At(new Vector2Int(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.z))) as Building;
+                    if (o != null && o != cc) clear = false;
+                }
+                if (clear) return spot;
+            }
+            return cc.Center + toCam * (d + 0.45f);
         }
 
         void Sync()

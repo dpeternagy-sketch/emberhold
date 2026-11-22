@@ -300,7 +300,8 @@ namespace Emberhold
                     if (cap < int.MaxValue)
                     {
                         var cnt = UIKit.OutlinedLabel(card.transform, gm.CountOf(d) + "/" + cap, 24, TextAnchor.UpperRight);
-                        cnt.rectTransform.offsetMin = new Vector2(0, 0); cnt.rectTransform.offsetMax = new Vector2(-14, -8);
+                        // under the "Hits air / Ground only" pill when there is one (QC run 25: they ran together)
+                        cnt.rectTransform.offsetMin = new Vector2(0, 0); cnt.rectTransform.offsetMax = new Vector2(-14, d.attackRange > 0f ? -50 : -8);
                         if (gm.CountOf(d) >= cap) cnt.color = new Color(1f, 0.55f, 0.45f);
                     }
                 }
@@ -366,15 +367,19 @@ namespace Emberhold
                 free.rectTransform.sizeDelta = new Vector2(80, 34);
                 return;
             }
+            // three prices or more: smaller chips so the row always fits inside the card (QC run 25: Apartments)
+            bool compact = items.Count >= 3;
+            float icon = compact ? 30f : 40f; int font = compact ? 23 : 30; float digit = compact ? 12.5f : 16f;
+            if (compact) hl.spacing = 1;
             foreach (var it in items)
             {
                 var chip = UIKit.Rect("C", row);
                 string num = it.Value.ToString();
-                chip.sizeDelta = new Vector2(40 + 16 * num.Length + 6, 44);
-                var ic = UIKit.Icon(chip, IconOf(it.Key), 40);
-                UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(20, 0), new Vector2(40, 40));
-                var t = UIKit.OutlinedLabel(chip, num, 30, TextAnchor.MiddleLeft);
-                t.rectTransform.offsetMin = new Vector2(40, 0);
+                chip.sizeDelta = new Vector2(icon + digit * num.Length + 4, 44);
+                var ic = UIKit.Icon(chip, IconOf(it.Key), icon);
+                UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(icon * 0.5f, 0), new Vector2(icon, icon));
+                var t = UIKit.OutlinedLabel(chip, num, font, TextAnchor.MiddleLeft);
+                t.rectTransform.offsetMin = new Vector2(icon, 0);
                 t.horizontalOverflow = HorizontalWrapMode.Overflow;
                 costLabels.Add(new KeyValuePair<Text, KeyValuePair<ResourceType, int>>(t, it));
             }
@@ -606,7 +611,7 @@ namespace Emberhold
         void CloseX(RectTransform panel, System.Action onClose)
         {
             var x = UIKit.IconButton(panel, "icon_close", null, 72, onClose, "red");
-            UIKit.Anchor(x.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-18, -18), new Vector2(84, 84));
+            UIKit.Anchor(x.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-58, -58), new Vector2(84, 84));   // fully inside the frame
         }
 
         string Title(Building b)
