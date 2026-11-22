@@ -24,7 +24,7 @@ namespace Emberhold
 
         static void Boot()
         {
-            if (Object.FindFirstObjectByType<GameManager>() != null) return;
+            if (Object.FindAnyObjectByType<GameManager>() != null) return;
 
             // Static registries survive when Unity's domain reload is off; start clean.
             Building.All.Clear(); TreeNode.All.Clear(); Enemy.All.Clear(); Villager.All.Clear(); LightSource.All.Clear();
