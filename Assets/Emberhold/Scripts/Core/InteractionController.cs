@@ -236,6 +236,12 @@ namespace Emberhold
             if (Selected != null) Selected.SetRaised(false);
             Selected = b;
             if (b != null) AudioManager.Play("ui", 0.4f);
+            // QC: a building tapped near the edge slides into view, so it and its title are never half off-screen
+            if (b != null && !b.IsGhost && rig != null && rig.Cam != null)
+            {
+                var vp = rig.Cam.WorldToViewportPoint(b.Center + Vector3.up * b.Def.height * 0.5f);
+                if (vp.z > 0f && (vp.x < 0.18f || vp.x > 0.82f || vp.y < 0.3f || vp.y > 0.72f)) rig.GlideTo(b.Center);
+            }
             Changed();
         }
 

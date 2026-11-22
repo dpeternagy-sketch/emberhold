@@ -23,8 +23,25 @@ namespace Emberhold
             Apply();
         }
 
+        Vector3? glide;
+
+        /// <summary>Smoothly brings a point into the middle of the view (tapping something near the screen edge).</summary>
+        public void GlideTo(Vector3 world)
+        {
+            glide = new Vector3(Mathf.Clamp(world.x, -22f, 22f), 0f, Mathf.Clamp(world.z, -20f, 20f));
+        }
+
+        void Update()
+        {
+            if (!glide.HasValue) return;
+            focus = Vector3.Lerp(focus, glide.Value, 1f - Mathf.Exp(-8f * Time.unscaledDeltaTime));
+            if ((focus - glide.Value).sqrMagnitude < 0.0004f) { focus = glide.Value; glide = null; }
+            Apply();
+        }
+
         public void Pan(Vector3 worldDelta)
         {
+            glide = null;
             focus -= new Vector3(worldDelta.x, 0f, worldDelta.z);
             focus.x = Mathf.Clamp(focus.x, -22f, 22f);
             focus.z = Mathf.Clamp(focus.z, -20f, 20f);
@@ -34,6 +51,7 @@ namespace Emberhold
         /// <summary>Centres the view on a point (e.g. the building a builder is working on).</summary>
         public void FocusOn(Vector3 world)
         {
+            glide = null;
             focus = new Vector3(Mathf.Clamp(world.x, -22f, 22f), 0f, Mathf.Clamp(world.z, -20f, 20f));
             Apply();
         }
