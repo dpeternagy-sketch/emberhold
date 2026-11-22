@@ -170,7 +170,7 @@ namespace Emberhold
                 float y = Mathf.Max(Mathf.Max(WorldBuilder.HeightAt(cx, z) + 0.22f, WorldBuilder.WaterLevel + 0.02f), edgeH);
                 verts.Add(new Vector3(cx - w, y, z));
                 verts.Add(new Vector3(cx + w, y, z));
-                bool fall = rows > 0 && prevY - y > 0.45f;   // the waterfall sheet covers steep drops
+                bool fall = rows > 0 && prevY - y > 0.45f && z < StartZ - 6f;   // the waterfall sheet covers steep drops; never a hole between the painted pool and the river (QC run 34)
                 prevY = y;
                 if (rows > 0 && !fall)
                 {
