@@ -109,6 +109,7 @@ namespace Emberhold
             BuildSea(root);
             River.MarkCells(grid);
             River.BuildVisual(root);
+            Backdrop.Build(root, "mountain_2");   // Peter's cascade behind the HQ; mountain_1 is a spare
 
             TreesRoot = new GameObject("Trees").transform;
             TreesRoot.SetParent(root, false);
@@ -169,20 +170,40 @@ namespace Emberhold
             go.transform.SetParent(root, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var r = go.AddComponent<MeshRenderer>();
-            var mat = Materials.Unique(Color.white);
-            var tex = PaintGround();
-            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
-            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
-            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.05f);
+            Texture2D control;
+            var tex = PaintGround(out control);
+            var splat = Resources.Load<Shader>("Shaders/GroundSplat");
+            var grass = Resources.Load<Texture2D>("Textures/Ground/grass");
+            Material mat;
+            if (splat != null && splat.isSupported && grass != null)
+            {
+                // Peter's tiling ground textures, blended by the control map
+                mat = new Material(splat);
+                mat.SetTexture("_Painted", tex);
+                mat.SetTexture("_Control", control);
+                mat.SetTexture("_Grass", grass);
+                mat.SetTexture("_Dirt", Resources.Load<Texture2D>("Textures/Ground/dirt") ?? grass);
+                mat.SetTexture("_Stone", Resources.Load<Texture2D>("Textures/Ground/stone") ?? grass);
+                mat.SetFloat("_Tile", 6f);
+            }
+            else
+            {
+                mat = Materials.Unique(Color.white);
+                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+                if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.05f);
+            }
             r.sharedMaterial = mat;
         }
 
         /// <summary>Paints the ground colors into one texture: grass shades, dirt, paths, sand, rock and snow.</summary>
-        Texture2D PaintGround()
+        /// Also fills a control map for the GroundSplat shader: R = dirt, G = stone path, B = keep this painted colour, A = brightness.
+        Texture2D PaintGround(out Texture2D control)
         {
             const int ppu = 6; // pixels per world unit
             int w = Mathf.RoundToInt((MaxX - MinX) * ppu), h = Mathf.RoundToInt((MaxZ - MinZ) * ppu);
             var px = new Color32[w * h];
+            var ctl = new Color32[w * h];
 
             var grassA = new Color(0.33f, 0.58f, 0.25f);   // palette grass shade #5A9E45
             var grassB = new Color(0.45f, 0.71f, 0.32f);   // palette grass #7BC35A
@@ -211,10 +232,12 @@ namespace Emberhold
                     c = Color.Lerp(c, grassDry, Mathf.Clamp01((Noise(wx + 99, z, 0.035f) - 0.55f) * 2.2f));
                     // dirt patches
                     float dp = Noise(wx + 300, z, 0.14f);
+                    float cDirt = dp > 0.6f ? Mathf.Clamp01((dp - 0.6f) * 6f) : 0f;
                     if (dp > 0.68f) c = Color.Lerp(c, dirt, Mathf.Clamp01((dp - 0.68f) * 7f));
                     // forest floor at the sides
                     float forest = Smooth(GridMap.ForestX - 5f, GridMap.ForestX + 2f, Mathf.Abs(wx));
                     c = Color.Lerp(c, forestFloor, forest * 0.8f);
+                    float cBright = Noise(wx, z, 0.09f) * 0.6f + (1f - Noise(wx + 99, z, 0.035f)) * 0.4f - forest * 0.45f;
                     // worn paths: from the castle gate to the beach, and east-west
                     float p1 = Mathf.Abs(wx - (Noise(0, z, 0.08f) - 0.5f) * 3f);
                     float p2 = Mathf.Abs(z - 4f - (Noise(wx, 0, 0.07f) - 0.5f) * 3f);
@@ -222,12 +245,17 @@ namespace Emberhold
                     if (z < GameManager.CastleCenter.z - 2f && z > GridMap.SeaZ) pathMask = Mathf.Max(pathMask, 1f - Smooth(0.6f, 1.4f, p1));
                     if (Mathf.Abs(wx) < GridMap.ForestX) pathMask = Mathf.Max(pathMask, 1f - Smooth(0.5f, 1.2f, p2));
                     c = Color.Lerp(c, path, pathMask * 0.85f);
+                    float cStone = pathMask;
+                    float cKeep = 0f;
                     // river bed and muddy banks
                     float rvm = River.Mask(wx, z);
                     if (rvm > 0f) c = Color.Lerp(c, new Color(0.36f, 0.32f, 0.24f), Mathf.Clamp01(rvm * 1.6f));
+                    cKeep = Mathf.Max(cKeep, Mathf.Clamp01(rvm * 1.6f));
                     // beach
                     float beach = Smooth(GridMap.SeaZ + 3f, GridMap.SeaZ + 0.5f, z);
                     c = Color.Lerp(c, sand, beach);
+                    cKeep = Mathf.Max(cKeep, beach);
+                    if (hh < WaterLevel + 0.15f) cKeep = 1f;
                     if (hh < WaterLevel + 0.15f) c = Color.Lerp(sand, wetSand, Mathf.Clamp01((WaterLevel + 0.15f - hh) * 2f));
                     // mountain: rock on steep or high ground, snow on top
                     float rockMask = Mathf.Clamp01((slope - 0.45f) * 2.2f) + Mathf.Clamp01((hh - 13f) * 0.12f);
@@ -241,9 +269,12 @@ namespace Emberhold
                         float crack = Noise(wx * 3f, z * 0.6f, 0.9f) > 0.72f ? 0.6f : 1f;
                         rc *= strata * crack; rc.a = 1f;
                         c = Color.Lerp(c, rc, Mathf.Clamp01(rockMask));
+                        cKeep = Mathf.Max(cKeep, Mathf.Clamp01(rockMask) * 1.2f, z > GridMap.MountainZ - 1f ? Mathf.Clamp01((hh - 7f) * 0.2f) : 0f);
                     }
                     float snowLine = 17f + (Noise(wx, z, 0.12f) - 0.5f) * 6f;
                     if (hh > snowLine) c = Color.Lerp(c, snow, Mathf.Clamp01((hh - snowLine) * 0.6f) * (1f - Mathf.Clamp01(slope - 1.6f)));
+                    if (hh > snowLine) cKeep = 1f;
+                    ctl[y * w + x] = new Color(cDirt, cStone, Mathf.Clamp01(cKeep), Mathf.Clamp01(cBright));
 
                     // fine speckle so it never looks flat
                     float sp = 0.95f + (float)rng.NextDouble() * 0.1f;
@@ -257,6 +288,11 @@ namespace Emberhold
             tex.anisoLevel = 4;
             tex.SetPixels32(px);
             tex.Apply(true, true);
+            control = new Texture2D(w, h, TextureFormat.RGBA32, true, true);
+            control.wrapMode = TextureWrapMode.Clamp;
+            control.filterMode = FilterMode.Bilinear;
+            control.SetPixels32(ctl);
+            control.Apply(true, true);
             return tex;
         }
 
