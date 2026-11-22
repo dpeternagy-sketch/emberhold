@@ -63,13 +63,17 @@ namespace Emberhold
 
             // ---- one wild dino walks up to the gate in the wall (stills) ----
             var gatePos = gateCell + new Vector3(0.5f, 0f, 0.5f);
-            var raptor = Enemy.Spawn(EnemyKind.Raider, gatePos + new Vector3(-4f, 0, 0.5f), 2, gm.transform);
-            raptor.maxHp = raptor.hp = 400;      // tough enough to still be standing for the stills
+            // Peter: no dinosaurs in the previews until they match the buildings (WithDinos turns them back on)
+            if (WithDinos)
+            {
+                var raptor = Enemy.Spawn(EnemyKind.Raider, gatePos + new Vector3(-4f, 0, 0.5f), 2, gm.transform);
+                raptor.maxHp = raptor.hp = 400;      // tough enough to still be standing for the stills
+            }
             View(gatePos + new Vector3(3f, 0, 1f), 30f);
-            yield return WaitGateHit(12f);
-            yield return Shot("10_dino_attack");
+            if (WithDinos) yield return WaitGateHit(12f); else yield return new WaitForSeconds(1f);
+            yield return Shot(WithDinos ? "10_dino_attack" : "10_wall_gate");
             View(gatePos + new Vector3(5f, 0, 2f), 36f);
-            yield return new WaitForSeconds(1.2f); yield return Shot("11_turrets_fire");
+            yield return new WaitForSeconds(1.2f); yield return Shot(WithDinos ? "11_turrets_fire" : "11_wall_wide");
             foreach (var e in Enemy.All.ToArray()) if (e != null) Destroy(e.gameObject);
             yield return new WaitForSeconds(1f);
 
@@ -82,10 +86,13 @@ namespace Emberhold
             hud.PreviewCloseAll(); input.Deselect();
             hud.PreviewOpenBuild(BuildingCategory.Defense); yield return Hold(1.5f);
             hud.PreviewCloseAll();
-            var trike = Enemy.Spawn(EnemyKind.Brute, gatePos + new Vector3(-8f, 0, -1f), 2, gm.transform);
-            trike.maxHp = trike.hp = 900;
+            if (WithDinos)
+            {
+                var trike = Enemy.Spawn(EnemyKind.Brute, gatePos + new Vector3(-8f, 0, -1f), 2, gm.transform);
+                trike.maxHp = trike.hp = 900;
+            }
             yield return Glide(gm.Castle.Center + new Vector3(0, 0, -4f), 36f, gatePos + new Vector3(2f, 0, 1f), 34f, 2.5f);
-            yield return Hold(9f);
+            yield return Hold(WithDinos ? 9f : 3f);
             yield return Glide(gatePos + new Vector3(2f, 0, 1f), 34f, new Vector3(0, 0, 4f), 70f, 4f);
             recording = false; Time.captureFramerate = 0;
             foreach (var e in Enemy.All.ToArray()) if (e != null) Destroy(e.gameObject);
@@ -135,6 +142,7 @@ namespace Emberhold
         }
 
         Vector3 gateCell;
+        public static bool WithDinos = false;
 
         /// <summary>Waits until a dino is biting the gate (or the time runs out).</summary>
         IEnumerator WaitGateHit(float maxSeconds)

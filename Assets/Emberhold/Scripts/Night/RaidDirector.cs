@@ -125,6 +125,9 @@ namespace Emberhold
 
         void Wanderer()
         {
+#if UNITY_EDITOR
+            if (PreviewTour.Running && !PreviewTour.WithDinos) return;   // previews leave dinosaurs out for now
+#endif
             int n = gm.State.night;
             var kind = EnemyKind.Raider;
             float r = Random.value;

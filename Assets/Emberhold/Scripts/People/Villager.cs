@@ -51,6 +51,7 @@ namespace Emberhold
             {
                 body = Instantiate(prefab, transform, false).transform;
                 clothes = body.GetComponentInChildren<Renderer>();
+                HideBesidePaintedArt();
                 return;
             }
             body = new GameObject("Body").transform;
@@ -61,6 +62,17 @@ namespace Emberhold
             clothes.sharedMaterial = Materials.Unique(Color.gray);
             Util.Prim(PrimitiveType.Sphere, body, new Vector3(0, 1.3f, 0), new Vector3(0.3f, 0.32f, 0.3f), skinTones[Random.Range(0, skinTones.Length)]);
             Util.Prim(PrimitiveType.Sphere, body, new Vector3(0, 1.4f, 0), new Vector3(0.31f, 0.18f, 0.31f), new Color(0.25f, 0.17f, 0.1f)); // hair/hat
+            HideBesidePaintedArt();
+        }
+
+        /// <summary>
+        /// The 3D townsfolk look like toys next to Peter's painted buildings: until worker pictures exist
+        /// they keep working (gathering, walking) but are not drawn.
+        /// </summary>
+        void HideBesidePaintedArt()
+        {
+            if (!DinoSprite.Available) return;
+            foreach (var r in body.GetComponentsInChildren<Renderer>()) r.enabled = false;
         }
 
         /// <summary>Walks to the scrap at the mountain foot, works there, and brings in a little steel.</summary>
