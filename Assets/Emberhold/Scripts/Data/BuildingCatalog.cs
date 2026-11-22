@@ -223,11 +223,11 @@ namespace Emberhold
                 produces = ResourceType.Energy, produceAmount = 6, produceInterval = 8f, recipe = "Energy day and night"
             });
             Add(new BuildingDef {
-                id = "factory", displayName = "Parts Factory", category = BuildingCategory.Economy,
+                id = "factory", displayName = "Fabricator", category = BuildingCategory.Economy,
                 width = 3, depth = 3, height = 2.4f, color = new Color(0.6f, 0.5f, 0.4f),
                 cost = new Cost(steel: 40, energy: 20), maxHp = 350, workers = 3, unlockLevel = 3,
                 produces = ResourceType.Steel, produceAmount = 7, produceInterval = 10f, consumeEnergy = 2,
-                recipe = "Energy -> Steel, anywhere"
+                recipe = "Turns energy into steel"
             });
             AddArmy();
         }
