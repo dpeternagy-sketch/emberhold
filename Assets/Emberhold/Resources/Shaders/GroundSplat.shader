@@ -9,6 +9,8 @@ Shader "Emberhold/GroundSplat"
         _Painted ("Painted colour map", 2D) = "white" {}
         _Control ("Control map", 2D) = "black" {}
         _Grass ("Grass", 2D) = "white" {}
+        _GroundSat ("Ground saturation", Float) = 0.72
+        _GroundBright ("Ground brightness", Float) = 0.9
         _Dirt ("Dirt", 2D) = "white" {}
         _Stone ("Stone", 2D) = "white" {}
         _Tile ("World units per texture tile", Float) = 6
@@ -39,6 +41,8 @@ Shader "Emberhold/GroundSplat"
                 float4 _Painted_ST;
                 float4 _Control_ST;
                 float4 _Grass_ST;
+                half _GroundSat;
+                half _GroundBright;
                 float4 _Dirt_ST;
                 float4 _Stone_ST;
                 float _Tile;
@@ -79,6 +83,11 @@ Shader "Emberhold/GroundSplat"
                 tex = lerp(tex, stone, ctl.g);
                 tex *= lerp(0.8, 1.12, ctl.a);
                 half3 albedo = lerp(tex, painted, ctl.b);
+                // QC: the raw grass is far more saturated and brighter than the grass on Peter's building
+                // plates (ground 99,193,0 vs plates 89,118,28), so the city looked pasted onto neon.
+                // Pull it towards the plates so buildings sit in the same world.
+                half lum = dot(albedo, half3(0.3, 0.59, 0.11));
+                albedo = lerp(lum.xxx, albedo, _GroundSat) * _GroundBright;
 
                 Light light = GetMainLight(TransformWorldToShadowCoord(i.positionWS));
                 half3 n = normalize(i.normalWS);

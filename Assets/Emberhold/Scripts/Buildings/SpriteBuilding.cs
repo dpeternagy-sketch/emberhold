@@ -107,7 +107,7 @@ namespace Emberhold
         }
 
         public const string ShadowName = "SpriteShadow";
-        static Material shadowMat;
+        static Material shadowMat, contactMat;
 
         /// <summary>
         /// Peter: a fixed soft shadow on the grass, falling lower-right (his pictures are lit from the
@@ -138,6 +138,28 @@ namespace Emberhold
             q.transform.localPosition = (right * 0.32f + away * 0.12f) * size + Vector3.up * 0.03f;   // the building root is never rotated
             q.transform.rotation = Quaternion.Euler(90f, CameraRig.Yaw, 0f);
             q.transform.localScale = new Vector3(size * 1.75f, size * 1.25f, 1f);
+
+            // contact shadow: a tighter, darker patch right under the plate, so the plate's edge meets
+            // darkened ground instead of bright grass (Peter: "the buildings look like they float")
+            if (contactMat == null)
+            {
+                contactMat = DamageEffects.ParticleMaterial(false, DamageEffects.SoftDot);
+                var dark = new Color(0.02f, 0.05f, 0.03f, 0.55f);
+                if (contactMat.HasProperty("_BaseColor")) contactMat.SetColor("_BaseColor", dark);
+                if (contactMat.HasProperty("_Color")) contactMat.SetColor("_Color", dark);
+                contactMat.renderQueue = 2401;
+            }
+            var c = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            c.name = ShadowName;
+            Object.Destroy(c.GetComponent<Collider>());
+            c.transform.SetParent(parent, false);
+            var cr = c.GetComponent<MeshRenderer>();
+            cr.sharedMaterial = contactMat;
+            cr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            cr.receiveShadows = false;
+            c.transform.localPosition = (right * 0.06f + away * 0.04f) * size + Vector3.up * 0.035f;
+            c.transform.rotation = Quaternion.Euler(90f, CameraRig.Yaw, 0f);
+            c.transform.localScale = new Vector3(size * 1.65f, size * 1.65f, 1f);
         }
 
         static Transform NewQuad(Transform parent, out Material m)

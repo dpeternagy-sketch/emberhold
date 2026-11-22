@@ -186,8 +186,8 @@ namespace Emberhold
             var root = new GameObject(name).transform;
             root.SetParent(transform, false);
             var s = GridMap.Size(Def, Data.rotation);
-            var glow = Materials.Emissive(new Color(0.35f, 0.85f, 1f), 2.2f);
-            float hx = s.x * 0.5f - 0.05f, hz = s.y * 0.5f - 0.05f, t = 0.07f;
+            var glow = Materials.Emissive(new Color(0.35f, 0.85f, 1f), 1.1f);
+            float hx = s.x * 0.5f - 0.05f, hz = s.y * 0.5f - 0.05f, t = 0.05f;
             Vector3[] pos = { new Vector3(0, 0.04f, -hz), new Vector3(0, 0.04f, hz), new Vector3(-hx, 0.04f, 0), new Vector3(hx, 0.04f, 0) };
             Vector3[] size = { new Vector3(hx * 2f, 0.03f, t), new Vector3(hx * 2f, 0.03f, t), new Vector3(t, 0.03f, hz * 2f), new Vector3(t, 0.03f, hz * 2f) };
             for (int i = 0; i < 4; i++)
