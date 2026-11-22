@@ -16,7 +16,8 @@ namespace Emberhold.EditorTools
 
         public static void Run()
         {
-            new LocalSaveBackend().Delete();
+            System.IO.Directory.CreateDirectory("Screens");
+            System.IO.File.WriteAllText("Screens/preview_mode", "on");
             EmberholdMenu.OpenGameScene();
             SessionState.SetInt(Key, 1);
             Debug.Log("[Preview] entering Play");

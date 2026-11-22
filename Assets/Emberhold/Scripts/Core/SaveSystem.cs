@@ -53,4 +53,16 @@ namespace Emberhold
             if (File.Exists(PathOnDisk)) File.Delete(PathOnDisk);
         }
     }
+
+    /// <summary>
+    /// Dev look-preview mode (Editor only, switched on by the file Screens/preview_mode): a fresh city
+    /// that is never written to disk, so a preview run can never touch the real save.
+    /// </summary>
+    public class MemorySaveBackend : ISaveBackend
+    {
+        public static bool PreviewMode { get { return Application.isEditor && File.Exists("Screens/preview_mode"); } }
+        public GameState Load() { return null; }
+        public void Save(GameState state) { }
+        public void Delete() { }
+    }
 }

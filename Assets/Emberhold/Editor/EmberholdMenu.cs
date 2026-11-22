@@ -211,8 +211,14 @@ namespace Emberhold.EditorTools
         [MenuItem("Emberhold/Test/Look back at city", priority = 151)]
         static void LookCity() { var rig = Object.FindAnyObjectByType<CameraRig>(); if (rig != null) { rig.focus = new Vector3(0f, 0, 9f); rig.distance = 78f; rig.Pan(Vector3.zero); } }
 
-        [MenuItem("Emberhold/Preview/Run look tour (Play mode)", priority = 200)]
+        [MenuItem("Emberhold/Preview/1 Preview mode ON (fresh city, no saving)", priority = 200)]
+        static void PreviewOn() { System.IO.Directory.CreateDirectory("Screens"); System.IO.File.WriteAllText("Screens/preview_mode", "on"); Debug.Log("[Preview] mode ON"); }
+
+        [MenuItem("Emberhold/Preview/2 Run look tour (Play mode)", priority = 201)]
         static void Tour() { PreviewTour.Run(); }
+
+        [MenuItem("Emberhold/Preview/3 Preview mode OFF", priority = 202)]
+        static void PreviewOff() { if (System.IO.File.Exists("Screens/preview_mode")) System.IO.File.Move("Screens/preview_mode", "Screens/preview_mode_off_" + System.DateTime.Now.Ticks); Debug.Log("[Preview] mode OFF"); }
 
         [MenuItem("Emberhold/Test/Save screenshot", priority = 160)]
         static void Shot()

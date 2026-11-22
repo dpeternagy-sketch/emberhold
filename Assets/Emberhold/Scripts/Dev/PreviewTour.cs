@@ -22,6 +22,7 @@ namespace Emberhold
         public static void Run()
         {
             if (!Application.isPlaying || Running) return;
+            if (!MemorySaveBackend.PreviewMode) { Debug.LogWarning("[Preview] refused: preview mode is off (it would change the real save)"); return; }
             new GameObject("PreviewTour").AddComponent<PreviewTour>();
         }
 

@@ -68,7 +68,7 @@ namespace Emberhold
             var spawner = new GameObject("Enemies").AddComponent<EnemySpawner>();
 
             var gm = root.AddComponent<GameManager>();
-            gm.Init(world, cycle, spawner, new LocalSaveBackend());
+            gm.Init(world, cycle, spawner, MemorySaveBackend.PreviewMode ? (ISaveBackend)new MemorySaveBackend() : new LocalSaveBackend());
             cycle.Init(sun, cam, gm.State.dayTimeLeft > 0 ? gm.State.dayTimeLeft : DayNightCycle.DayLength);
             var raids = root.AddComponent<RaidDirector>();
             raids.Init(gm);
