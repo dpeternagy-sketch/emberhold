@@ -127,7 +127,7 @@ namespace Emberhold
             if (c.food > 0) line.Add(c.food + " food");
             if (c.steel > 0) line.Add(c.steel + " steel");
             if (c.energy > 0) line.Add(c.energy + " energy");
-            if (c.coins > 0) line.Add(c.coins + " coins");
+            if (c.coins > 0) line.Add(c.coins + (c.coins == 1 ? " coin" : " coins"));
             var t = parent.GetComponentInChildren<Text>();
             t.text = "Train\n<size=22>" + string.Join("  ", line.ToArray()) + "</size>";
             t.supportRichText = true;

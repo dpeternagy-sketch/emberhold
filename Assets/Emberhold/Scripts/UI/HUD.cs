@@ -284,11 +284,11 @@ namespace Emberhold
                     tl.color = d.hitsAir ? new Color(0.5f, 1f, 1f) : new Color(1f, 0.75f, 0.5f);
                 }
                 var name = UIKit.Label(card.transform, d.displayName, 26, TextAnchor.LowerCenter, new Color(0.13f, 0.16f, 0.26f));
-                name.rectTransform.offsetMin = new Vector2(4, 48);
+                name.rectTransform.offsetMin = new Vector2(4, 58);
                 if (locked)
                 {
                     var cost = UIKit.Label(card.transform, "HQ level " + d.unlockLevel, 22, TextAnchor.LowerCenter, new Color(0.75f, 0.75f, 0.75f));
-                    cost.rectTransform.offsetMin = new Vector2(4, 6);
+                    cost.rectTransform.offsetMin = new Vector2(4, 16);
                     var lockIcon = UIKit.OutlinedLabel(card.transform, "LOCKED", 26, TextAnchor.UpperCenter);
                     lockIcon.rectTransform.offsetMax = new Vector2(0, -60);
                 }
@@ -333,11 +333,11 @@ namespace Emberhold
             int built = 0;
             for (int i = 0; i < 4; i++) if (gm.WallLevel((GameManager.WallSide)i) > 0) built++;
             var name = UIKit.Label(card.transform, "Walls", 26, TextAnchor.LowerCenter, new Color(0.13f, 0.16f, 0.26f));
-            name.rectTransform.offsetMin = new Vector2(4, 48);
+            name.rectTransform.offsetMin = new Vector2(4, 58);
             name.horizontalOverflow = HorizontalWrapMode.Overflow;
             // "Sides 3/4": one short line under the name, never wrapping into it
             var sub = UIKit.OutlinedLabel(card.transform, "Sides " + built + "/4", 22, TextAnchor.LowerCenter);
-            sub.rectTransform.offsetMin = new Vector2(4, 12); sub.rectTransform.offsetMax = new Vector2(-4, 0);
+            sub.rectTransform.offsetMin = new Vector2(4, 18); sub.rectTransform.offsetMax = new Vector2(-4, 0);
             sub.horizontalOverflow = HorizontalWrapMode.Overflow;
             // not in the affordability list: the wall is never "full", the card always opens the Walls panel
         }
@@ -353,7 +353,7 @@ namespace Emberhold
         {
             var row = UIKit.Rect("Cost", card);
             row.anchorMin = new Vector2(0, 0); row.anchorMax = new Vector2(1, 0); row.pivot = new Vector2(0.5f, 0);
-            row.anchoredPosition = new Vector2(0, 8); row.sizeDelta = new Vector2(-8, 44);
+            row.anchoredPosition = new Vector2(0, 16); row.sizeDelta = new Vector2(-8, 40);   // clear of the card's bottom frame (QC run 26)
             var hl = row.gameObject.AddComponent<HorizontalLayoutGroup>();
             hl.spacing = 4; hl.childAlignment = TextAnchor.MiddleCenter; hl.childForceExpandWidth = false; hl.childControlWidth = false; hl.childControlHeight = false;
             var items = new List<KeyValuePair<ResourceType, int>>();
@@ -375,7 +375,7 @@ namespace Emberhold
             {
                 var chip = UIKit.Rect("C", row);
                 string num = it.Value.ToString();
-                chip.sizeDelta = new Vector2(icon + digit * num.Length + 4, 44);
+                chip.sizeDelta = new Vector2(icon + digit * num.Length + 4, 40);
                 var ic = UIKit.Icon(chip, IconOf(it.Key), icon);
                 UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(icon * 0.5f, 0), new Vector2(icon, icon));
                 var t = UIKit.OutlinedLabel(chip, num, font, TextAnchor.MiddleLeft);
@@ -578,7 +578,7 @@ namespace Emberhold
                     var other = gm.SoonestUpgrade();
                     if (other == null) return;
                     int c = SpeedUpCost(other);
-                    if (gm.State.coins < c) { gm.Toast("Need " + c + " coins"); return; }
+                    if (gm.State.coins < c) { gm.Toast("Need " + c + (c == 1 ? " coin" : " coins")); return; }
                     gm.State.coins -= c;
                     AudioManager.Play("coin", 0.7f);
                     other.FinishUpgradeNow();
@@ -827,7 +827,7 @@ namespace Emberhold
             var b = input.Selected;
             if (b == null || !b.Data.IsUpgrading) return;
             int cost = SpeedUpCost(b);
-            if (gm.State.coins < cost) { gm.Toast("Need " + cost + " coins"); return; }
+            if (gm.State.coins < cost) { gm.Toast("Need " + cost + (cost == 1 ? " coin" : " coins")); return; }
             gm.State.coins -= cost;
             AudioManager.Play("coin", 0.7f);
             b.FinishUpgradeNow();

@@ -399,7 +399,8 @@ namespace Emberhold
                 if (building.AimAt.HasValue && !building.Ruined) AimScreen(building.AimAt.Value, ground, wcam);
                 float wkick = Mathf.Clamp01(1f - (Time.time - building.LastShotTime) / 0.14f);
                 var wrot = wcam.transform.rotation;
-                Place(quad, mat, g, ground, GunDiamond, aimRight, shake + (wrot * Vector3.right) * ((aimRight ? -1f : 1f) * 0.04f * wkick));
+                // the gun stands ON the wall, not inside it (QC run 26: the wall ran through the wall gun)
+                Place(quad, mat, g, ground + Vector3.up * 0.5f, GunDiamond, aimRight, shake + (wrot * Vector3.right) * ((aimRight ? -1f : 1f) * 0.04f * wkick));
                 MuzzleFlash(false, 0f, wrot, building.Ruined ? 0f : wkick);
                 Finish(mat);
                 if (building.Ruined) { mat.SetFloat("_Shade", 0.42f); mat.SetColor("_Overlay", new Color(0.2f, 0.17f, 0.15f, 0.35f)); }
@@ -407,7 +408,8 @@ namespace Emberhold
             }
             // posts only at ends, corners and junctions, plus either side of a gate (a clean frame for the gate picture)
             bool nextToGate = l == 2 || r == 2 || u == 2 || d == 2;
-            bool showPost = post != null && (!straight || nextToGate);
+            // the gate picture has its own posts: a wall post beside it read as a seam (QC run 26)
+            bool showPost = post != null && (nextToGate ? !gateArt : !straight);
             quad.gameObject.SetActive(showPost);
             if (showPost)
             {
@@ -477,6 +479,9 @@ namespace Emberhold
             }
             var size = GridMap.Size(def, rotation);
             float diamond = Mathf.Max(size.x, size.y) * 1.41421356f;     // footprint diagonal as seen from 45 degrees
+            // a building's painted plate (rim, lamps, rocks) is a bit wider than its cells: shrink it so neighbours
+            // never overlap (QC run 26: houses and the turret ran into each other). The gate must fill its wall gap.
+            if (def.id != "gate") diamond *= 0.9f;
             var ground = transform.parent.position;
 
             // weapons turn to their target. Until a turret has head pictures, the whole picture (drawn aiming left)

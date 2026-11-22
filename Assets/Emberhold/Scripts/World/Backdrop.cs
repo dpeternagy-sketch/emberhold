@@ -57,7 +57,9 @@ namespace Emberhold
             float ox = (footUv.x - 0.5f) * w, oy = (0.5f - footUv.y) * h;
             transform.position = foot - (rot * Vector3.right) * ox - (rot * Vector3.up) * oy;
             var fwd = rot * Vector3.forward;
-            mat.SetVector("_Center", foot);
+            // depth plane a little in front of the foot, so the hills just in front don't cut the painting's
+            // bottom (treetops) off with a straight edge (QC run 26)
+            mat.SetVector("_Center", foot - new Vector3(fwd.x, 0f, fwd.z).normalized * 2f);
             mat.SetVector("_Normal", -new Vector3(fwd.x, 0f, fwd.z).normalized);
         }
 

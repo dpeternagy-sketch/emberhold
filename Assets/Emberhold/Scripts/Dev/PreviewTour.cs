@@ -122,7 +122,7 @@ namespace Emberhold
                 if (nearHouse != null)
                 {
                     float hd = Mathf.Max(nearHouse.Def.width, nearHouse.Def.depth) * 0.70710678f;
-                    var spot = nearHouse.Center + new Vector3(-0.70710678f, 0f, -0.70710678f) * (hd + 0.6f) + new Vector3(0.5f, 0f, -0.5f);
+                    var spot = nearHouse.Center + new Vector3(-0.70710678f, 0f, -0.70710678f) * (hd + 1.6f);   // on the grass in front of the plate, never on it
                     hero.Order(spot); hero.transform.position = spot;   // (an order: Army.Sync resets home every half second)
                 }
                 yield return new WaitForSeconds(0.4f);

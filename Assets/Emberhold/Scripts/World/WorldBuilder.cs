@@ -262,14 +262,18 @@ namespace Emberhold
                     float cKeep = 0f;
                     // river bed and muddy banks
                     float rvm = River.Mask(wx, z);
-                    if (rvm > 0f) c = Color.Lerp(c, new Color(0.36f, 0.32f, 0.24f), Mathf.Clamp01(rvm * 1.6f));
+                    // a soft, light muddy edge that fades into the grass (QC run 26: a dark brown smear on the bank)
+                    if (rvm > 0f) c = Color.Lerp(c, new Color(0.47f, 0.44f, 0.3f), Mathf.SmoothStep(0f, 0.8f, Mathf.Clamp01(rvm * 1.4f)));
                     cKeep = Mathf.Max(cKeep, Mathf.Clamp01(rvm * 1.6f));
                     // beach
                     float beach = Smooth(GridMap.SeaZ + 3f, GridMap.SeaZ + 0.5f, z);
                     c = Color.Lerp(c, sand, beach);
                     cKeep = Mathf.Max(cKeep, beach);
-                    if (hh < WaterLevel + 0.15f) cKeep = 1f;
-                    if (hh < WaterLevel + 0.15f) c = Color.Lerp(sand, wetSand, Mathf.Clamp01((WaterLevel + 0.15f - hh) * 2f));
+                    // sand where the ground dips to the water, blended over a band instead of a hard height cut
+                    // (QC run 26: a stair-step sand edge along the river)
+                    float low = Smooth(WaterLevel + 0.45f, WaterLevel + 0.05f, hh);
+                    cKeep = Mathf.Max(cKeep, low);
+                    if (low > 0f) c = Color.Lerp(c, Color.Lerp(sand, wetSand, Mathf.Clamp01((WaterLevel + 0.15f - hh) * 2f)), low);
                     // mountain: rock on steep or high ground, snow on top
                     float rockMask = Mathf.Clamp01((slope - 0.45f) * 2.2f) + Mathf.Clamp01((hh - 13f) * 0.12f);
                     // the river's own cut banks stay green and muddy, never a blurred grey rock band (QC runs 22-24)
@@ -598,10 +602,7 @@ namespace Emberhold
 
         void Marker(Vector3 p, Color c)
         {
-            if (!GridMap.IsTerrainBuildable(GridMap.CellOf(p)) && !GridMap.IsTerrainBuildable(GridMap.CellOf(p) - Vector2Int.one)) return;
-            if (River.Mask(p.x, p.z) > 0.02f) return;   // never float over the river
-            p.y = HeightAt(p);
-            Util.Prim(PrimitiveType.Cube, borderRoot, p + Vector3.up * 0.06f, new Vector3(0.22f, 0.12f, 0.22f), c);
+            // the wall loop now marks the edge of the land: no little beige border cubes any more (QC run 26: "stray cubes")
         }
     }
 

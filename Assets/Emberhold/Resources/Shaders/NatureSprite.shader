@@ -27,7 +27,11 @@ Shader "Emberhold/NatureSprite"
             Varyings vert(Attributes i)
             {
                 Varyings o;
-                o.positionCS = TransformObjectToHClip(i.positionOS.xyz);
+                // slide the quad toward the camera along the view ray (same pixels, nearer depth), so the ground
+                // just in front never slices the painted base off with a straight line (QC run 26)
+                float3 ws = TransformObjectToWorld(i.positionOS.xyz);
+                ws += normalize(_WorldSpaceCameraPos - ws) * 1.2;
+                o.positionCS = TransformWorldToHClip(ws);
                 o.uv = i.uv; o.color = i.color;
                 o.fog = ComputeFogFactor(o.positionCS.z);
                 return o;
