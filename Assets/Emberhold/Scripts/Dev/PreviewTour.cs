@@ -143,7 +143,7 @@ namespace Emberhold
         {
             var def = BuildingCatalog.Get(id);
             int x0 = Mathf.FloorToInt(at.x), z0 = Mathf.FloorToInt(at.z);
-            for (int r = 0; r < 6; r++)
+            for (int r = 0; r < 10; r++)
                 for (int dx = -r; dx <= r; dx++)
                     for (int dz = -r; dz <= r; dz++)
                     {

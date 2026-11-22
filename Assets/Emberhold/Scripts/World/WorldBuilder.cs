@@ -109,7 +109,9 @@ namespace Emberhold
             BuildSea(root);
             River.MarkCells(grid);
             River.BuildVisual(root);
-            Backdrop.Build(root, "mountain_2");   // Peter's cascade behind the HQ; mountain_1 is a spare
+            // Peter's cliffs, falls and pool behind the HQ (drawn at our camera angle); the pool sits on the river spring.
+            // mountain_1 / mountain_2 are spares.
+            Backdrop.Build(root, "mountain_iso", 44f, new Vector2(0.524f, 0.80f));
 
             TreesRoot = new GameObject("Trees").transform;
             TreesRoot.SetParent(root, false);

@@ -3,21 +3,21 @@ using UnityEngine;
 namespace Emberhold
 {
     /// <summary>
-    /// Peter's painted mountain-and-waterfall image (Resources/Sprites/Backdrops/{name}), standing up on the
+    /// Peter's painted mountain-and-waterfall image (drawn at the game's own camera angle) (Resources/Sprites/Backdrops/{name}), standing up on the
     /// mountain behind the HQ like a giant card that always faces the camera. The foot of the waterfall is
     /// anchored where the river springs, so the falls feed the river. Uses the IsoSprite shader, so it
     /// shares the day/night tint and sorts with the 3D terrain in front of it.
     /// </summary>
     public class Backdrop : MonoBehaviour
     {
-        const float Width = 64f;                                   // world units across the screen
-        static readonly Vector2 Foot = new Vector2(0.52f, 0.96f);  // waterfall foot in the image (0..1 from the top-left)
+        float width;
+        Vector2 footUv;     // waterfall foot in the image (0..1 from the top-left)
 
         Material mat;
         Vector3 foot;
         float w, h;
 
-        public static Backdrop Build(Transform parent, string name)
+        public static Backdrop Build(Transform parent, string name, float width, Vector2 footUv)
         {
             var tex = Resources.Load<Texture2D>("Sprites/Backdrops/" + name);
             var shader = Resources.Load<Shader>("Shaders/IsoSprite");
@@ -40,8 +40,9 @@ namespace Emberhold
             float z = River.StartZ - 1f;
             float x = River.CenterX(z);
             b.foot = new Vector3(x, WorldBuilder.HeightAt(x, z) - 0.4f, z);
-            b.w = Width;
-            b.h = Width * tex.height / tex.width;
+            b.width = width; b.footUv = footUv;
+            b.w = width;
+            b.h = width * tex.height / tex.width;
             return b;
         }
 
@@ -53,7 +54,7 @@ namespace Emberhold
             transform.rotation = rot;
             transform.localScale = new Vector3(w, h, 1f);
             // move the quad centre so the image's foot point lands on the river spring
-            float ox = (Foot.x - 0.5f) * w, oy = (0.5f - Foot.y) * h;
+            float ox = (footUv.x - 0.5f) * w, oy = (0.5f - footUv.y) * h;
             transform.position = foot - (rot * Vector3.right) * ox - (rot * Vector3.up) * oy;
             var fwd = rot * Vector3.forward;
             mat.SetVector("_Center", foot);
