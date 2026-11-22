@@ -19,6 +19,8 @@ namespace Emberhold
         public EnemySpawner Spawner { get; private set; }
         public Building Castle { get; private set; }
         public RaidDirector Raids { get; set; }
+        /// <summary>Trained troops, training queues and the Commander hero.</summary>
+        public Army Troops { get; private set; }
 
         /// <summary>Castle grid origin: at the back of the valley, against the mountain.</summary>
         public const int CastleX = -2, CastleZ = GridMap.MountainZ - 8;
@@ -139,6 +141,8 @@ namespace Emberhold
             RefreshWallJoins();
             if (!fresh) ApplyOfflineProduction();
             SyncTamedDinos();
+            Troops = gameObject.AddComponent<Army>();
+            Troops.Init(this);
             started = true;
         }
 
@@ -226,6 +230,7 @@ namespace Emberhold
                 Toast("Canal filled in - coins refunded");
                 return;
             }
+            if (b.Def.trains != null && Troops != null) while (Army.Queue(b).Count > 0) Troops.CancelLast(b);   // queued troops refunded too
             State.Refund(b.TotalPaid, 1f);
             RemoveInternal(b);
             Toast(b.Def.displayName + " removed - full cost refunded");
@@ -600,6 +605,7 @@ namespace Emberhold
             int reward = 10 + State.night * 5;
             State.coins += reward;
             Toast("You survived night " + State.night + "!  +" + reward + " Gold");
+            if (Troops != null) Troops.AddXp(20);
 
             int room = HousingCapacity - State.population;
             if (room > 0 && State.food >= 5)
@@ -664,6 +670,7 @@ namespace Emberhold
         public void OnEnemyKilled(Enemy e)
         {
             State.coins += e.reward;
+            if (Troops != null) Troops.AddXp(2);
         }
 
         /// <summary>Longest time away that still pays out, so players come back a few times a day.</summary>

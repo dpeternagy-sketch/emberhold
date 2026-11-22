@@ -140,6 +140,9 @@ namespace Emberhold
                 target = PickTarget(gm);
             }
             if (target == null) return;
+            // soldiers, drones and the Commander that come close get bitten first
+            var foe = Unit.NearestStanding(transform.position, Flying ? 2.2f : 1.4f, Flying);
+            if (foe != null) { FightUnit(foe); return; }
             if (Flying) { FlyStep(gm); return; }
             var goal = ClosestPointOn(target, transform.position);
             // walls can't be broken: if the target is behind one, follow the path field toward the HQ instead
@@ -199,6 +202,18 @@ namespace Emberhold
             transform.position = np;
             if (anim != null) ModelLibrary.Play(anim, kind == EnemyKind.Raider ? "Run" : "Walk");
             else body.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(Time.time * 8f * speed) * 4f); // walk sway
+        }
+
+        void FightUnit(Unit foe)
+        {
+            var to = foe.transform.position - transform.position; to.y = 0f;
+            if (to.sqrMagnitude > 0.0001f) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(to), Time.deltaTime * 8f);
+            attackTimer -= Time.deltaTime;
+            if (anim != null) ModelLibrary.Play(anim, "Attack", 0.1f);
+            if (attackTimer > 0f) return;
+            attackTimer = AttackInterval;
+            foe.TakeDamage(damage);
+            AudioManager.PlayAt("chop", transform.position, 0.35f);
         }
 
         Building target;

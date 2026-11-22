@@ -105,7 +105,7 @@ namespace Emberhold
                 for (int l = 1; l <= last; l++)
                 {
                     var u = UpgradeCostAt(l);
-                    t.steel += u.steel; t.energy += u.energy; t.coins += u.coins;
+                    t.steel += u.steel; t.energy += u.energy; t.coins += u.coins; t.food += u.food;
                 }
                 return t;
             }

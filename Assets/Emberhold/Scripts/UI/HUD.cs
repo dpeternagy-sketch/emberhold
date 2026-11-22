@@ -32,7 +32,8 @@ namespace Emberhold
         // Tapped building: name above it, round action buttons at the bottom (like CoC / Boom Beach)
         Text selTitle;
         RectTransform actionBar, upgradeCostHolder, repairCostHolder;
-        Button infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn;
+        Button infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn, trainBtn;
+        ArmyUI armyUI;
         Text speedCaption, removeCaption;
         RectTransform infoPopup, upgradePopup;
         Text infoPopupTitle, infoPopupBody, upPopupTitle, upPopupBody, upPopupTime, upPopupNote;
@@ -107,13 +108,15 @@ namespace Emberhold
             // Bottom-right: round icon buttons
             var menu = UIKit.Rect("MainButtons", root);
             mainButtons = menu;
-            UIKit.Anchor(menu, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-30, 40), new Vector2(170, 520));
+            UIKit.Anchor(menu, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-30, 40), new Vector2(170, 720));
             var b1 = UIKit.IconButton(menu, "build", "Build", 150, () => TogglePanel(BuildingCategory.Economy), "green");
             UIKit.Anchor(b1.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(150, 190));
             var b2 = UIKit.IconButton(menu, "defense", "Defenses", 150, () => TogglePanel(BuildingCategory.Defense), "red");
             UIKit.Anchor(b2.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -200), new Vector2(150, 190));
+            var b3 = UIKit.IconButton(menu, "weapons", "Army", 150, () => TogglePanel(BuildingCategory.Army), "yellow");
+            UIKit.Anchor(b3.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -400), new Vector2(150, 190));
             nightButton = UIKit.IconButton(menu, "night", "Night", 110, () => gm.Cycle.StartNightNow(), "blue");
-            UIKit.Anchor(nightButton.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -400), new Vector2(110, 150));
+            UIKit.Anchor(nightButton.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -600), new Vector2(110, 150));
 
             // Build panel (cards row)
             buildPanel = UIKit.PanelBox("BuildPanel", root).rectTransform;
@@ -215,7 +218,9 @@ namespace Emberhold
         {
             buildPanel.gameObject.SetActive(false); menuPanel.gameObject.SetActive(false);
             infoPopup.gameObject.SetActive(false); upgradePopup.gameObject.SetActive(false);
+            if (armyUI != null) armyUI.CloseTrain();
         }
+        public void PreviewShowTrain(Building b) { armyUI.ShowTrain(b); }
         public void PreviewOpenBuild(BuildingCategory c) { buildPanel.gameObject.SetActive(false); TogglePanel(c); }
 
         void ToggleMenu() { menuPanel.gameObject.SetActive(!menuPanel.gameObject.activeSelf); }
@@ -296,6 +301,7 @@ namespace Emberhold
             if (c.steel > 0) items.Add(new KeyValuePair<ResourceType, int>(ResourceType.Steel, c.steel));
             if (c.energy > 0) items.Add(new KeyValuePair<ResourceType, int>(ResourceType.Energy, c.energy));
             if (c.coins > 0) items.Add(new KeyValuePair<ResourceType, int>(ResourceType.Coins, c.coins));
+            if (c.food > 0) items.Add(new KeyValuePair<ResourceType, int>(ResourceType.Food, c.food));
             if (items.Count == 0)
             {
                 var free = UIKit.OutlinedLabel(row, "Free", 24, TextAnchor.MiddleCenter);
@@ -459,6 +465,9 @@ namespace Emberhold
             rotateBtn = UIKit.IconButton(actionBar, "k_rotate", "Rotate", 124, () => input.RotateCurrent(), "blue");
             removeBtn = UIKit.IconButton(actionBar, "k_trash", "Remove", 124, OnRemovePressed, "red");
             removeCaption = removeBtn.GetComponentInChildren<Text>();
+            armyUI = gameObject.AddComponent<ArmyUI>();
+            armyUI.Init(gm, input, rig, root);
+            trainBtn = UIKit.IconButton(actionBar, "weapons", "Train", 124, () => armyUI.ShowTrain(input.Selected), "green");
 
             // cost chips under the Upgrade / Repair buttons
             upgradeCostHolder = CostHolder(upgradeBtn);
@@ -570,6 +579,7 @@ namespace Emberhold
             bool upgrading = sel.Data.IsUpgrading;
             bool canLevel = !broken && !upgrading && sel.Data.level < sel.Def.maxLevel;
             infoBtn.gameObject.SetActive(!sel.Ruined);
+            trainBtn.gameObject.SetActive(!sel.Ruined && !sel.UnderConstruction && sel.Def.trains != null);
             repairBtn.gameObject.SetActive(broken);
             if (broken) repairBtn.GetComponentInChildren<Text>().text = sel.Ruined ? "Rebuild" : "Repair";
             upgradeBtn.gameObject.SetActive(canLevel);
@@ -599,7 +609,7 @@ namespace Emberhold
         void LayoutActions()
         {
             var list = new List<RectTransform>();
-            foreach (var b in new[] { infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn })
+            foreach (var b in new[] { trainBtn, infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn })
                 if (b.gameObject.activeSelf) list.Add(b.GetComponent<RectTransform>());
             const float step = 175f;
             for (int i = 0; i < list.Count; i++)
@@ -666,6 +676,13 @@ namespace Emberhold
             if (d.trap) lines.Add(Time.time < b.trapReadyAt ? "Resetting..." : "Ready to catch");
             if (d.id == "canal") lines.Add(b.HasWater ? "Water is flowing" : "Dry: connect to the river or a pump");
             if ((d.id == "farm" || d.id == "well") && b.HasWater) lines.Add("Next to water  +75%");
+            if (d.campSpace > 0 && gm.Troops != null) lines.Add("Army  " + gm.Troops.Used + " / " + gm.Troops.Capacity + " space");
+            if (d.trains != null && gm.Troops != null)
+            {
+                var q = Army.Queue(b);
+                lines.Add(q.Count == 0 ? "Training: nothing" : "Training  " + q.Count + "  (next in " + Mathf.CeilToInt(gm.Troops.SecondsLeft(b)) + "s)");
+            }
+            if (d.commandCenter && gm.Troops != null) lines.Add("Commander  Lv " + gm.State.heroLevel + "   XP " + gm.State.heroXp);
             if (b.Starved) lines.Add("<color=#FF6A5A>Needs energy!</color>");
             if (lines.Count > 6) lines.RemoveRange(6, lines.Count - 6);
             return string.Join("\n", lines.ToArray());

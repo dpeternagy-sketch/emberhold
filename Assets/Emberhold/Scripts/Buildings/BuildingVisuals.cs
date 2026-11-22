@@ -164,6 +164,63 @@ namespace Emberhold
                     LaserHead(t, y);
                     return true;
                 }
+                case "barracks":
+                {
+                    var pad = ModelLibrary.Spawn("Models/Base/landingpad_large", t, 2.9f, 2.9f, 0.35f);
+                    float y = pad != null ? Top(pad, t) : 0f;
+                    var h = ModelLibrary.Spawn("Models/Space/hangar_largeA", t, 2.6f, 2.4f, 2.2f);
+                    if (h == null) return false;
+                    h.localPosition = new Vector3(0, y, 0.15f);
+                    // blue army stripe + door light so it reads as a military building
+                    B(t, new Vector3(0, y + 0.08f, -1.32f), new Vector3(2.4f, 0.12f, 0.06f), new Color(0.18f, 0.49f, 0.96f));
+                    Glowing(B(t, new Vector3(0, y + 1.5f, -1.3f), new Vector3(0.5f, 0.12f, 0.05f), new Color(0.3f, 0.85f, 1f)), new Color(0.3f, 0.85f, 1f), 2f);
+                    Flag(t, new Vector3(1.25f, y, -1.15f));
+                    return true;
+                }
+                case "robotfactory":
+                {
+                    var pad = ModelLibrary.Spawn("Models/Base/landingpad_large", t, 2.9f, 2.9f, 0.35f);
+                    float y = pad != null ? Top(pad, t) : 0f;
+                    var h = ModelLibrary.Spawn("Models/Space/hangar_roundGlass", t, 2.2f, 2.2f, 2.3f);
+                    if (h == null) return false;
+                    h.localPosition = new Vector3(-0.25f, y, 0.2f);
+                    var gen = ModelLibrary.Spawn("Models/Space/machine_generatorLarge", t, 0.9f, 0.9f, 1.4f);
+                    if (gen != null) gen.localPosition = new Vector3(1.0f, y, -0.9f);
+                    var arm = ModelLibrary.Spawn("Models/Space/machine_wireless", t, 0.6f, 0.6f, 1.2f);
+                    if (arm != null) arm.localPosition = new Vector3(1.05f, y, 1.0f);
+                    Glowing(B(t, new Vector3(-0.25f, y + 0.06f, -1.0f), new Vector3(1.6f, 0.06f, 0.08f), new Color(0.3f, 0.85f, 1f)), new Color(0.3f, 0.85f, 1f), 2f);
+                    return true;
+                }
+                case "camp":
+                {
+                    var pad = ModelLibrary.Spawn("Models/Base/landingpad_large", t, 2.95f, 2.95f, 0.3f);
+                    if (pad == null) return false;
+                    float y = Top(pad, t);
+                    var c1 = ModelLibrary.Spawn("Models/Base/containers_A", t, 0.9f, 0.9f, 0.9f);
+                    if (c1 != null) c1.localPosition = new Vector3(-1.05f, y, 1.05f);
+                    var c2 = ModelLibrary.Spawn("Models/Base/cargo_A_stacked", t, 0.8f, 0.8f, 1.0f);
+                    if (c2 != null) c2.localPosition = new Vector3(1.05f, y, 1.05f);
+                    // blue corner posts with lights mark the parade ground
+                    foreach (var x in new[] { -1.35f, 1.35f })
+                    {
+                        Cyl(t, new Vector3(x, y + 0.35f, -1.35f), 0.06f, 0.7f, TechWhite);
+                        Glowing(Ball(t, new Vector3(x, y + 0.75f, -1.35f), Vector3.one * 0.13f, new Color(0.3f, 0.85f, 1f)), new Color(0.3f, 0.85f, 1f), 2f);
+                    }
+                    Flag(t, new Vector3(0, y, 1.2f));
+                    return true;
+                }
+                case "command":
+                {
+                    var b = ModelLibrary.Spawn("Models/Space/hangar_smallA", t, 1.9f, 1.9f, 1.4f);
+                    if (b == null) return false;
+                    float y = Top(b, t);
+                    var dish = ModelLibrary.Spawn("Models/Space/satelliteDish_large", t, 1.1f, 1.1f, 1.2f);
+                    if (dish != null) dish.localPosition = new Vector3(0.2f, y, 0.2f);
+                    var gold = new Color(1f, 0.78f, 0.2f);
+                    B(t, new Vector3(0, 0.1f, -0.96f), new Vector3(1.8f, 0.14f, 0.05f), gold);
+                    Glowing(Ball(t, new Vector3(-0.6f, y + 0.2f, -0.4f), Vector3.one * 0.16f, gold), gold, 2.5f);
+                    return true;
+                }
                 case "cannon":
                 {
                     var b = ModelLibrary.Spawn("Models/Base/landingpad_small", t, 1.9f, 1.9f, 0.6f);
@@ -174,6 +231,13 @@ namespace Emberhold
                 }
             }
             return false;
+        }
+
+        /// <summary>City flag on a white pole (blue = the player's team colour).</summary>
+        static void Flag(Transform t, Vector3 at)
+        {
+            Cyl(t, at + new Vector3(0, 0.9f, 0), 0.035f, 1.8f, TechWhite);
+            B(t, at + new Vector3(0.24f, 1.6f, 0), new Vector3(0.46f, 0.28f, 0.02f), TeamBlue);
         }
 
         static Transform TurretRoot(Transform t, float y)

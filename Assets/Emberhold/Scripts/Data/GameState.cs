@@ -17,6 +17,10 @@ namespace Emberhold
         /// <summary>Dinosaurs caught in traps and kept in pens (they guard the city).</summary>
         public int tamedRaptors, tamedTrikes;
         public int extraBuilders;          // bonus builder slots (VIP / shop later)
+        /// <summary>Trained army, living in the army camps (by unit id: rifleman, heavy, drone).</summary>
+        public int riflemen, heavies, drones;
+        public int heroLevel = 1, heroXp;
+        public long firstPlayUtcTicks;
         public int night = 0;                 // nights survived
         public float dayTimeLeft = 150f;
         public long lastSavedUtcTicks;
@@ -49,13 +53,13 @@ namespace Emberhold
 
         public bool CanAfford(Cost c)
         {
-            return steel >= c.steel && energy >= c.energy && coins >= c.coins;
+            return steel >= c.steel && energy >= c.energy && coins >= c.coins && food >= c.food;
         }
 
         public bool Pay(Cost c)
         {
             if (!CanAfford(c)) return false;
-            steel -= c.steel; energy -= c.energy; coins -= c.coins;
+            steel -= c.steel; energy -= c.energy; coins -= c.coins; food -= c.food;
             return true;
         }
 
@@ -66,12 +70,13 @@ namespace Emberhold
             if (steel < c.steel) list.Add("steel");
             if (energy < c.energy) list.Add("energy");
             if (coins < c.coins) list.Add("coins");
+            if (food < c.food) list.Add("food");
             return list.Count == 0 ? "resources" : string.Join(", ", list.ToArray());
         }
 
         public void Refund(Cost c, float fraction)
         {
-            steel += (int)(c.steel * fraction); energy += (int)(c.energy * fraction); coins += (int)(c.coins * fraction);
+            steel += (int)(c.steel * fraction); energy += (int)(c.energy * fraction); coins += (int)(c.coins * fraction); food += (int)(c.food * fraction);
         }
     }
 
@@ -86,6 +91,9 @@ namespace Emberhold
         public int hp;
         public long upgradeEndUtcTicks;  // 0 = not upgrading
         public bool ruined;              // destroyed in a raid: stays as a smoking ruin until rebuilt
+        /// <summary>Barracks / robot factory: unit ids waiting to train, comma separated; the first is in training.</summary>
+        public string trainQueue = "";
+        public long trainEndUtcTicks;
 
         public bool IsUpgrading { get { return upgradeEndUtcTicks > 0; } }
     }

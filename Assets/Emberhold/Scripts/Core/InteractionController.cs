@@ -138,7 +138,7 @@ namespace Emberhold
             LineCount = cells.Count;
             LineValidCount = 0;
             var budget = new GameState();
-            budget.steel = gm.State.steel; budget.energy = gm.State.energy; budget.coins = gm.State.coins;
+            budget.steel = gm.State.steel; budget.energy = gm.State.energy; budget.coins = gm.State.coins; budget.food = gm.State.food;
             foreach (var c in cells)
             {
                 bool ok = gm.CanPlace(Ghost.Def, c.x, c.y, 0) && budget.Pay(Ghost.Def.cost);

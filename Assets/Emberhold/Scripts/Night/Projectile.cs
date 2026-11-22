@@ -39,6 +39,20 @@ namespace Emberhold
             p.duration = Mathf.Max(0.25f, Vector3.Distance(from, p.lastTargetPos) / speed);
         }
 
+        /// <summary>Instant laser-bolt streak for soldiers, drones and the Commander.</summary>
+        public static void Tracer(Vector3 from, Vector3 to, Color color)
+        {
+            var go = new GameObject("Tracer");
+            var mid = (from + to) * 0.5f;
+            go.transform.position = mid;
+            var d = to - from;
+            if (d.sqrMagnitude < 0.0001f) { Object.Destroy(go); return; }
+            go.transform.rotation = Quaternion.LookRotation(d);
+            var bolt = Util.Prim(PrimitiveType.Cube, go.transform, Vector3.zero, new Vector3(0.05f, 0.05f, d.magnitude), color);
+            bolt.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(color, 2.5f);
+            Object.Destroy(go, 0.07f);
+        }
+
         void Update()
         {
             if (target != null) lastTargetPos = target.transform.position + Vector3.up * (kind == 2 ? 0.2f : 0.8f);

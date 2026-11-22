@@ -6,24 +6,24 @@ namespace Emberhold
     /// <summary>Five resources only: mobile players like short chains.</summary>
     public enum ResourceType { None, Food, Water, Energy, Steel, Coins }
 
-    public enum BuildingCategory { Core, Economy, Defense }
+    public enum BuildingCategory { Core, Economy, Defense, Army }
 
     [System.Serializable]
     public struct Cost
     {
-        public int steel, energy, coins;
+        public int steel, energy, coins, food;
 
-        public Cost(int steel = 0, int energy = 0, int coins = 0)
+        public Cost(int steel = 0, int energy = 0, int coins = 0, int food = 0)
         {
-            this.steel = steel; this.energy = energy; this.coins = coins;
+            this.steel = steel; this.energy = energy; this.coins = coins; this.food = food;
         }
 
         public Cost Scaled(float factor)
         {
-            return new Cost(Mathf.CeilToInt(steel * factor), Mathf.CeilToInt(energy * factor), Mathf.CeilToInt(coins * factor));
+            return new Cost(Mathf.CeilToInt(steel * factor), Mathf.CeilToInt(energy * factor), Mathf.CeilToInt(coins * factor), Mathf.CeilToInt(food * factor));
         }
 
-        public bool IsFree { get { return steel + energy + coins == 0; } }
+        public bool IsFree { get { return steel + energy + coins + food == 0; } }
 
         public override string ToString()
         {
@@ -31,6 +31,7 @@ namespace Emberhold
             if (steel > 0) parts.Add(steel + " Steel");
             if (energy > 0) parts.Add(energy + " Energy");
             if (coins > 0) parts.Add(coins + " Coins");
+            if (food > 0) parts.Add(food + " Food");
             return parts.Count == 0 ? "Free" : string.Join(", ", parts);
         }
     }
@@ -88,6 +89,12 @@ namespace Emberhold
         public bool indestructible;
         /// <summary>Only anti-air weapons (the missile launcher) can hit flyers; gun and laser are ground only.</summary>
         public bool hitsAir;
+        /// <summary>Army camp: housing space for trained troops at level 1 (+ campPerLevel each level).</summary>
+        public int campSpace, campPerLevel;
+        /// <summary>Barracks / factory: unit ids it can train.</summary>
+        public string[] trains;
+        /// <summary>Command Center: home of the Commander hero.</summary>
+        public bool commandCenter;
         /// <summary>How many tamed dinosaurs this pen keeps.</summary>
         public int penCapacity;
 
@@ -104,7 +111,8 @@ namespace Emberhold
 
         /// <summary>Build menu order: food and water first, then the wood, stone and iron chains, then defenses.</summary>
         static readonly string[] MenuOrder = { "house", "farm", "well", "canal", "solar", "mine",
-                                               "wall", "gate", "watchtower", "ballista", "cannon", "trap", "pen" };
+                                               "wall", "gate", "watchtower", "ballista", "cannon", "trap", "pen",
+                                               "barracks", "camp", "command", "robotfactory" };
 
         static BuildingCatalog()
         {
@@ -192,6 +200,35 @@ namespace Emberhold
                 width = 2, depth = 2, height = 2.1f, color = new Color(0.55f, 0.53f, 0.5f),
                 cost = new Cost(steel: 70, energy: 30, coins: 40), maxHp = 400, unlockLevel = 2,
                 attackRange = 9f, attackDamage = 28, attackInterval = 3.2f, splashRadius = 2.2f, projectile = 2, hitsAir = true
+            });
+            AddArmy();
+        }
+
+        static void AddArmy()
+        {
+            Add(new BuildingDef {
+                id = "barracks", displayName = "Barracks", category = BuildingCategory.Army,
+                width = 3, depth = 3, height = 2.2f, color = new Color(0.35f, 0.42f, 0.5f),
+                cost = new Cost(steel: 30, energy: 15), maxHp = 400, maxLevel = 5, unlockLevel = 2, upgradeSeconds = 90f,
+                trains = new[] { "rifleman", "heavy" }, recipe = "Trains soldiers in battle suits"
+            });
+            Add(new BuildingDef {
+                id = "camp", displayName = "Army Camp", category = BuildingCategory.Army,
+                width = 3, depth = 3, height = 0.6f, color = new Color(0.45f, 0.5f, 0.4f),
+                cost = new Cost(steel: 20, food: 10), maxHp = 300, maxLevel = 5, unlockLevel = 2, upgradeSeconds = 60f,
+                campSpace = 20, campPerLevel = 10, recipe = "Your army lives here and defends"
+            });
+            Add(new BuildingDef {
+                id = "command", displayName = "Command Center", category = BuildingCategory.Army,
+                width = 2, depth = 2, height = 2.4f, color = new Color(0.9f, 0.75f, 0.3f),
+                cost = new Cost(steel: 40, coins: 20), maxHp = 500, maxLevel = 1, unlockLevel = 2,
+                commandCenter = true, recipe = "Home of your Commander hero"
+            });
+            Add(new BuildingDef {
+                id = "robotfactory", displayName = "Robot Factory", category = BuildingCategory.Army,
+                width = 3, depth = 3, height = 2.4f, color = new Color(0.4f, 0.45f, 0.55f),
+                cost = new Cost(steel: 50, energy: 40), maxHp = 450, maxLevel = 5, unlockLevel = 3, upgradeSeconds = 120f,
+                trains = new[] { "drone" }, recipe = "Builds attack drones (they fly)"
             });
         }
 

@@ -43,7 +43,9 @@ namespace Emberhold
             hud.PreviewCloseAll();
             View(new Vector3(0f, 0f, 6f), 78f); yield return Shot("01_day_city");
             View(new Vector3(0f, 0f, 9f), 52f); yield return Shot("02_day_close");
-            View(gm.Castle.Center + new Vector3(0, 0, -4f), 34f); yield return Shot("03_hq_troops");
+            View(gm.Castle.Center + new Vector3(0, 0, -6f), 34f); yield return Shot("03_hq_troops");
+            var barracks = First("barracks");
+            if (barracks != null) { input.Select(barracks); hud.PreviewShowTrain(barracks); yield return new WaitForSeconds(0.5f); yield return Shot("03b_train_popup"); hud.PreviewCloseAll(); input.Deselect(); }
             input.Select(gm.Castle); yield return new WaitForSeconds(0.6f); yield return Shot("04_tap_hq");
             hud.ShowInfo(gm.Castle); yield return new WaitForSeconds(0.4f); yield return Shot("05_info_panel");
             hud.PreviewCloseAll();
@@ -53,6 +55,7 @@ namespace Emberhold
             View(new Vector3(0f, 0f, 6f), 62f);
             hud.PreviewOpenBuild(BuildingCategory.Economy); yield return new WaitForSeconds(0.4f); yield return Shot("07_build_menu");
             hud.PreviewOpenBuild(BuildingCategory.Defense); yield return new WaitForSeconds(0.4f); yield return Shot("08_defense_menu");
+            hud.PreviewOpenBuild(BuildingCategory.Army); yield return new WaitForSeconds(0.4f); yield return Shot("08b_army_menu");
             hud.PreviewCloseAll();
             var gun = First("watchtower");
             if (gun != null) { input.Select(gun); yield return new WaitForSeconds(0.4f); yield return Shot("09_turret_range"); input.Deselect(); }
@@ -117,8 +120,13 @@ namespace Emberhold
                 gm.PlaceNew(isGate ? gate : wall, wx, z, 0);
             }
             gm.RefreshWallJoins();
+            // army district in front of the HQ: camp, barracks, command center, robot factory
+            Place("camp", c + new Vector3(-2, 0, -8));
+            Place("barracks", c + new Vector3(-6, 0, -13));
+            Place("command", c + new Vector3(3, 0, -6));
+            Place("robotfactory", c + new Vector3(8, 0, -14));
+            s.riflemen = 8; s.heavies = 2; s.drones = 2;
             gm.RecalculateCity();
-            Troops(c);
         }
 
         Building First(string id)
