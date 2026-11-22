@@ -248,7 +248,7 @@ namespace Emberhold
             });
             Add(new BuildingDef {
                 id = "robotfactory", displayName = "Robot Factory", category = BuildingCategory.Army,
-                width = 3, depth = 3, height = 2.4f, color = new Color(0.4f, 0.45f, 0.55f),
+                width = 2, depth = 2, height = 2.4f, color = new Color(0.4f, 0.45f, 0.55f),
                 cost = new Cost(steel: 50, energy: 40), maxHp = 450, maxLevel = 5, unlockLevel = 3, upgradeSeconds = 120f,
                 trains = new[] { "drone" }, recipe = "Builds attack drones (they fly)"
             });
