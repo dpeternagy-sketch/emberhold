@@ -58,6 +58,9 @@ Shader "Emberhold/GroundSplat"
                 float fog : TEXCOORD3;
             };
 
+            float4 _EH_BackPlane;    // set by Backdrop: a point on the painting's depth plane
+            float4 _EH_BackNormal;   // and its normal (towards the camera); zero when there is no painting
+
             Varyings vert(Attributes i)
             {
                 Varyings o;
@@ -100,7 +103,10 @@ Shader "Emberhold/GroundSplat"
                 // full sun = the texture colour (x1.0); only real shadows and steep slopes darken, never below 0.75
                 half3 lit = albedo * lerp(half3(0.75, 0.78, 0.86), half3(1, 1, 1), saturate(sun / max(n.y * 0.86, 0.5)));
                 lit = min(lit, albedo * 1.05);
-                lit = MixFog(lit, i.fog);
+                // ground behind the mountain painting's card only shows in the gaps under its lower edge:
+                // keep it unfogged there, so no light blue haze strip shows under the painting (QC runs 30-32)
+                float behind = saturate(-dot(i.positionWS - _EH_BackPlane.xyz, _EH_BackNormal.xyz) / 1.5);
+                lit = lerp(MixFog(lit, i.fog), lit, behind);
                 return half4(lit, 1);
             }
             ENDHLSL

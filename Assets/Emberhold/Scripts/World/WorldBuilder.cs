@@ -270,8 +270,13 @@ namespace Emberhold
                     // (no mud tint: the painted bank colour read as a blurry olive halo, QC runs 30-32)
                     cKeep = Mathf.Max(cKeep, Mathf.Clamp01((rvm - 0.55f) * 4f));   // painted colour only right at the water, so the bank edge is a crisp thin line
                     // the grass under the mountain painting's lower edge matches its darker painted grass (QC runs 30-31)
-                    float under = Smooth(River.StartZ - 4f, River.StartZ + 1f, z);
-                    c = Color.Lerp(c, new Color(0.3f, 0.46f, 0.08f), under);   // the painting's own grass tone (Tools/backdrop_extend.py)
+                    // ground behind the painting's card (seen only in the gaps under its lower edge) takes the
+                    // painting's own darker grass tone, so its edge does not sit on much lighter grass (QC runs 30-33).
+                    // The card faces the camera (yaw 45), so "behind" is measured across x + z, never z alone.
+                    float bz = River.StartZ - 1f, bx = River.CenterX(bz);
+                    float back = ((wx - bx) + (z - bz)) * 0.70710678f + 2f;   // distance behind the card (Backdrop: foot - 2 x forward)
+                    float under = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((back + 0.5f) / 2f));
+                    c = Color.Lerp(c, new Color(0.3f, 0.46f, 0.08f), under);
                     cKeep = Mathf.Max(cKeep, under);
                     // beach
                     float beach = Smooth(GridMap.SeaZ + 3f, GridMap.SeaZ + 0.5f, z);

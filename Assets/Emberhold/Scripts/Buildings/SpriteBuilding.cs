@@ -431,7 +431,8 @@ namespace Emberhold
             float yk = 1f;
             var cam = Camera.main;
             var axis = flip ? new Vector3(0, 0, 0.5f) : new Vector3(0.5f, 0, 0);
-            Vector3 s0 = cam.WorldToScreenPoint(centre.Value - axis), s1 = cam.WorldToScreenPoint(centre.Value + axis);
+            var mid = centre.Value + Vector3.up * 0.45f;   // halfway up the wall: base and cap lines converge slightly in perspective, split the difference
+            Vector3 s0 = cam.WorldToScreenPoint(mid - axis), s1 = cam.WorldToScreenPoint(mid + axis);
             float dx = Mathf.Abs(s1.x - s0.x);
             if (dx > 1f) yk = Mathf.Clamp(Mathf.Abs(s1.y - s0.y) / dx / 0.515f, 0.85f, 1.2f);
             Place(q, m, a, centre.Value, SegDiamond * 1.06f, flip, shake, yk);   // QC: a hair of overlap so neighbouring segments never show a seam

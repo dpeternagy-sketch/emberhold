@@ -61,6 +61,8 @@ namespace Emberhold
             // bottom (treetops) off with a straight edge (QC run 26)
             mat.SetVector("_Center", foot - new Vector3(fwd.x, 0f, fwd.z).normalized * 2f);
             mat.SetVector("_Normal", -new Vector3(fwd.x, 0f, fwd.z).normalized);
+            Shader.SetGlobalVector("_EH_BackPlane", foot - new Vector3(fwd.x, 0f, fwd.z).normalized * 2f);
+            Shader.SetGlobalVector("_EH_BackNormal", -new Vector3(fwd.x, 0f, fwd.z).normalized);
         }
 
         void OnDestroy() { if (mat != null) Destroy(mat); }
