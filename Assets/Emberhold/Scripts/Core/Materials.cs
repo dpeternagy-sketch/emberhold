@@ -70,7 +70,7 @@ namespace Emberhold
         {
             if (water != null) return water;
             water = new Material(Lit);
-            SetColor(water, new Color(0.13f, 0.36f, 0.45f));
+            SetColor(water, new Color(0.14f, 0.52f, 0.64f));   // closer to the turquoise of the painted waterfall pool it flows from (QC run 36)
             if (water.HasProperty("_Smoothness")) water.SetFloat("_Smoothness", 0.93f);
             if (water.HasProperty("_Metallic")) water.SetFloat("_Metallic", 0.1f);
             if (water.HasProperty("_BumpMap"))
