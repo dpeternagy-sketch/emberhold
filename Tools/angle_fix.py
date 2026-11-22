@@ -94,3 +94,46 @@ def full_fix(a, cx, cy, plate):
     out = apply(canvas, sh)
     ncy = oy + cy + sh[int(round(ncx))]
     return out, ncx, ncy, plate * (sL + sR) / 2, (math.degrees(phiL), math.degrees(phiR), sL, sR)
+
+def corner_fit(a):
+    """Fitted plate edges: returns xL, xR, virtual front corner xi, left/right slopes (rise per px)."""
+    m = a[..., 3] > 128
+    h, w = m.shape
+    cols = np.arange(w); has = m.any(0)
+    bot = np.where(has, h - 1 - np.argmax(m[::-1], 0), -1)
+    xs = cols[has]; xL, xR = xs.min(), xs.max()
+    xB = int(np.median(xs[bot[has] >= bot[has].max() - 2]))
+    def fit(x0, x1):
+        xx = np.arange(int(x0 + (x1 - x0) * 0.25), int(x0 + (x1 - x0) * 0.75))
+        ok = bot[xx] > 0
+        return np.polyfit(xx[ok], bot[xx][ok], 1)
+    pl = fit(xL, xB); pr = fit(xB, xR)
+    xi = (pr[1] - pl[1]) / (pl[0] - pr[0])
+    return xL, xR, xi, pl, pr
+
+def square_fix(a, cx, cy):
+    """Square footprint: make the left and right halves of the plate equally wide around the fitted
+    front corner, then shear both edges onto the ground angle pivoting on that corner."""
+    h, w = a.shape[:2]
+    xL, xR, xi, pl, pr = corner_fit(a)
+    xi = int(round(xi))
+    half = ((xi - xL) + (xR - xi)) / 2
+    sL = half / (xi - xL); sR = half / (xR - xi)
+    left = np.asarray(Image.fromarray(a[:, :xi]).resize((max(1, int(round(xi * sL))), h), Image.LANCZOS))
+    right = np.asarray(Image.fromarray(a[:, xi:]).resize((max(1, int(round((w - xi) * sR))), h), Image.LANCZOS))
+    W = left.shape[1] + right.shape[1]
+    S = max(W, h)
+    canvas = np.zeros((S, S, 4), a.dtype)
+    ox = (S - W) // 2; oy = (S - h) // 2
+    canvas[oy:oy + h, ox:ox + left.shape[1]] = left
+    canvas[oy:oy + h, ox + left.shape[1]:ox + W] = right
+    ncx = ox + (cx * sL if cx < xi else left.shape[1] + (cx - xi) * sR)
+    ncy = oy + cy
+    # shear around the fitted corner
+    xL2, xR2, xi2, pl2, pr2 = corner_fit(canvas)
+    x = np.arange(S)
+    d = np.where(x < xi2, (xi2 - x) * (pl2[0] - GROUND), (x - xi2) * (-pr2[0] - GROUND))
+    sh = np.round(d).astype(int)
+    out = apply(canvas, sh)
+    ncy += sh[int(round(ncx))]
+    return out, ncx, ncy, (sL, sR)
