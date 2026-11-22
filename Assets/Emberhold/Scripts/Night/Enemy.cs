@@ -110,7 +110,9 @@ namespace Emberhold
                 }
                 return;
             }
-            transform.position += dir * speed * Time.deltaTime;
+            var np = transform.position + dir * speed * Time.deltaTime;
+            np.y = WorldBuilder.HeightAt(np);
+            transform.position = np;
             body.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(Time.time * 8f * speed) * 4f); // walk sway
         }
 

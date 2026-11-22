@@ -6,17 +6,17 @@ namespace Emberhold
     public class CameraRig : MonoBehaviour
     {
         public Camera Cam { get; private set; }
-        public Vector3 focus = Vector3.zero;
-        public float distance = 26f;
-        const float MinDistance = 10f, MaxDistance = 45f;
-        const float Pitch = 52f, Yaw = 0f;
+        public Vector3 focus = new Vector3(0f, 0f, 3f);
+        public float distance = 32f;
+        const float MinDistance = 9f, MaxDistance = 55f;
+        const float Pitch = 33f, Yaw = 0f;
 
         public void Init(Camera cam)
         {
             Cam = cam;
             Cam.fieldOfView = 40f;
             Cam.nearClipPlane = 0.3f;
-            Cam.farClipPlane = 250f;
+            Cam.farClipPlane = 400f;
             Apply();
         }
 
@@ -24,7 +24,7 @@ namespace Emberhold
         {
             focus -= new Vector3(worldDelta.x, 0f, worldDelta.z);
             focus.x = Mathf.Clamp(focus.x, -22f, 22f);
-            focus.z = Mathf.Clamp(focus.z, -20f, 18f);
+            focus.z = Mathf.Clamp(focus.z, -20f, 20f);
             Apply();
         }
 

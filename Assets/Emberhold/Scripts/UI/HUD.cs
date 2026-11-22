@@ -14,7 +14,9 @@ namespace Emberhold
         InteractionController input;
         CameraRig rig;
 
-        Text resourcesText, statusText, toastText;
+        Text statusText, toastText;
+        RawImage statusIcon;
+        readonly Dictionary<string, Text> resourceTexts = new Dictionary<string, Text>();
         float toastUntil;
         readonly Queue<string> toasts = new Queue<string>();
 
@@ -39,35 +41,38 @@ namespace Emberhold
             var canvas = UIKit.CreateCanvas();
             var root = canvas.transform;
 
-            // Top bar
-            var top = UIKit.Box("TopBar", root, UIKit.Panel).rectTransform;
-            top.anchorMin = new Vector2(0, 1); top.anchorMax = new Vector2(1, 1); top.pivot = new Vector2(0.5f, 1);
-            top.anchoredPosition = new Vector2(0, -40); top.sizeDelta = new Vector2(-40, 120);
-            resourcesText = UIKit.Label(top, "", 34, TextAnchor.MiddleLeft);
-            resourcesText.rectTransform.offsetMax = new Vector2(-130, -4);
-            UIKit.Anchor(UIKit.Button(top, "Menu", 30, ToggleMenu).GetComponent<RectTransform>(),
-                         new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-12, 0), new Vector2(110, 90));
+            // Top: resource icons with numbers, no background strip
+            var res = UIKit.Rect("Resources", root);
+            res.anchorMin = new Vector2(0, 1); res.anchorMax = new Vector2(1, 1); res.pivot = new Vector2(0.5f, 1);
+            res.anchoredPosition = new Vector2(-60, -50); res.sizeDelta = new Vector2(-160, 90);
+            var hl = res.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hl.spacing = 6; hl.childAlignment = TextAnchor.MiddleLeft; hl.childForceExpandWidth = false; hl.childControlWidth = false; hl.childControlHeight = false;
+            foreach (var key in new[] { "food", "wood", "stone", "gold", "weapons", "people" })
+                resourceTexts[key] = ResourceChip(res, key);
+
+            var menuBtn = UIKit.IconButton(root, "menu", null, 96, ToggleMenu);
+            UIKit.Anchor(menuBtn.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-30, -46), new Vector2(96, 96));
 
             var status = UIKit.Rect("Status", root);
-            UIKit.Anchor(status, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -170), new Vector2(900, 60));
-            statusText = UIKit.Label(status, "", 32);
+            UIKit.Anchor(status, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -150), new Vector2(700, 70));
+            statusIcon = UIKit.Icon(status, "day", 64);
+            UIKit.Anchor(statusIcon.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(40, 0), new Vector2(64, 64));
+            statusText = UIKit.OutlinedLabel(status, "", 34, TextAnchor.MiddleLeft);
+            statusText.rectTransform.offsetMin = new Vector2(120, 0);
 
             var toast = UIKit.Rect("Toast", root);
             UIKit.Anchor(toast, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -240), new Vector2(950, 90));
-            toastText = UIKit.Label(toast, "", 38);
-            toastText.fontStyle = FontStyle.Bold;
-            var shadow = toastText.gameObject.AddComponent<Shadow>();
-            shadow.effectDistance = new Vector2(2, -2);
+            toastText = UIKit.OutlinedLabel(toast, "", 40, TextAnchor.MiddleCenter);
 
-            // Bottom-right small menu buttons
+            // Bottom-right: round icon buttons
             var menu = UIKit.Rect("MainButtons", root);
-            UIKit.Anchor(menu, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-30, 40), new Vector2(220, 420));
-            var b1 = UIKit.Button(menu, "Build", 36, () => TogglePanel(BuildingCategory.Economy));
-            UIKit.Anchor(b1.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(210, 120));
-            var b2 = UIKit.Button(menu, "Defenses", 34, () => TogglePanel(BuildingCategory.Defense));
-            UIKit.Anchor(b2.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -140), new Vector2(210, 120));
-            nightButton = UIKit.Button(menu, "Night", 30, () => gm.Cycle.StartNightNow(), new Color(0.12f, 0.13f, 0.25f, 0.92f));
-            UIKit.Anchor(nightButton.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -280), new Vector2(160, 100));
+            UIKit.Anchor(menu, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-30, 40), new Vector2(170, 520));
+            var b1 = UIKit.IconButton(menu, "build", "Build", 150, () => TogglePanel(BuildingCategory.Economy));
+            UIKit.Anchor(b1.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(150, 190));
+            var b2 = UIKit.IconButton(menu, "defense", "Defenses", 150, () => TogglePanel(BuildingCategory.Defense));
+            UIKit.Anchor(b2.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -200), new Vector2(150, 190));
+            nightButton = UIKit.IconButton(menu, "night", "Night", 110, () => gm.Cycle.StartNightNow());
+            UIKit.Anchor(nightButton.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -400), new Vector2(110, 150));
 
             // Build panel (cards row)
             buildPanel = UIKit.Box("BuildPanel", root, UIKit.Panel).rectTransform;
@@ -92,15 +97,15 @@ namespace Emberhold
             ghostButtons.sizeDelta = new Vector2(340, 100);
             ghostOk = UIKit.Button(ghostButtons, "OK", 34, () => input.ConfirmPlacement(), new Color(0.2f, 0.45f, 0.2f, 0.95f));
             UIKit.Anchor(ghostOk.GetComponent<RectTransform>(), new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(100, 100));
-            var rot = UIKit.Button(ghostButtons, "Rotate", 26, () => input.RotateCurrent());
-            UIKit.Anchor(rot.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(110, 100));
+            var rot = UIKit.IconButton(ghostButtons, "rotate", null, 100, () => input.RotateCurrent());
+            UIKit.Anchor(rot.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(100, 100));
             var cancel = UIKit.Button(ghostButtons, "X", 34, () => input.CancelPlacement(), new Color(0.5f, 0.15f, 0.12f, 0.95f));
             UIKit.Anchor(cancel.GetComponent<RectTransform>(), new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(100, 100));
 
             // Small rotate icon beside the selected building
             selectButtons = UIKit.Rect("SelectButtons", root);
-            selectButtons.sizeDelta = new Vector2(110, 90);
-            var srot = UIKit.Button(selectButtons, "Rotate", 24, () => input.RotateCurrent());
+            selectButtons.sizeDelta = new Vector2(90, 90);
+            var srot = UIKit.IconButton(selectButtons, "rotate", null, 90, () => input.RotateCurrent());
             var srr = srot.GetComponent<RectTransform>();
             srr.anchorMin = Vector2.zero; srr.anchorMax = Vector2.one; srr.offsetMin = srr.offsetMax = Vector2.zero;
 
@@ -139,6 +144,21 @@ namespace Emberhold
             gm.OnToast += ShowToast;
             gm.OnSettlersArrived += ShowSettlers;
             input.OnSelectionChanged += () => { if (input.Ghost != null) buildPanel.gameObject.SetActive(false); };
+        }
+
+        static void SetIfChanged(Text t, string v) { if (t.text != v) t.text = v; }
+
+        Text ResourceChip(Transform parent, string icon)
+        {
+            var chip = UIKit.Rect("Chip_" + icon, parent);
+            chip.sizeDelta = new Vector2(icon == "people" ? 190 : 150, 84);
+            var ic = UIKit.Icon(chip, icon, 76);
+            UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(76, 76));
+            var t = UIKit.OutlinedLabel(chip, "0", 38, TextAnchor.MiddleLeft);
+            t.rectTransform.offsetMin = new Vector2(76, 0);
+            t.rectTransform.offsetMax = new Vector2(0, 0);
+            t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            return t;
         }
 
         void ToggleMenu() { menuPanel.gameObject.SetActive(!menuPanel.gameObject.activeSelf); }
@@ -187,21 +207,25 @@ namespace Emberhold
             if (gm == null || gm.State == null) return;
             var s = gm.State;
 
-            resourcesText.text = string.Format("Food {0}   Wood {1}   Stone {2}   Gold {3}   Weapons {4}   People {5}/{6}",
-                s.food, s.wood, s.stone, s.gold, s.weapons, s.population, gm.HousingCapacity);
+            SetIfChanged(resourceTexts["food"], s.food.ToString());
+            SetIfChanged(resourceTexts["wood"], s.wood.ToString());
+            SetIfChanged(resourceTexts["stone"], s.stone.ToString());
+            SetIfChanged(resourceTexts["gold"], s.gold.ToString());
+            SetIfChanged(resourceTexts["weapons"], s.weapons.ToString());
+            SetIfChanged(resourceTexts["people"], s.population + "/" + gm.HousingCapacity);
 
             var cycle = gm.Cycle;
             if (cycle.IsNight)
             {
                 statusText.text = "Night " + (s.night + 1) + "   Enemies: " + Enemy.All.Count;
+                statusIcon.texture = UIKit.IconTexture("night");
                 nightButton.interactable = false;
-                UIKit.SetText(nightButton, "Night");
             }
             else
             {
-                statusText.text = "Day " + (s.night + 1) + "   Night falls in " + Util.FormatTime(cycle.DayTimeLeft);
+                statusText.text = "Day " + (s.night + 1) + "   Night in " + Util.FormatTime(cycle.DayTimeLeft);
+                statusIcon.texture = UIKit.IconTexture("day");
                 nightButton.interactable = cycle.Phase == Phase.Day;
-                UIKit.SetText(nightButton, "Night");
             }
 
             // Toasts

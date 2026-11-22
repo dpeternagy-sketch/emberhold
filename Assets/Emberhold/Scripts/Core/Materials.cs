@@ -48,9 +48,15 @@ namespace Emberhold
             if (m.HasProperty("_Color")) m.SetColor("_Color", c);
         }
 
+        static readonly Dictionary<string, Material> emissiveCache = new Dictionary<string, Material>();
+
         public static Material Emissive(Color color, float intensity)
         {
+            string key = color.ToString() + intensity;
+            Material cached;
+            if (emissiveCache.TryGetValue(key, out cached) && cached != null) return cached;
             var m = Unique(color);
+            emissiveCache[key] = m;
             m.EnableKeyword("_EMISSION");
             if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", color * intensity);
             return m;
