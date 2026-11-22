@@ -61,18 +61,18 @@ namespace Emberhold
             var gun = First("watchtower");
             if (gun != null) { input.Select(gun); yield return new WaitForSeconds(0.4f); yield return Shot("09_turret_range"); input.Deselect(); }
 
-            // ---- dino attack by day (stills) ----
-            var gun2 = First("watchtower");
-            var hit = gun2 != null ? gun2.Center + new Vector3(-7f, 0, -1f) : GameManager.CastleCenter + new Vector3(-12f, 0, -18f);
-            SpawnDinos(hit, 6, true);
-            View(hit + new Vector3(4f, 0, 2f), 36f);
-            yield return new WaitForSeconds(2.2f); yield return Shot("10_dino_attack");
-            View(hit + new Vector3(6f, 0, 3f), 40f);
-            yield return new WaitForSeconds(1.8f); yield return Shot("11_turrets_fire");
+            // ---- one wild dino walks up to the gate in the wall (stills) ----
+            var gatePos = gateCell + new Vector3(0.5f, 0f, 0.5f);
+            Enemy.Spawn(EnemyKind.Raider, gatePos + new Vector3(-9f, 0, 0.5f), 2, gm.transform);
+            View(gatePos + new Vector3(3f, 0, 1f), 30f);
+            yield return WaitGateHit(12f);
+            yield return Shot("10_dino_attack");
+            View(gatePos + new Vector3(5f, 0, 2f), 36f);
+            yield return new WaitForSeconds(1.2f); yield return Shot("11_turrets_fire");
             foreach (var e in Enemy.All.ToArray()) if (e != null) Destroy(e.gameObject);
             yield return new WaitForSeconds(1f);
 
-            // ---- video: day fly-over, tap, menu, attack, dusk to night ----
+            // ---- video: fly-over, tap, menu, then a triceratops comes for the gate ----
             Time.captureFramerate = 30; recording = true; frame = 0;
             yield return Glide(new Vector3(0, 0, -8f), 90f, new Vector3(0, 0, 8f), 60f, 4f);
             yield return Glide(new Vector3(0, 0, 8f), 60f, gm.Castle.Center + new Vector3(0, 0, -4f), 36f, 2.5f);
@@ -81,18 +81,15 @@ namespace Emberhold
             hud.PreviewCloseAll(); input.Deselect();
             hud.PreviewOpenBuild(BuildingCategory.Defense); yield return Hold(1.5f);
             hud.PreviewCloseAll();
-            SpawnDinos(new Vector3(-21f, 0, 3f), 6, true);
-            yield return Glide(gm.Castle.Center + new Vector3(0, 0, -4f), 36f, new Vector3(-9f, 0, 4f), 44f, 2f);
-            yield return Hold(5f);
-            gm.Cycle.StartNightNow();
-            yield return Glide(new Vector3(-9f, 0, 4f), 44f, new Vector3(0, 0, 4f), 70f, 6f);
-            yield return Hold(3f);
+            Enemy.Spawn(EnemyKind.Brute, gatePos + new Vector3(-10f, 0, -1f), 2, gm.transform);
+            yield return Glide(gm.Castle.Center + new Vector3(0, 0, -4f), 36f, gatePos + new Vector3(2f, 0, 1f), 34f, 2.5f);
+            yield return Hold(9f);
+            yield return Glide(gatePos + new Vector3(2f, 0, 1f), 34f, new Vector3(0, 0, 4f), 70f, 4f);
             recording = false; Time.captureFramerate = 0;
+            foreach (var e in Enemy.All.ToArray()) if (e != null) Destroy(e.gameObject);
 
-            // ---- night stills ----
-            yield return WaitDark();
-            View(new Vector3(0f, 0f, 6f), 78f); yield return Shot("12_night_city");
-            View(new Vector3(0f, 0f, 9f), 48f); yield return Shot("13_night_close");
+            // ---- wide closing still ----
+            View(new Vector3(0f, 0f, 6f), 78f); yield return Shot("12_city_wide");
             Debug.Log("[Preview] done: " + frame + " video frames in " + Dir + "/frames");
             Running = false; Finished = true;
         }
@@ -117,10 +114,11 @@ namespace Emberhold
             // a wall arc with a gate across the west approach
             var wall = BuildingCatalog.Get("wall"); var gate = BuildingCatalog.Get("gate");
             int wx = Mathf.FloorToInt(c.x) - 17;
-            for (int z = Mathf.FloorToInt(c.z) - 16; z <= Mathf.FloorToInt(c.z) - 2; z++)
+            for (int z = Mathf.FloorToInt(c.z) - 18; z <= GridMap.MountainZ - 2; z++)   // right up to the mountain foot
             {
                 Clear(wx, z, 1, 1);
                 bool isGate = z == Mathf.FloorToInt(c.z) - 9;
+                if (isGate) gateCell = new Vector3(wx, 0f, z);
                 gm.PlaceNew(isGate ? gate : wall, wx, z, 0);
             }
             gm.RefreshWallJoins();
@@ -131,6 +129,18 @@ namespace Emberhold
             Place("robotfactory", c + new Vector3(8, 0, -14));
             s.riflemen = 6; s.heavies = 1; s.drones = 2;   // 6 + 5 + 6 = 17 of 20 space
             gm.RecalculateCity();
+        }
+
+        Vector3 gateCell;
+
+        /// <summary>Waits until a dino is biting the gate (or the time runs out).</summary>
+        IEnumerator WaitGateHit(float maxSeconds)
+        {
+            var g = gm.Grid.At(new Vector2Int(Mathf.FloorToInt(gateCell.x), Mathf.FloorToInt(gateCell.z))) as Building;
+            int hp0 = g != null ? g.Data.hp : 0;
+            float t = 0f;
+            while (t < maxSeconds && (g == null || g.Data.hp >= hp0)) { t += Time.deltaTime; yield return null; }
+            yield return new WaitForSeconds(0.15f);
         }
 
         Building First(string id)

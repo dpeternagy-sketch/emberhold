@@ -9,7 +9,7 @@ namespace Emberhold
         static Material smokeMat, emberMat;
 
         static Texture2D softDot;
-        static Texture2D SoftDot
+        public static Texture2D SoftDot
         {
             get
             {

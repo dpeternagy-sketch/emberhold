@@ -183,12 +183,28 @@ namespace Emberhold
             r.sizeDelta = new Vector2(size, size + (string.IsNullOrEmpty(caption) ? 0 : 40));
             var hit = r.gameObject.AddComponent<Image>();
             hit.color = new Color(0, 0, 0, 0); // invisible hit area
-            var circle = Skin("Circle", r, color, "button_round_depth_gloss");
-            if (circle.sprite == null) { circle.sprite = CircleSprite; circle.color = new Color(0.12f, 0.09f, 0.06f, 0.55f); }
-            circle.raycastTarget = false;
-            Anchor(circle.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(size, size));
-            var ic = Icon(r, icon, size * 0.62f);
-            Anchor(ic.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -size * 0.47f), new Vector2(size * 0.62f, size * 0.62f));
+            // near-future badge icons (Resources/UI/Badges/icon_*.png) are complete buttons on their own
+            var badge = icon.StartsWith("icon_") ? Resources.Load<Texture2D>("UI/Badges/" + icon) : null;
+            Graphic circle;
+            if (badge != null)
+            {
+                var bi = Rect("Badge", r).gameObject.AddComponent<RawImage>();
+                bi.texture = badge;
+                bi.raycastTarget = false;
+                Anchor(bi.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(size, size));
+                circle = bi;
+            }
+            else
+            {
+                if (icon.StartsWith("icon_")) icon = OldIcon(icon);
+                var c = Skin("Circle", r, color, "button_round_depth_gloss");
+                if (c.sprite == null) { c.sprite = CircleSprite; c.color = new Color(0.12f, 0.09f, 0.06f, 0.55f); }
+                c.raycastTarget = false;
+                Anchor(c.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(size, size));
+                var ic = Icon(r, icon, size * 0.62f);
+                Anchor(ic.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -size * 0.47f), new Vector2(size * 0.62f, size * 0.62f));
+                circle = c;
+            }
             if (!string.IsNullOrEmpty(caption))
             {
                 var t = OutlinedLabel(r, caption, 26, TextAnchor.LowerCenter);
@@ -204,6 +220,26 @@ namespace Emberhold
             b.colors = colors;
             b.onClick.AddListener(() => { AudioManager.Play("ui", 0.5f); if (onClick != null) onClick(); });
             return b;
+        }
+
+        /// <summary>The older round-button glyph to use when a badge picture is missing.</summary>
+        static string OldIcon(string badge)
+        {
+            switch (badge)
+            {
+                case "icon_build": return "build";
+                case "icon_defenses": return "defense";
+                case "icon_army": case "icon_attack": return "weapons";
+                case "icon_menu": return "k_menu";
+                case "icon_info": return "k_info";
+                case "icon_upgrade": return "k_up";
+                case "icon_remove": return "k_trash";
+                case "icon_repair_all": return "k_wrench";
+                case "icon_select_all": return "people";
+                case "icon_recall": return "k_rotate";
+                case "icon_done": return "k_cross";
+                default: return "k_info";
+            }
         }
 
         static Sprite circleSprite;

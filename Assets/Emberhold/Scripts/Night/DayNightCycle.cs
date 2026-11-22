@@ -23,6 +23,7 @@ namespace Emberhold
         public float DayTimeLeft { get; set; }
 
         public event Action OnNightStarted;
+        public event Action OnDayPassed;
         public event Action OnDawn;
 
         Light sun;
@@ -88,7 +89,9 @@ namespace Emberhold
             {
                 case Phase.Day:
                     DayTimeLeft -= Time.deltaTime;
-                    if (DayTimeLeft <= 0f) StartNightNow();
+                    // Peter: no night mode. A "day" still passes (it counts up dino strength and daily
+                    // rewards), but the sky stays day; only StartNightNow (dev tools) can make it night.
+                    if (DayTimeLeft <= 0f) { DayTimeLeft = DayLength; if (OnDayPassed != null) OnDayPassed(); }
                     Apply(0f);
                     break;
                 case Phase.Dusk:

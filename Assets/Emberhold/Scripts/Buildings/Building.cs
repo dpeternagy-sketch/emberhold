@@ -157,6 +157,13 @@ namespace Emberhold
         {
             buildDuration = seconds;
             buildTime = 0f;
+            if (sprite != null)
+            {
+                // painted buildings: no wooden poles, just a glowing build-zone outline while it rises
+                dust = BuildFrame("Construction");
+                model.localScale = new Vector3(1f, 0.02f, 1f);
+                return;
+            }
             dust = new GameObject("Construction").transform;
             dust.SetParent(transform, false);
             var s = GridMap.Size(Def, Data.rotation);
@@ -171,6 +178,26 @@ namespace Emberhold
             Util.Prim(PrimitiveType.Cube, dust, new Vector3(0, h * 0.6f, 0.5f * s.y * 0.95f), new Vector3(s.x * 0.95f, 0.05f, 0.05f), wood);
             Util.Prim(PrimitiveType.Cube, dust, new Vector3(0.3f * s.x, 0.12f, -0.6f * s.y), new Vector3(0.35f, 0.24f, 0.25f), new Color(0.62f, 0.6f, 0.56f));
             model.localScale = new Vector3(1f, 0.02f, 1f);
+        }
+
+        /// <summary>A thin cyan outline round the footprint, lying on the ground (construction and upgrades).</summary>
+        Transform BuildFrame(string name)
+        {
+            var root = new GameObject(name).transform;
+            root.SetParent(transform, false);
+            var s = GridMap.Size(Def, Data.rotation);
+            var glow = Materials.Emissive(new Color(0.35f, 0.85f, 1f), 2.2f);
+            float hx = s.x * 0.5f - 0.05f, hz = s.y * 0.5f - 0.05f, t = 0.07f;
+            Vector3[] pos = { new Vector3(0, 0.04f, -hz), new Vector3(0, 0.04f, hz), new Vector3(-hx, 0.04f, 0), new Vector3(hx, 0.04f, 0) };
+            Vector3[] size = { new Vector3(hx * 2f, 0.03f, t), new Vector3(hx * 2f, 0.03f, t), new Vector3(t, 0.03f, hz * 2f), new Vector3(t, 0.03f, hz * 2f) };
+            for (int i = 0; i < 4; i++)
+            {
+                var bar = Util.Prim(PrimitiveType.Cube, root, pos[i], size[i], new Color(0.35f, 0.85f, 1f));
+                var r = bar.GetComponent<Renderer>();
+                r.sharedMaterial = glow;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            return root;
         }
 
         public static Building Spawn(BuildingDef def, BuildingData data, Transform parent, bool ghost)
@@ -270,6 +297,7 @@ namespace Emberhold
         void RefreshUpgradeVisual()
         {
             bool show = Data.IsUpgrading && !IsGhost;
+            if (show && upgradeScaffold == null && sprite != null) upgradeScaffold = BuildFrame("Upgrading");
             if (show && upgradeScaffold == null)
             {
                 upgradeScaffold = new GameObject("Scaffold").transform;

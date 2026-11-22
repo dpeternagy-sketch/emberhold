@@ -68,7 +68,7 @@ namespace Emberhold
             foreach (var key in new[] { "food", "water", "energy", "steel", "coins", "people" })
                 resourceTexts[key] = ResourceChip(res, key);
 
-            var menuBtn = UIKit.IconButton(root, "k_menu", null, 104, ToggleMenu, "blue");
+            var menuBtn = UIKit.IconButton(root, "icon_menu", null, 104, ToggleMenu, "blue");
             UIKit.Anchor(menuBtn.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-30, -30), new Vector2(104, 104));
 
             // Builders: how many upgrades can run at once (busy / total)
@@ -90,11 +90,14 @@ namespace Emberhold
             builderText.rectTransform.offsetMax = new Vector2(-8, 0);
 
             var status = UIKit.Rect("Status", root);
+            statusRoot = status;
             UIKit.Anchor(status, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -206), new Vector2(560, 70));
             var statusBg = UIKit.Pill("Bg", status);
             statusBg.rectTransform.anchorMin = Vector2.zero; statusBg.rectTransform.anchorMax = Vector2.one;
             statusBg.rectTransform.offsetMin = statusBg.rectTransform.offsetMax = Vector2.zero;
             statusIcon = UIKit.Icon(status, "day", 64);
+            var alarm = Resources.Load<Texture2D>("UI/Badges/icon_attack");
+            if (alarm != null) statusIcon.texture = alarm;
             UIKit.Anchor(statusIcon.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(40, 0), new Vector2(64, 64));
             statusText = UIKit.OutlinedLabel(status, "", 30, TextAnchor.MiddleLeft);
             statusText.rectTransform.offsetMin = new Vector2(112, 0);
@@ -109,14 +112,15 @@ namespace Emberhold
             var menu = UIKit.Rect("MainButtons", root);
             mainButtons = menu;
             UIKit.Anchor(menu, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-30, 40), new Vector2(170, 720));
-            var b1 = UIKit.IconButton(menu, "build", "Build", 150, () => TogglePanel(BuildingCategory.Economy), "green");
+            var b1 = UIKit.IconButton(menu, "icon_build", "Build", 150, () => TogglePanel(BuildingCategory.Economy), "green");
             UIKit.Anchor(b1.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(150, 190));
-            var b2 = UIKit.IconButton(menu, "defense", "Defenses", 150, () => TogglePanel(BuildingCategory.Defense), "red");
+            var b2 = UIKit.IconButton(menu, "icon_defenses", "Defenses", 150, () => TogglePanel(BuildingCategory.Defense), "red");
             UIKit.Anchor(b2.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -200), new Vector2(150, 190));
-            var b3 = UIKit.IconButton(menu, "weapons", "Army", 150, () => TogglePanel(BuildingCategory.Army), "yellow");
+            var b3 = UIKit.IconButton(menu, "icon_army", "Army", 150, () => TogglePanel(BuildingCategory.Army), "yellow");
             UIKit.Anchor(b3.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -400), new Vector2(150, 190));
             nightButton = UIKit.IconButton(menu, "night", "Night", 110, () => gm.Cycle.StartNightNow(), "blue");
             UIKit.Anchor(nightButton.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -600), new Vector2(110, 150));
+            nightButton.gameObject.SetActive(false);   // Peter: no night mode; dinos just wander in one at a time
 
             // Build panel (cards row)
             buildPanel = UIKit.PanelBox("BuildPanel", root).rectTransform;
@@ -368,6 +372,8 @@ namespace Emberhold
             settlersPopup.gameObject.SetActive(true);
         }
 
+        RectTransform statusRoot;
+
         void Update()
         {
             if (gm == null || gm.State == null) return;
@@ -383,19 +389,10 @@ namespace Emberhold
             SetIfChanged(builderText, (slots - busy) + "/" + slots);
             builderText.color = busy >= slots ? new Color(1f, 0.55f, 0.45f) : Color.white;
 
-            var cycle = gm.Cycle;
-            if (cycle.IsNight)
-            {
-                statusText.text = "Night " + (s.night + 1) + "   Enemies: " + Enemy.All.Count;
-                statusIcon.texture = UIKit.IconTexture("night");
-                nightButton.interactable = false;
-            }
-            else
-            {
-                statusText.text = "Day " + (s.night + 1) + "   Night in " + Util.FormatTime(cycle.DayTimeLeft);
-                statusIcon.texture = UIKit.IconTexture("day");
-                nightButton.interactable = cycle.Phase == Phase.Day;
-            }
+            // the status pill only appears while something is attacking (no night countdown any more)
+            int foes = Enemy.All.Count;
+            statusRoot.gameObject.SetActive(foes > 0);
+            if (foes > 0) SetIfChanged(statusText, foes == 1 ? "A dino is attacking!" : foes + " attackers");
 
             // Toasts
             if (Time.time > toastUntil)
@@ -469,17 +466,17 @@ namespace Emberhold
             actionBar = UIKit.Rect("ActionBar", root);
             UIKit.Anchor(actionBar, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 90), new Vector2(900, 170));
 
-            infoBtn = UIKit.IconButton(actionBar, "k_info", "Info", 124, () => ShowInfo(input.Selected), "blue");
-            upgradeBtn = UIKit.IconButton(actionBar, "k_up", "Upgrade", 124, () => ShowUpgrade(input.Selected), "green");
-            repairBtn = UIKit.IconButton(actionBar, "k_wrench", "Repair", 124, OnRepairPressed, "yellow");
+            infoBtn = UIKit.IconButton(actionBar, "icon_info", "Info", 124, () => ShowInfo(input.Selected), "blue");
+            upgradeBtn = UIKit.IconButton(actionBar, "icon_upgrade", "Upgrade", 124, () => ShowUpgrade(input.Selected), "green");
+            repairBtn = UIKit.IconButton(actionBar, "icon_repair_all", "Repair", 124, OnRepairPressed, "yellow");
             speedBtn = UIKit.IconButton(actionBar, "k_fast", "Finish", 124, SpeedUp, "yellow");
             speedCaption = speedBtn.GetComponentInChildren<Text>();
             rotateBtn = UIKit.IconButton(actionBar, "k_rotate", "Rotate", 124, () => input.RotateCurrent(), "blue");
-            removeBtn = UIKit.IconButton(actionBar, "k_trash", "Remove", 124, OnRemovePressed, "red");
+            removeBtn = UIKit.IconButton(actionBar, "icon_remove", "Remove", 124, OnRemovePressed, "red");
             removeCaption = removeBtn.GetComponentInChildren<Text>();
             armyUI = gameObject.AddComponent<ArmyUI>();
             armyUI.Init(gm, input, rig, root);
-            trainBtn = UIKit.IconButton(actionBar, "weapons", "Train", 124, () => armyUI.ShowTrain(input.Selected), "green");
+            trainBtn = UIKit.IconButton(actionBar, "icon_army", "Train", 124, () => armyUI.ShowTrain(input.Selected), "green");
 
             // cost chips under the Upgrade / Repair buttons
             upgradeCostHolder = CostHolder(upgradeBtn);

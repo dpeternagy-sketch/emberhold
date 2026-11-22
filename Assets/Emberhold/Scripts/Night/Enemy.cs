@@ -43,6 +43,7 @@ namespace Emberhold
             e.maxHp = Mathf.RoundToInt(e.maxHp * scale);
             e.damage = Mathf.RoundToInt(e.damage * scale);
             e.hp = e.maxHp;
+            e.strength = night;
             e.BuildBody();
             All.Add(e);
             return e;
@@ -53,6 +54,8 @@ namespace Emberhold
         static float ModelLength(EnemyKind k) { return k == EnemyKind.Boss ? 4.8f : k == EnemyKind.Brute ? 2.6f : 1.6f; }
 
         Animation anim;
+        DinoSprite sprite;
+        int strength;
         bool dead;
         float height = 1.6f;
 
@@ -86,6 +89,14 @@ namespace Emberhold
         {
             body = new GameObject("Body").transform;
             body.SetParent(transform, false);
+            sprite = DinoSprite.Create(transform, kind, strength);
+            if (sprite != null)
+            {
+                height = sprite.Height;
+                hpBar = Util.Prim(PrimitiveType.Cube, transform, new Vector3(0, height + 0.3f, 0), new Vector3(0.6f, 0.06f, 0.06f), new Color(0.8f, 0.15f, 0.1f)).transform;
+                renderers = new Renderer[0];
+                return;
+            }
             if (Flying)
             {
                 BuildFlyer();
@@ -114,6 +125,7 @@ namespace Emberhold
 
         void SetRenderersVisible(bool v)
         {
+            if (renderers == null) return;
             foreach (var r in renderers) r.enabled = v;
         }
 
@@ -127,7 +139,8 @@ namespace Emberhold
             visibility = Mathf.MoveTowards(visibility, 1f, Time.deltaTime * 1.5f);
             Visible = visibility > 0.5f;
             SetRenderersVisible(visibility > 0.05f);
-            body.localPosition = new Vector3(0, (visibility - 1f) * 0.6f, 0); // rise in when spawned
+            if (sprite != null) sprite.SetFade(visibility);
+            else body.localPosition = new Vector3(0, (visibility - 1f) * 0.6f, 0); // rise in when spawned
             hpBar.localScale = new Vector3(0.6f * hp / (float)maxHp, 0.06f, 0.06f);
             hpBar.gameObject.SetActive(hp < maxHp && Visible);
 
@@ -182,11 +195,12 @@ namespace Emberhold
             {
                 attackTimer -= Time.deltaTime;
                 if (anim != null) ModelLibrary.Play(anim, "Attack", 0.1f);
-                else body.localRotation = Quaternion.Euler(-20f * Mathf.Clamp01(1f - attackTimer / AttackInterval), 0, 0);
+                else if (sprite == null) body.localRotation = Quaternion.Euler(-20f * Mathf.Clamp01(1f - attackTimer / AttackInterval), 0, 0);
                 if (attackTimer <= 0f)
                 {
                     attackTimer = AttackInterval;
                     hit.TakeDamage(damage);
+                    if (sprite != null) sprite.Attack();
                     if (anim != null) { var a = anim; foreach (AnimationState st in a) if (st.name.EndsWith("_Attack")) { a.Stop(st.name); a.Play(st.name); } }
                     AudioManager.PlayAt(hit.Def.id == "gate" || hit == gm.Castle ? "sword" : "chop", transform.position, 0.45f);
                 }
@@ -197,11 +211,37 @@ namespace Emberhold
             var trap = here as Building;
             if (trap != null && trap.Def.trap && kind != EnemyKind.Boss && !Flying && gm.TryCapture(this, trap)) return;
             float wade = (here is RiverCell || (here is Building && ((Building)here).Def.passable)) ? 0.4f : 1f;
-            var np = transform.position + dir * speed * wade * Time.deltaTime;
-            np.y = WorldBuilder.HeightAt(np);
-            transform.position = np;
+            Walk(gm, dir * speed * wade * Time.deltaTime);
             if (anim != null) ModelLibrary.Play(anim, kind == EnemyKind.Raider ? "Run" : "Walk");
-            else body.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(Time.time * 8f * speed) * 4f); // walk sway
+            else if (sprite == null) body.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(Time.time * 8f * speed) * 4f); // walk sway
+        }
+
+        float stuck;
+
+        /// <summary>
+        /// Moves on the ground but never into a wall cell: walls are solid. Blocked straight on, it slides
+        /// along the wall; fully stuck for a few seconds (no way in at all), it gives up and leaves.
+        /// </summary>
+        void Walk(GameManager gm, Vector3 step)
+        {
+            var p = transform.position;
+            Vector3[] tries = { step, new Vector3(step.x, 0f, 0f), new Vector3(0f, 0f, step.z) };
+            foreach (var s in tries)
+            {
+                if (s.sqrMagnitude < 1e-8f) continue;
+                var np = p + s;
+                // keep a little body width away from walls, not just the centre point
+                var probe = np + s.normalized * 0.25f;
+                var cn = GridMap.CellOf(np); var cp = GridMap.CellOf(probe);
+                if (gm != null && gm.Grid != null && (PathField.IsSolidWall(gm.Grid.At(cn)) || PathField.IsSolidWall(gm.Grid.At(cp)))) continue;
+                if (PathField.Inside(cn) && PathField.TerrainBlocked(cn) && !PathField.TerrainBlocked(GridMap.CellOf(p))) continue;
+                np.y = WorldBuilder.HeightAt(np);
+                transform.position = np;
+                stuck = 0f;
+                return;
+            }
+            stuck += Time.deltaTime;
+            if (stuck > 4f && !fleeing) Flee();
         }
 
         void FightUnit(Unit foe)
@@ -213,6 +253,7 @@ namespace Emberhold
             if (attackTimer > 0f) return;
             attackTimer = AttackInterval;
             foe.TakeDamage(damage);
+            if (sprite != null) sprite.Attack();
             AudioManager.PlayAt("chop", transform.position, 0.35f);
         }
 
@@ -245,6 +286,7 @@ namespace Emberhold
                 {
                     attackTimer = AttackInterval;
                     target.TakeDamage(damage);
+                    if (sprite != null) sprite.Attack();
                     AudioManager.PlayAt("chop", transform.position, 0.35f);
                 }
             }
@@ -280,6 +322,7 @@ namespace Emberhold
         {
             if (dead) return;
             hp -= amount;
+            if (sprite != null) sprite.Flash();
             if (hp <= 0)
             {
                 dead = true;
@@ -287,7 +330,8 @@ namespace Emberhold
                 GameManager.Instance.OnEnemyKilled(this);
                 AudioManager.PlayAt("hurt", transform.position, 0.6f);
                 hpBar.gameObject.SetActive(false);
-                if (anim != null && ModelLibrary.Play(anim, "Death", 0.05f)) Destroy(gameObject, 1.8f);
+                if (sprite != null) Destroy(gameObject, sprite.Die());
+                else if (anim != null && ModelLibrary.Play(anim, "Death", 0.05f)) Destroy(gameObject, 1.8f);
                 else Destroy(gameObject);
             }
         }
@@ -329,12 +373,15 @@ namespace Emberhold
             if (away.sqrMagnitude < 0.01f) away = Vector3.back;
             away.Normalize();
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(away), Time.deltaTime * 6f);
-            var np = transform.position + away * speed * 1.8f * Time.deltaTime;
-            np.y = Flying ? np.y + Time.deltaTime * 1.5f : WorldBuilder.HeightAt(np);
-            transform.position = np;
+            if (Flying) transform.position += away * speed * 1.8f * Time.deltaTime + Vector3.up * Time.deltaTime * 1.5f;
+            else Walk(GameManager.Instance, away * speed * 1.8f * Time.deltaTime);
             if (anim != null) ModelLibrary.Play(anim, "Run");
             float left = fleeEnd - Time.time;
-            if (left < 1f) body.localPosition = new Vector3(0, (left - 1f) * 1.2f, 0);   // sink away at the edge
+            if (left < 1f)
+            {
+                if (sprite != null) sprite.SetFade(Mathf.Max(0f, left));
+                else body.localPosition = new Vector3(0, (left - 1f) * 1.2f, 0);   // sink away at the edge
+            }
             if (left <= 0f) Destroy(gameObject);
         }
 

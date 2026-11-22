@@ -306,9 +306,6 @@ namespace Emberhold
                 yield return null;
             }
             Destroy(marker);
-            var beam = Util.Prim(PrimitiveType.Cylinder, null, p + Vector3.up * 15f, new Vector3(0.9f, 15f, 0.9f), new Color(1f, 0.85f, 0.4f));
-            beam.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(new Color(1f, 0.8f, 0.35f), 4f);
-            Destroy(beam, 0.25f);
             AudioManager.PlayAt("blast", p, 1f);
             DamageEffects.Puff(p + Vector3.up * 0.3f, 2.4f);
             foreach (var e in Enemy.All.ToArray())
@@ -316,6 +313,16 @@ namespace Emberhold
                 var d = e.transform.position - p; d.y = 0f;
                 if (d.magnitude <= StrikeRadius) e.Hit(StrikeDamage);
             }
+            // a thin cyan laser from the sky that narrows and fades in a blink (not a solid pillar)
+            var beam = Util.Prim(PrimitiveType.Cylinder, null, p + Vector3.up * 12f, new Vector3(0.35f, 12f, 0.35f), new Color(0.6f, 0.95f, 1f));
+            beam.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(new Color(0.45f, 0.9f, 1f), 3f);
+            for (float k = 0f; k < 0.18f; k += Time.deltaTime)
+            {
+                float w = Mathf.Lerp(0.35f, 0.02f, k / 0.18f);
+                beam.transform.localScale = new Vector3(w, 12f, w);
+                yield return null;
+            }
+            Destroy(beam);
         }
     }
 }

@@ -161,6 +161,7 @@ namespace Emberhold
 
             Cycle.OnNightStarted += HandleNightStarted;
             Cycle.OnDawn += HandleDawn;
+            Cycle.OnDayPassed += HandleDawn;
             World.ShowBuildBorder(BuildRadius);
             RecalculateCity();
             RefreshWallJoins();
@@ -693,7 +694,7 @@ namespace Emberhold
             State.night++;
             int reward = 10 + State.night * 5;
             State.coins += reward;
-            Toast("You survived night " + State.night + "!  +" + reward + " Gold");
+            if (Cycle != null && Cycle.IsNight) Toast("Morning!  +" + reward + " Gold");
             if (Troops != null) Troops.AddXp(20);
 
             int room = HousingCapacity - State.population;

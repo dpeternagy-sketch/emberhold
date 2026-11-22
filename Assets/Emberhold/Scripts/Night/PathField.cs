@@ -23,12 +23,14 @@ namespace Emberhold
         public static bool Inside(Vector2Int c) { return c.x >= -GridMap.Half && c.x < GridMap.Half && c.y >= -GridMap.Half && c.y < GridMap.Half; }
 
         /// <summary>Ground terrain enemies can never walk on: the mountain and the sea.</summary>
-        public static bool TerrainBlocked(Vector2Int c) { return c.y >= GridMap.MountainZ || c.y < GridMap.SeaZ; }
+        /// The strips at the mountain foot and the shore are blocked too: nothing can be built there, so if
+        /// dinos could walk them they would slip round the end of every wall.
+        public static bool TerrainBlocked(Vector2Int c) { return c.y >= GridMap.MountainZ - 1 || c.y < GridMap.SeaZ + 2; }
 
         public static bool IsSolidWall(object o)
         {
             var b = o as Building;
-            return b != null && !b.IsGhost && b.Def.indestructible;
+            return b != null && !b.IsGhost && (b.Def.indestructible || b.Def.id == "wallgun");   // a wall gun still stands on its wall piece
         }
 
         static float Cost(GridMap g, Vector2Int c)
