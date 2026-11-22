@@ -110,7 +110,7 @@ namespace Emberhold
         public const string Castle = "castle";
 
         /// <summary>Build menu order: food and water first, then the wood, stone and iron chains, then defenses.</summary>
-        static readonly string[] MenuOrder = { "house", "farm", "well", "canal", "solar", "mine",
+        static readonly string[] MenuOrder = { "house", "apartment", "farm", "well", "canal", "solar", "mine",
                                                "powerplant", "factory", "wall", "gate", "watchtower", "ballista", "cannon", "dronepad", "trap", "pen",
                                                "barracks", "camp", "command", "robotfactory" };
 
@@ -127,6 +127,12 @@ namespace Emberhold
                 width = 2, depth = 2, height = 1.6f, color = new Color(0.78f, 0.62f, 0.45f),
                 cost = new Cost(steel: 20), maxHp = 150, housing = 4,
                 produces = ResourceType.Coins, produceAmount = 2, produceInterval = 15f, recipe = "Homes for 4. They pay coins"
+            });
+            Add(new BuildingDef {
+                id = "apartment", displayName = "Apartments", category = BuildingCategory.Economy,
+                width = 2, depth = 2, height = 3f, color = new Color(0.85f, 0.87f, 0.92f),
+                cost = new Cost(steel: 60, energy: 20, coins: 20), maxHp = 300, housing = 12, unlockLevel = 3,
+                produces = ResourceType.Coins, produceAmount = 5, produceInterval = 15f, recipe = "Homes for 12. They pay coins"
             });
             Add(new BuildingDef {
                 id = "farm", displayName = "Greenhouse", category = BuildingCategory.Economy,
