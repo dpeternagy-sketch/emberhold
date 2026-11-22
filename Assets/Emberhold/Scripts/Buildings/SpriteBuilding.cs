@@ -102,7 +102,42 @@ namespace Emberhold
                 sb.segX = NewQuad(parent, out sb.matX);
                 sb.segZ = NewQuad(parent, out sb.matZ);
             }
+            else AddGroundShadow(def, parent);
             return root;
+        }
+
+        public const string ShadowName = "SpriteShadow";
+        static Material shadowMat;
+
+        /// <summary>
+        /// Peter: a fixed soft shadow on the grass, falling lower-right (his pictures are lit from the
+        /// top-left), so the building sits on the ground instead of looking pasted on. Drawn after the
+        /// ground and before the buildings, so it never darkens a plate.
+        /// </summary>
+        static void AddGroundShadow(BuildingDef def, Transform parent)
+        {
+            if (shadowMat == null)
+            {
+                shadowMat = DamageEffects.ParticleMaterial(false, DamageEffects.SoftDot);
+                var dark = new Color(0.02f, 0.06f, 0.04f, 0.42f);
+                if (shadowMat.HasProperty("_BaseColor")) shadowMat.SetColor("_BaseColor", dark);
+                if (shadowMat.HasProperty("_Color")) shadowMat.SetColor("_Color", dark);
+                shadowMat.renderQueue = 2400;   // after the ground (2000), before the building pictures (2450)
+            }
+            var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            q.name = ShadowName;
+            Object.Destroy(q.GetComponent<Collider>());
+            q.transform.SetParent(parent, false);
+            var r = q.GetComponent<MeshRenderer>();
+            r.sharedMaterial = shadowMat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            float size = Mathf.Max(def.width, def.depth);
+            var right = Quaternion.Euler(0f, CameraRig.Yaw, 0f) * Vector3.right;      // screen right, on the ground
+            var away = Quaternion.Euler(0f, CameraRig.Yaw, 0f) * Vector3.back;        // screen down, on the ground
+            q.transform.localPosition = (right * 0.32f + away * 0.12f) * size + Vector3.up * 0.03f;   // the building root is never rotated
+            q.transform.rotation = Quaternion.Euler(90f, CameraRig.Yaw, 0f);
+            q.transform.localScale = new Vector3(size * 1.75f, size * 1.25f, 1f);
         }
 
         static Transform NewQuad(Transform parent, out Material m)

@@ -17,7 +17,7 @@ namespace Emberhold
         /// <summary>0 = day grade, 1 = night grade (less saturated, cooler), driven by the day/night cycle.</summary>
         public static void SetNight(float dark)
         {
-            if (grade != null) grade.saturation.Override(Mathf.Lerp(18f, -25f, dark));
+            if (grade != null) grade.saturation.Override(Mathf.Lerp(0f, -25f, dark));
             if (balance != null) balance.temperature.Override(Mathf.Lerp(0f, -20f, dark));
         }
 
@@ -27,7 +27,9 @@ namespace Emberhold
             if (data != null)
             {
                 data.renderPostProcessing = true;
-                data.antialiasing = AntialiasingMode.FastApproximateAntialiasing;
+                // SMAA keeps the painted art sharp (FXAA blurred every building and tree)
+                data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+                data.antialiasingQuality = AntialiasingQuality.High;
             }
             var go = new GameObject("GlobalVolume");
             var v = go.AddComponent<Volume>();
@@ -36,24 +38,26 @@ namespace Emberhold
             var p = ScriptableObject.CreateInstance<VolumeProfile>();
 
             var tm = p.Add<Tonemapping>(true);
-            tm.mode.Override(TonemappingMode.Neutral);
+            // Peter's painted colours go to the screen untouched: no tonemapping curve, no extra
+            // exposure, contrast or saturation (those washed the white buildings out and made the grass neon)
+            tm.mode.Override(TonemappingMode.None);
 
             var ca = p.Add<ColorAdjustments>(true);
-            ca.postExposure.Override(0.15f);
-            ca.contrast.Override(12f);
-            ca.saturation.Override(18f);
+            ca.postExposure.Override(0f);
+            ca.contrast.Override(0f);
+            ca.saturation.Override(0f);
             grade = ca;
             var wb = p.Add<WhiteBalance>(true);
             wb.temperature.Override(0f);
             balance = wb;
 
             var bl = p.Add<Bloom>(true);
-            bl.threshold.Override(1.1f);
-            bl.intensity.Override(0.35f);
+            bl.threshold.Override(1.25f);
+            bl.intensity.Override(0.25f);
             bl.scatter.Override(0.6f);
 
             var vg = p.Add<Vignette>(true);
-            vg.intensity.Override(0.18f);
+            vg.intensity.Override(0.12f);
             vg.smoothness.Override(0.4f);
 
             v.sharedProfile = p;

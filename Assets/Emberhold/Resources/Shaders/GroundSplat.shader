@@ -83,7 +83,11 @@ Shader "Emberhold/GroundSplat"
                 Light light = GetMainLight(TransformWorldToShadowCoord(i.positionWS));
                 half3 n = normalize(i.normalWS);
                 half ndl = saturate(dot(n, light.direction));
-                half3 lit = albedo * (light.color * ndl * light.shadowAttenuation + SampleSH(n));
+                // painted look like the (unlit) building pictures: flat sunlit ground shows the texture's own
+                // colour, slopes and shadows only darken it (no blown-out yellow-green from sun + sky adding up)
+                half sun = ndl * light.shadowAttenuation;
+                half3 lit = albedo * lerp(half3(0.58, 0.62, 0.72), half3(1, 1, 1), sun / max(n.y * 0.86, 0.5));
+                lit = min(lit, albedo * 1.05);
                 lit = MixFog(lit, i.fog);
                 return half4(lit, 1);
             }

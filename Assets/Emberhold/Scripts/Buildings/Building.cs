@@ -211,7 +211,7 @@ namespace Emberhold
             if (data.hp <= 0 && !data.ruined) data.hp = b.MaxHp;
             b.model = BuildingVisuals.Create(def, go.transform).transform;
             b.sprite = b.model.GetComponent<SpriteBuilding>();
-            b.renderers = System.Array.FindAll(go.GetComponentsInChildren<Renderer>(), r => r.name != SpriteBuilding.QuadName);
+            b.renderers = System.Array.FindAll(go.GetComponentsInChildren<Renderer>(), r => r.name != SpriteBuilding.QuadName && r.name != SpriteBuilding.ShadowName);
             b.turret = b.model.Find("Turret");
             b.ApplyTransform();
             if (!ghost)
