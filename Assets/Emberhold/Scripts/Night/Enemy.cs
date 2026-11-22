@@ -79,9 +79,8 @@ namespace Emberhold
             var gm = GameManager.Instance;
             if (gm == null || gm.Castle == null) return;
 
-            // Visibility: fade in when entering light, fade out when leaving.
-            bool lit = LightSource.IsLit(transform.position, 0.5f);
-            visibility = Mathf.MoveTowards(visibility, lit ? 1f : 0f, Time.deltaTime * 2.5f);
+            // Always visible; just rise in smoothly when spawned.
+            visibility = Mathf.MoveTowards(visibility, 1f, Time.deltaTime * 1.5f);
             Visible = visibility > 0.5f;
             SetRenderersVisible(visibility > 0.05f);
             body.localPosition = new Vector3(0, (visibility - 1f) * 0.6f, 0); // rise out of the dark
@@ -98,7 +97,7 @@ namespace Emberhold
             // Is something in the way?
             var ahead = transform.position + dir * 0.7f;
             var blocker = gm.Grid.At(GridMap.CellOf(ahead)) as Building;
-            if (blocker != null && !blocker.IsGhost)
+            if (blocker != null && !blocker.IsGhost && !blocker.Def.passable)
             {
                 attackTimer -= Time.deltaTime;
                 if (attackTimer <= 0f)
@@ -110,7 +109,10 @@ namespace Emberhold
                 }
                 return;
             }
-            var np = transform.position + dir * speed * Time.deltaTime;
+            // wading through the river or a canal is slow
+            var here = gm.Grid.At(GridMap.CellOf(transform.position));
+            float wade = (here is RiverCell || (here is Building && ((Building)here).Def.passable)) ? 0.4f : 1f;
+            var np = transform.position + dir * speed * wade * Time.deltaTime;
             np.y = WorldBuilder.HeightAt(np);
             transform.position = np;
             body.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(Time.time * 8f * speed) * 4f); // walk sway

@@ -47,7 +47,7 @@ namespace Emberhold
             res.anchoredPosition = new Vector2(-60, -50); res.sizeDelta = new Vector2(-160, 90);
             var hl = res.gameObject.AddComponent<HorizontalLayoutGroup>();
             hl.spacing = 6; hl.childAlignment = TextAnchor.MiddleLeft; hl.childForceExpandWidth = false; hl.childControlWidth = false; hl.childControlHeight = false;
-            foreach (var key in new[] { "food", "wood", "stone", "gold", "weapons", "people" })
+            foreach (var key in new[] { "food", "water", "wood", "stone", "gold", "weapons", "people" })
                 resourceTexts[key] = ResourceChip(res, key);
 
             var menuBtn = UIKit.IconButton(root, "menu", null, 96, ToggleMenu);
@@ -77,7 +77,7 @@ namespace Emberhold
             // Build panel (cards row)
             buildPanel = UIKit.Box("BuildPanel", root, UIKit.Panel).rectTransform;
             buildPanel.anchorMin = new Vector2(0, 0); buildPanel.anchorMax = new Vector2(1, 0); buildPanel.pivot = new Vector2(0.5f, 0);
-            buildPanel.anchoredPosition = new Vector2(-130, 40); buildPanel.sizeDelta = new Vector2(-300, 260);
+            buildPanel.anchoredPosition = new Vector2(-110, 40); buildPanel.sizeDelta = new Vector2(-260, 270);
             var scroll = buildPanel.gameObject.AddComponent<ScrollRect>();
             scroll.horizontal = true; scroll.vertical = false;
             var viewport = UIKit.Rect("Viewport", buildPanel);
@@ -151,11 +151,11 @@ namespace Emberhold
         Text ResourceChip(Transform parent, string icon)
         {
             var chip = UIKit.Rect("Chip_" + icon, parent);
-            chip.sizeDelta = new Vector2(icon == "people" ? 190 : 150, 84);
-            var ic = UIKit.Icon(chip, icon, 76);
-            UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(76, 76));
-            var t = UIKit.OutlinedLabel(chip, "0", 38, TextAnchor.MiddleLeft);
-            t.rectTransform.offsetMin = new Vector2(76, 0);
+            chip.sizeDelta = new Vector2(icon == "people" ? 170 : 128, 84);
+            var ic = UIKit.Icon(chip, icon, 66);
+            UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(66, 66));
+            var t = UIKit.OutlinedLabel(chip, "0", 34, TextAnchor.MiddleLeft);
+            t.rectTransform.offsetMin = new Vector2(64, 0);
             t.rectTransform.offsetMax = new Vector2(0, 0);
             t.horizontalOverflow = HorizontalWrapMode.Overflow;
             return t;
@@ -176,13 +176,23 @@ namespace Emberhold
             foreach (var def in BuildingCatalog.InCategory(category))
             {
                 var d = def;
-                var card = UIKit.Button(buildRow, d.displayName + "\n<size=24>" + d.cost + "</size>", 32, () => input.BeginPlacing(d));
-                card.GetComponent<RectTransform>().sizeDelta = new Vector2(250, 0);
+                var card = UIKit.Button(buildRow, "", 30, () => input.BeginPlacing(d));
+                card.GetComponent<RectTransform>().sizeDelta = new Vector2(230, 0);
                 var le = card.gameObject.AddComponent<LayoutElement>();
-                le.preferredWidth = 250;
-                var swatch = UIKit.Box("Swatch", card.transform, d.color);
-                swatch.raycastTarget = false;
-                UIKit.Anchor(swatch.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -12), new Vector2(60, 14));
+                le.preferredWidth = 230;
+                // picture of the real building
+                var pic = UIKit.Rect("Picture", card.transform);
+                pic.anchorMin = new Vector2(0, 1); pic.anchorMax = new Vector2(1, 1); pic.pivot = new Vector2(0.5f, 1);
+                pic.anchoredPosition = new Vector2(0, -8); pic.sizeDelta = new Vector2(-16, 150);
+                var raw = pic.gameObject.AddComponent<RawImage>();
+                raw.texture = Thumbnails.Get(d);
+                raw.raycastTarget = false;
+                raw.uvRect = new Rect(0.07f, 0.12f, 0.86f, 0.62f);
+                var name = UIKit.Label(card.transform, d.displayName, 30, TextAnchor.LowerCenter);
+                name.fontStyle = FontStyle.Bold;
+                name.rectTransform.offsetMin = new Vector2(4, 36);
+                var cost = UIKit.Label(card.transform, d.cost.ToString(), 22, TextAnchor.LowerCenter, new Color(0.95f, 0.82f, 0.55f));
+                cost.rectTransform.offsetMin = new Vector2(4, 6);
                 cards.Add(new KeyValuePair<Button, BuildingDef>(card, d));
             }
             buildPanel.gameObject.SetActive(true);
@@ -208,6 +218,7 @@ namespace Emberhold
             var s = gm.State;
 
             SetIfChanged(resourceTexts["food"], s.food.ToString());
+            SetIfChanged(resourceTexts["water"], s.water.ToString());
             SetIfChanged(resourceTexts["wood"], s.wood.ToString());
             SetIfChanged(resourceTexts["stone"], s.stone.ToString());
             SetIfChanged(resourceTexts["gold"], s.gold.ToString());
@@ -256,6 +267,7 @@ namespace Emberhold
                 infoPanel.gameObject.SetActive(true);
                 infoText.text = Describe(sel);
                 removeButton.gameObject.SetActive(sel.Def.Movable);
+                UIKit.SetText(removeButton, sel.Def.removeLabel);
                 if (sel.Data.IsUpgrading)
                 {
                     UIKit.SetText(upgradeButton, "Upgrading... " + Util.FormatTime(sel.UpgradeSecondsLeft));
@@ -287,6 +299,8 @@ namespace Emberhold
             if (b.Housing > 0) text += "    Homes " + b.Housing;
             if (d.produces != ResourceType.None) text += "\nMakes " + d.produces + " every " + d.produceInterval + "s";
             if (d.id == BuildingCatalog.Castle) text += "\nUpgrade the castle to get more land";
+            if (d.id == "canal") text = "Canal\n" + (b.HasWater ? "Water is flowing" : "Dry - connect it to the river or a well");
+            if ((d.id == "farm" || d.id == "well") && b.HasWater) text += "\nNext to water: +75%";
             return text;
         }
 

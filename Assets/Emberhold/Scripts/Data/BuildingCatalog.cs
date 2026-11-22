@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Emberhold
 {
-    public enum ResourceType { None, Food, Wood, Stone, Gold, Weapons }
+    public enum ResourceType { None, Food, Wood, Stone, Gold, Weapons, Water }
 
     public enum BuildingCategory { Core, Economy, Defense }
 
@@ -70,6 +70,11 @@ namespace Emberhold
         public string PrefabPath { get { return "Models/" + id; } }
 
         public bool Movable { get { return category != BuildingCategory.Core; } }
+
+        /// <summary>Enemies walk through it (slowly) instead of attacking it, e.g. canals.</summary>
+        public bool passable;
+        /// <summary>Label of the remove button ("Remove", or "Fill in" for canals).</summary>
+        public string removeLabel = "Remove";
     }
 
     public static class BuildingCatalog
@@ -119,14 +124,20 @@ namespace Emberhold
                 consumeWood = 4, consumeStone = 2
             });
             Add(new BuildingDef {
+                id = "well", displayName = "Well", category = BuildingCategory.Economy,
+                width = 1, depth = 1, height = 1.2f, color = new Color(0.55f, 0.6f, 0.68f),
+                cost = new Cost(wood: 4, stone: 8), maxHp = 120, workers = 1,
+                produces = ResourceType.Water, produceAmount = 3, produceInterval = 12f
+            });
+            Add(new BuildingDef {
+                id = "canal", displayName = "Canal", category = BuildingCategory.Economy,
+                width = 1, depth = 1, height = 0.05f, color = new Color(0.25f, 0.45f, 0.6f),
+                cost = new Cost(gold: 2), maxHp = 9999, maxLevel = 1, passable = true, removeLabel = "Fill in"
+            });
+            Add(new BuildingDef {
                 id = "wall", displayName = "Wall", category = BuildingCategory.Defense,
                 width = 1, depth = 1, height = 1.5f, color = new Color(0.6f, 0.58f, 0.55f),
                 cost = new Cost(stone: 3), maxHp = 300, upgradeSeconds = 15f
-            });
-            Add(new BuildingDef {
-                id = "torch", displayName = "Torch", category = BuildingCategory.Defense,
-                width = 1, depth = 1, height = 1.2f, color = new Color(0.35f, 0.25f, 0.15f),
-                cost = new Cost(wood: 3), maxHp = 40, lightRadius = 5f, maxLevel = 2, upgradeSeconds = 10f
             });
             Add(new BuildingDef {
                 id = "watchtower", displayName = "Watchtower", category = BuildingCategory.Defense,

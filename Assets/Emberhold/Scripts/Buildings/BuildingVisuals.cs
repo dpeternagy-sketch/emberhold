@@ -53,6 +53,8 @@ namespace Emberhold
                 case "wall": Wall(t); break;
                 case "torch": Torch(t); break;
                 case "watchtower": Watchtower(t); break;
+                case "canal": Canal(t); break;
+                case "well": Well(t); break;
                 default: B(t, new Vector3(0, def.height * 0.5f, 0), new Vector3(def.width * 0.9f, def.height, def.depth * 0.9f), def.color); break;
             }
             return root;
@@ -385,6 +387,37 @@ namespace Emberhold
                 float y = 0.2f + i * 0.28f;
                 B(t, new Vector3(0, y, -0.92f + (y - top * 0.5f) * 0.14f), new Vector3(0.36f, 0.03f, 0.03f), WoodLight);
             }
+        }
+
+        static void Canal(Transform t)
+        {
+            // dug trench; the water surface is switched on only when the canal is connected to water
+            B(t, new Vector3(0, 0.01f, 0), new Vector3(1.0f, 0.02f, 1.0f), new Color(0.33f, 0.25f, 0.17f));
+            B(t, new Vector3(0, 0.03f, 0), new Vector3(0.78f, 0.02f, 0.78f), new Color(0.24f, 0.18f, 0.12f));
+            var water = B(t, new Vector3(0, 0.055f, 0), new Vector3(1.0f, 0.02f, 1.0f), Color.white);
+            water.name = "Water";
+            var m = Materials.Emissive(new Color(0.16f, 0.42f, 0.55f), 0.15f);
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0.9f);
+            water.GetComponent<Renderer>().sharedMaterial = m;
+            for (int i = 0; i < 3; i++)
+                Ball(t, new Vector3(Random.Range(-0.45f, 0.45f), 0.04f, Random.Range(-0.45f, 0.45f)), new Vector3(0.12f, 0.06f, 0.1f), StoneDark);
+        }
+
+        static void Well(Transform t)
+        {
+            B(t, new Vector3(0, 0.03f, 0), new Vector3(0.95f, 0.06f, 0.95f), StoneDark);
+            Cyl(t, new Vector3(0, 0.25f, 0), 0.36f, 0.42f, Stone);
+            Cyl(t, new Vector3(0, 0.47f, 0), 0.38f, 0.05f, StoneLight);
+            var w = Cyl(t, new Vector3(0, 0.4f, 0), 0.28f, 0.02f, Color.white);
+            w.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(new Color(0.16f, 0.42f, 0.55f), 0.15f);
+            B(t, new Vector3(-0.33f, 0.7f, 0), new Vector3(0.06f, 0.7f, 0.06f), Wood);
+            B(t, new Vector3(0.33f, 0.7f, 0), new Vector3(0.06f, 0.7f, 0.06f), Wood);
+            Cyl(t, new Vector3(0, 0.92f, 0), 0.05f, 0.72f, WoodLight, 0, 0, 90);
+            B(t, new Vector3(0, 0.75f, 0), new Vector3(0.012f, 0.3f, 0.012f), new Color(0.7f, 0.6f, 0.45f));
+            Cyl(t, new Vector3(0, 0.56f, 0), 0.07f, 0.1f, Wood);
+            var r = MeshFactory.Create(MeshFactory.Gable(), t, new Vector3(0, 1.0f, 0), new Vector3(0.95f, 0.35f, 0.85f), RoofRed);
+            r.transform.localRotation = Quaternion.Euler(0, 90, 0);
+            Barrel(t, new Vector3(0.38f, 0, -0.38f));
         }
 
         static void Castle(Transform t)

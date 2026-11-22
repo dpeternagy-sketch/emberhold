@@ -45,6 +45,10 @@ namespace Emberhold
             float h = Mathf.Max(hm, hf);
             h = Mathf.Lerp(h, -3.2f, s);
 
+            // River bed
+            float rv = River.Mask(x, z);
+            if (rv > 0f) h -= rv * 0.7f;
+
             // Tiny unevenness outside the city only
             float outside = Mathf.Max(m, f);
             h += outside * (Noise(x, z, 0.5f) - 0.5f) * 0.5f;
@@ -63,6 +67,8 @@ namespace Emberhold
 
             BuildTerrain(root);
             BuildSea(root);
+            River.MarkCells(grid);
+            River.BuildVisual(root);
 
             TreesRoot = new GameObject("Trees").transform;
             TreesRoot.SetParent(root, false);
@@ -169,11 +175,14 @@ namespace Emberhold
                     c = Color.Lerp(c, forestFloor, forest * 0.8f);
                     // worn paths: from the castle gate to the beach, and east-west
                     float p1 = Mathf.Abs(wx - (Noise(0, z, 0.08f) - 0.5f) * 3f);
-                    float p2 = Mathf.Abs(z + 7f - (Noise(wx, 0, 0.07f) - 0.5f) * 3f);
+                    float p2 = Mathf.Abs(z - 4f - (Noise(wx, 0, 0.07f) - 0.5f) * 3f);
                     float pathMask = 0f;
-                    if (z < -2f && z > GridMap.SeaZ) pathMask = Mathf.Max(pathMask, 1f - Smooth(0.6f, 1.4f, p1));
+                    if (z < GameManager.CastleCenter.z - 2f && z > GridMap.SeaZ) pathMask = Mathf.Max(pathMask, 1f - Smooth(0.6f, 1.4f, p1));
                     if (Mathf.Abs(wx) < GridMap.ForestX) pathMask = Mathf.Max(pathMask, 1f - Smooth(0.5f, 1.2f, p2));
                     c = Color.Lerp(c, path, pathMask * 0.85f);
+                    // river bed and muddy banks
+                    float rvm = River.Mask(wx, z);
+                    if (rvm > 0f) c = Color.Lerp(c, new Color(0.36f, 0.32f, 0.24f), Mathf.Clamp01(rvm * 1.6f));
                     // beach
                     float beach = Smooth(GridMap.SeaZ + 3f, GridMap.SeaZ + 0.5f, z);
                     c = Color.Lerp(c, sand, beach);
@@ -236,6 +245,7 @@ namespace Emberhold
                     else if (forestEdge) chance = 0.12f;
                     if (chance <= 0f || Random.value >= chance) continue;
                     var cell = new Vector2Int(x, z);
+                    if (River.Mask(x + 0.5f, z + 0.5f) > 0.1f) continue;
                     if (nearCity) PlaceTree(grid, cell, mountain);
                     else AddFarPine(far, new Vector3(x + Random.value, 0, z + Random.value), Random.Range(0.9f, 1.5f));
                 }
@@ -246,7 +256,8 @@ namespace Emberhold
             for (int g = 0; g < 8; g++)
             {
                 var center = new Vector2(Random.Range(-19f, 19f), Random.Range(-15f, 17f));
-                if (center.magnitude < 9f) continue;
+                if (Vector2.Distance(center, new Vector2(GameManager.CastleCenter.x, GameManager.CastleCenter.z)) < 7f) continue;
+                if (Mathf.Abs(center.x) < 9f && center.y > 2f && center.y < 14f) continue; // starting farmland stays open
                 int n = Random.Range(4, 9);
                 for (int i = 0; i < n; i++)
                 {
@@ -296,7 +307,8 @@ namespace Emberhold
             {
                 float x = Random.Range(-GridMap.ForestX - 6f, GridMap.ForestX + 6f);
                 float z = Random.Range(GridMap.SeaZ + 2.5f, GridMap.MountainZ + 3f);
-                if (Mathf.Abs(x) < 3.5f && Mathf.Abs(z) < 3.5f) continue; // castle yard
+                if (Mathf.Abs(x - GameManager.CastleCenter.x) < 3.5f && Mathf.Abs(z - GameManager.CastleCenter.z) < 3.5f) continue; // castle yard
+                if (River.Mask(x, z) > 0.2f) continue;
                 float y = HeightAt(x, z);
                 // grass tuft: 3 thin blades
                 var col = grassCols[Random.Range(0, grassCols.Length)];
@@ -312,7 +324,7 @@ namespace Emberhold
                 // flowers in meadow clusters
                 float cx = Random.Range(-GridMap.ForestX, GridMap.ForestX), cz = Random.Range(GridMap.SeaZ + 4f, GridMap.MountainZ);
                 if (Noise(cx, cz, 0.12f) < 0.6f) continue;
-                if (Mathf.Abs(cx) < 4f && Mathf.Abs(cz) < 4f) continue;
+                if (Mathf.Abs(cx - GameManager.CastleCenter.x) < 4f && Mathf.Abs(cz - GameManager.CastleCenter.z) < 4f) continue;
                 var col = flowerCols[Random.Range(0, flowerCols.Length)];
                 for (int f = 0; f < 3; f++)
                 {
@@ -362,12 +374,16 @@ namespace Emberhold
             borderRadius = radius;
             for (int i = borderRoot.childCount - 1; i >= 0; i--) Destroy(borderRoot.GetChild(i).gameObject);
             var c = new Color(0.72f, 0.68f, 0.6f);
+            int back = GridMap.BuildBackZ, front = GridMap.BuildBackZ - 2 * radius;
             for (int i = -radius; i <= radius; i += 2)
             {
-                Marker(new Vector3(i, 0f, -radius), c);
-                Marker(new Vector3(i, 0f, radius), c);
-                Marker(new Vector3(-radius, 0f, i), c);
-                Marker(new Vector3(radius, 0f, i), c);
+                Marker(new Vector3(i, 0f, front), c);
+                Marker(new Vector3(i, 0f, back), c);
+            }
+            for (int z = front; z <= back; z += 2)
+            {
+                Marker(new Vector3(-radius, 0f, z), c);
+                Marker(new Vector3(radius, 0f, z), c);
             }
         }
 

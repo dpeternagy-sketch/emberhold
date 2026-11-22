@@ -41,7 +41,7 @@ namespace Emberhold
             if (pointLight == null) return;
             float night = DayNightCycle.Instance != null ? DayNightCycle.Instance.Darkness : 0f;
             float flicker = 1f + 0.08f * Mathf.Sin(Time.time * 9f + flickerSeed) + 0.05f * Mathf.Sin(Time.time * 23f + flickerSeed);
-            pointLight.intensity = night * 2.2f * flicker;
+            pointLight.intensity = night * 1.2f * flicker; // warm glow only, no gameplay effect
             pointLight.enabled = night > 0.02f;
         }
 

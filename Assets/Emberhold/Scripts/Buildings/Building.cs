@@ -13,6 +13,15 @@ namespace Emberhold
         public BuildingData Data { get; private set; }
         public bool IsGhost { get; private set; }
         public int AssignedWorkers { get; set; }
+        /// <summary>Canals: connected to the river or a well. Farms and wells: next to water.</summary>
+        public bool HasWater { get; private set; }
+
+        public void SetWater(bool on)
+        {
+            HasWater = on;
+            var w = model != null ? model.Find("Water") : null;
+            if (w != null) w.gameObject.SetActive(on);
+        }
 
         public int MaxHp { get { return Mathf.RoundToInt(Def.maxHp * (1f + 0.5f * (Data.level - 1))); } }
         public float LightRadius { get { return Def.lightRadius * (1f + 0.2f * (Data.level - 1)); } }

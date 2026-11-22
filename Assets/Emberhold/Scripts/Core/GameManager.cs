@@ -19,10 +19,14 @@ namespace Emberhold
         public EnemySpawner Spawner { get; private set; }
         public Building Castle { get; private set; }
 
+        /// <summary>Castle grid origin: at the back of the valley, against the mountain.</summary>
+        public const int CastleX = -2, CastleZ = GridMap.MountainZ - 8;
+        public static readonly Vector3 CastleCenter = new Vector3(CastleX + 2f, 0f, CastleZ + 2f);
+
         public int CastleLevel { get { return Castle != null ? Castle.Data.level : 1; } }
         public int BuildRadius { get { return 9 + 3 * CastleLevel; } }
         public int HousingCapacity { get; private set; }
-        public float FoodEfficiency { get { return State.food > 0 ? 1f : 0.5f; } }
+        public float FoodEfficiency { get { return State.food > 0 && State.water > 0 ? 1f : 0.5f; } }
         public int PendingSettlers { get; private set; }
 
         public event Action<string> OnToast;
@@ -46,21 +50,22 @@ namespace Emberhold
             World.Build(Grid, 1234);
 
             State = save.Load();
+            if (State != null && State.version < GameState.CurrentVersion) State = null; // old layout: start fresh
             bool fresh = State == null;
             if (fresh) State = new GameState();
 
             if (fresh)
             {
                 var c = BuildingCatalog.Get(BuildingCatalog.Castle);
-                ClearTreesUnder(-2, -2, c, 0);
-                PlaceInternal(c, -2, -2, 0);
-                // Starter house and farm so the first minute is not empty.
+                ClearTreesUnder(CastleX, CastleZ, c, 0);
+                PlaceInternal(c, CastleX, CastleZ, 0);
+                // Starter house and farm in front of the castle so the first minute is not empty.
                 var house = BuildingCatalog.Get("house");
-                ClearTreesUnder(-6, -1, house, 0);
-                PlaceInternal(house, -6, -1, 0);
+                ClearTreesUnder(-6, 9, house, 0);
+                PlaceInternal(house, -6, 9, 0);
                 var farm = BuildingCatalog.Get("farm");
-                ClearTreesUnder(4, -2, farm, 0);
-                PlaceInternal(farm, 4, -2, 0);
+                ClearTreesUnder(3, 8, farm, 0);
+                PlaceInternal(farm, 3, 8, 0);
             }
             else
             {
@@ -77,8 +82,8 @@ namespace Emberhold
             if (Castle == null)
             {
                 var c = BuildingCatalog.Get(BuildingCatalog.Castle);
-                ClearTreesUnder(-2, -2, c, 0);
-                PlaceInternal(c, -2, -2, 0);
+                ClearTreesUnder(CastleX, CastleZ, c, 0);
+                PlaceInternal(c, CastleX, CastleZ, 0);
             }
 
             Cycle.OnNightStarted += HandleNightStarted;
@@ -114,6 +119,7 @@ namespace Emberhold
             b.Data.x = x; b.Data.z = z; b.Data.rotation = rotation;
             Grid.Occupy(b.Cells, b);
             b.ApplyTransform();
+            RecalculateWater();
             SaveNow();
             return true;
         }
@@ -121,6 +127,12 @@ namespace Emberhold
         public void Demolish(Building b)
         {
             if (!b.Def.Movable) return;
+            if (b.Def.id == "canal")
+            {
+                RemoveInternal(b);
+                Toast("Canal filled in");
+                return;
+            }
             State.Refund(b.Def.cost, 0.5f);
             RemoveInternal(b);
             Toast(b.Def.displayName + " removed (50% refunded)");
@@ -216,6 +228,8 @@ namespace Emberhold
                 if (State.wood < def.consumeWood || State.stone < def.consumeStone) return;
                 State.wood -= def.consumeWood; State.stone -= def.consumeStone;
             }
+            // irrigated farms and wells next to water make more
+            if ((def.id == "farm" || def.id == "well") && b.HasWater) amount = Mathf.RoundToInt(amount * 1.75f);
             State.Add(def.produces, amount);
         }
 
@@ -234,7 +248,7 @@ namespace Emberhold
             State.population = Mathf.Min(State.population, Mathf.Max(HousingCapacity, 1));
 
             while (Villager.All.Count < State.population)
-                Villager.Spawn(peopleRoot, Castle != null ? Castle.Center + new Vector3(0, 0, -2.5f) : Vector3.zero);
+                Villager.Spawn(peopleRoot, Castle != null ? Castle.Center + new Vector3(0, 0, -2.6f) : Vector3.zero);
             while (Villager.All.Count > State.population)
             {
                 var v = Villager.All[Villager.All.Count - 1];
@@ -260,7 +274,58 @@ namespace Emberhold
             }
             for (; wi < Villager.All.Count; wi++) Villager.All[wi].SetJob(null);
 
+            RecalculateWater();
             if (OnBuildingsChanged != null) OnBuildingsChanged();
+        }
+
+        static readonly Vector2Int[] Dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+
+        /// <summary>
+        /// Water flows from the river (and wells) through connected canals.
+        /// Farms and wells next to water get a bonus.
+        /// </summary>
+        public void RecalculateWater()
+        {
+            var wet = new HashSet<Vector2Int>();
+            var queue = new Queue<Vector2Int>();
+            foreach (var b in Building.All)
+            {
+                if (b.Def.id != "canal") continue;
+                bool source = false;
+                foreach (var c in b.Cells)
+                    foreach (var d in Dirs)
+                    {
+                        var o = Grid.At(c + d);
+                        if (o is RiverCell) source = true;
+                        var ob = o as Building;
+                        if (ob != null && ob.Def.id == "well") source = true;
+                    }
+                if (source) foreach (var c in b.Cells) if (wet.Add(c)) queue.Enqueue(c);
+            }
+            while (queue.Count > 0)
+            {
+                var c = queue.Dequeue();
+                foreach (var d in Dirs)
+                {
+                    var n = c + d;
+                    var ob = Grid.At(n) as Building;
+                    if (ob != null && ob.Def.id == "canal" && wet.Add(n)) queue.Enqueue(n);
+                }
+            }
+            foreach (var b in Building.All)
+            {
+                if (b.Def.id == "canal") { bool w = false; foreach (var c in b.Cells) if (wet.Contains(c)) w = true; b.SetWater(w); continue; }
+                if (b.Def.id != "farm" && b.Def.id != "well") continue;
+                bool near = false;
+                foreach (var c in b.Cells)
+                    for (int dx = -1; dx <= 1 && !near; dx++)
+                        for (int dz = -1; dz <= 1 && !near; dz++)
+                        {
+                            var n = new Vector2Int(c.x + dx, c.y + dz);
+                            if (wet.Contains(n) || Grid.At(n) is RiverCell) near = true;
+                        }
+                b.SetWater(near);
+            }
         }
 
         public int FreeWorkers
@@ -336,6 +401,8 @@ namespace Emberhold
                 int eat = Mathf.CeilToInt(State.population * 0.5f);
                 if (State.food < eat) Toast("Your people are hungry! Build farms.");
                 State.Add(ResourceType.Food, -eat);
+                if (State.water < eat) Toast("Your people are thirsty! Dig a well.");
+                State.Add(ResourceType.Water, -eat);
             }
 
             saveTimer += Time.deltaTime;

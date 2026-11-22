@@ -10,8 +10,9 @@ namespace Emberhold
     [Serializable]
     public class GameState
     {
-        public int version = 1;
-        public int food = 40, wood = 80, stone = 30, gold = 50, weapons = 2;
+        public const int CurrentVersion = 2;
+        public int version = CurrentVersion;
+        public int food = 40, wood = 80, stone = 30, gold = 50, weapons = 2, water = 30;
         public int population = 4;
         public int night = 0;                 // nights survived
         public float dayTimeLeft = 150f;
@@ -27,6 +28,7 @@ namespace Emberhold
                 case ResourceType.Stone: return stone;
                 case ResourceType.Gold: return gold;
                 case ResourceType.Weapons: return weapons;
+                case ResourceType.Water: return water;
             }
             return 0;
         }
@@ -40,6 +42,7 @@ namespace Emberhold
                 case ResourceType.Stone: stone = Math.Max(0, stone + amount); break;
                 case ResourceType.Gold: gold = Math.Max(0, gold + amount); break;
                 case ResourceType.Weapons: weapons = Math.Max(0, weapons + amount); break;
+                case ResourceType.Water: water = Math.Max(0, water + amount); break;
             }
         }
 

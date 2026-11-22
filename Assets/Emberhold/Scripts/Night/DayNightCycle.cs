@@ -7,8 +7,8 @@ namespace Emberhold
     public enum Phase { Day, Dusk, Night, Dawn }
 
     /// <summary>
-    /// Day: build and gather. Night: fog falls, enemies come from unknown directions,
-    /// only light reveals them. Dawn: rewards and new settlers.
+    /// Day: build and gather. Night: moonlit blue light, enemies come from unknown directions.
+    /// Dawn: rewards and new settlers.
     /// </summary>
     public class DayNightCycle : MonoBehaviour
     {
@@ -28,9 +28,9 @@ namespace Emberhold
         Light sun;
         float transition;
         Color dayAmbient = new Color(0.55f, 0.58f, 0.62f);
-        Color nightAmbient = new Color(0.025f, 0.03f, 0.06f);
+        Color nightAmbient = new Color(0.2f, 0.23f, 0.36f);
         Color dayFog = new Color(0.7f, 0.78f, 0.85f);
-        Color nightFog = new Color(0.01f, 0.012f, 0.025f);
+        Color nightFog = new Color(0.08f, 0.1f, 0.18f);
         Camera cam;
 
         void Awake() { Instance = this; }
@@ -104,13 +104,13 @@ namespace Emberhold
             Darkness = dark;
             if (sun != null)
             {
-                sun.intensity = Mathf.Lerp(1.25f, 0.04f, dark);
+                sun.intensity = Mathf.Lerp(1.25f, 0.45f, dark); // moonlight: darker and blue, but everything stays visible
                 sun.color = Color.Lerp(new Color(1f, 0.95f, 0.86f), new Color(0.45f, 0.55f, 0.9f), dark);
                 sun.transform.rotation = Quaternion.Euler(Mathf.Lerp(50f, 25f, dark), -35f, 0f);
             }
             RenderSettings.ambientLight = Color.Lerp(dayAmbient, nightAmbient, dark);
             RenderSettings.fogColor = Color.Lerp(dayFog, nightFog, dark);
-            RenderSettings.fogDensity = Mathf.Lerp(0.006f, 0.022f, dark);
+            RenderSettings.fogDensity = Mathf.Lerp(0.006f, 0.009f, dark);
             if (cam != null)
             {
                 cam.clearFlags = CameraClearFlags.SolidColor;

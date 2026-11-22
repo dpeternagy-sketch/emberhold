@@ -52,6 +52,14 @@ namespace Emberhold
             return c.x > -ForestX && c.x < ForestX - 1 && c.y >= SeaZ + 2 && c.y < MountainZ - 1;
         }
 
+        /// <summary>The castle sits at the back, against the mountain; the land grows toward the sea (the camera).</summary>
+        public const int BuildBackZ = MountainZ - 2;
+
+        public static bool InBuildArea(Vector2Int c, int buildRadius)
+        {
+            return c.x >= -buildRadius && c.x < buildRadius && c.y < BuildBackZ && c.y >= BuildBackZ - 2 * buildRadius;
+        }
+
         public object At(Vector2Int c)
         {
             object o;
@@ -78,7 +86,7 @@ namespace Emberhold
             foreach (var c in Footprint(x, z, def.width, def.depth, rotation))
             {
                 if (!IsTerrainBuildable(c)) return false;
-                if (c.x < -buildRadius || c.x >= buildRadius || c.y < -buildRadius || c.y >= buildRadius) return false;
+                if (!InBuildArea(c, buildRadius)) return false;
                 var o = At(c);
                 if (o != null && o != ignore) return false;
             }

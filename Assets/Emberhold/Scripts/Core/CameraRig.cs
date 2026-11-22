@@ -6,7 +6,7 @@ namespace Emberhold
     public class CameraRig : MonoBehaviour
     {
         public Camera Cam { get; private set; }
-        public Vector3 focus = new Vector3(0f, 0f, 3f);
+        public Vector3 focus = new Vector3(0f, 0f, 9f);
         public float distance = 32f;
         const float MinDistance = 9f, MaxDistance = 55f;
         const float Pitch = 33f, Yaw = 0f;
