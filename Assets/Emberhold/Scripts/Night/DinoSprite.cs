@@ -44,7 +44,7 @@ namespace Emberhold
         /// <summary>Picture height in world units (the painted creature fills most of its square).</summary>
         static float Size(EnemyKind k)
         {
-            return k == EnemyKind.Boss ? 3.9f : k == EnemyKind.Brute ? 2.3f : k == EnemyKind.Flyer ? 2.1f : 1.9f;
+            return k == EnemyKind.Boss ? 3.2f : k == EnemyKind.Brute ? 1.9f : k == EnemyKind.Flyer ? 1.8f : 1.45f;
         }
 
         /// <summary>Stronger nights bring the armoured looks (tier 2 from night 3, tier 3 from night 6).</summary>

@@ -520,20 +520,23 @@ namespace Emberhold
         void PaintedDetails(Transform detail)
         {
             var b = new NatureSprites.Batch();
+            var fieldGo = new GameObject("DecorField");
+            fieldGo.transform.SetParent(detail, false);
+            var f = fieldGo.AddComponent<DecorField>();
             bool Yard(float x, float z) { return Mathf.Abs(x - GameManager.CastleCenter.x) < 4f && Mathf.Abs(z - GameManager.CastleCenter.z) < 4f; }
             // grass tufts in natural clumps across the valley
             for (int i = 0; i < 700; i++)
             {
                 float x = Random.Range(-GridMap.ForestX - 6f, GridMap.ForestX + 6f), z = Random.Range(GridMap.SeaZ + 2.5f, GridMap.MountainZ + 3f);
                 if (Yard(x, z) || River.Mask(x, z) > 0.2f || Noise(x + 50f, z, 0.08f) < 0.5f) continue;
-                b.Add(NatureSprites.Pick("tuft_"), new Vector3(x, HeightAt(x, z), z), Random.Range(0.3f, 0.55f));
+                f.Add(NatureSprites.Pick("tuft_"), new Vector3(x, HeightAt(x, z), z), Random.Range(0.3f, 0.55f));
             }
             // flower and clover patches lying on the meadow
             for (int i = 0; i < 70; i++)
             {
                 float x = Random.Range(-GridMap.ForestX, GridMap.ForestX), z = Random.Range(GridMap.SeaZ + 4f, GridMap.MountainZ);
                 if (Yard(x, z) || River.Mask(x, z) > 0.2f || Noise(x, z, 0.12f) < 0.55f) continue;
-                b.Add(NatureSprites.Pick("patch_"), new Vector3(x, HeightAt(x, z), z), Random.Range(0.45f, 0.7f), 0.35f);
+                f.Add(NatureSprites.Pick("patch_"), new Vector3(x, HeightAt(x, z), z), Random.Range(0.45f, 0.7f), 0.35f);
             }
             // bushes along the forest edges
             for (int i = 0; i < 160; i++)
@@ -541,14 +544,15 @@ namespace Emberhold
                 float side = Random.value < 0.5f ? -1f : 1f;
                 float x = side * Random.Range(GridMap.ForestX - 6f, GridMap.ForestX + 4f), z = Random.Range(GridMap.SeaZ + 3f, GridMap.MountainZ + 2f);
                 if (River.Mask(x, z) > 0.2f) continue;
-                b.Add(NatureSprites.Pick("bush_a", "bush_a", "bush_lime", "bush_white", "bush_pink", "bush_blue", "bush_red", "fern"), new Vector3(x, HeightAt(x, z), z), Random.Range(0.8f, 1.2f));
+                f.Add(NatureSprites.Pick("bush_a", "bush_a", "bush_lime", "bush_white", "bush_pink", "bush_blue", "bush_red", "fern"), new Vector3(x, HeightAt(x, z), z), Random.Range(0.8f, 1.2f));
             }
             // rocks, logs and stumps here and there; boulders on the mountain
             for (int i = 0; i < 60; i++)
             {
                 float x = Random.Range(-GridMap.ForestX - 8f, GridMap.ForestX + 8f), z = Random.Range(GridMap.SeaZ + 1f, GridMap.MountainZ + 4f);
                 if (Yard(x, z) || River.Mask(x, z) > 0.2f) continue;
-                b.Add(NatureSprites.Pick("rock_", "rock_", "log", "stump"), new Vector3(x, HeightAt(x, z), z), Random.Range(0.5f, 0.85f));
+                // smaller than before: they are props, not obstacles
+                f.Add(NatureSprites.Pick("rock_", "rock_", "log", "stump"), new Vector3(x, HeightAt(x, z), z), Random.Range(0.4f, 0.65f));
             }
             for (int i = 0; i < 160; i++)
             {

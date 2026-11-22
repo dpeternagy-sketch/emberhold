@@ -95,7 +95,7 @@ namespace Emberhold
             body = new GameObject("Body").transform;
             body.SetParent(transform, false);
             // Peter's painted white-and-gold soldiers and Commander (Resources/Sprites/Portraits)
-            var pic = !flies && portrait != null ? DinoSprite.CreateUnit(transform, portrait, height * 2.1f) : null;
+            var pic = !flies && portrait != null ? DinoSprite.CreateUnit(transform, portrait, height * (isHero ? 1.65f : 2.1f)) : null;
             if (pic != null)
             {
                 sprite = pic;
