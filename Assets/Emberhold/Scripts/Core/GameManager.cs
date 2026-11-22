@@ -100,7 +100,8 @@ namespace Emberhold
             if (!CanPlace(def, x, z, rotation)) { Toast("Can't build there"); return null; }
             if (!State.Pay(def.cost)) { Toast("Not enough resources"); return null; }
             var b = PlaceInternal(def, x, z, rotation);
-            AudioManager.Play("coin", 0.6f);
+            b.StartConstruction(def.width * def.depth > 1 ? 4f : 1.5f);
+            AudioManager.Play("step", 0.6f);
             RecalculateCity();
             SaveNow();
             return b;

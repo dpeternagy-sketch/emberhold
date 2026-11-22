@@ -63,6 +63,31 @@ namespace Emberhold
         Material[][] originalMaterials;
         Material tintMaterial;
         float hitFlash;
+        float buildTime, buildDuration;
+        Transform dust;
+
+        public bool UnderConstruction { get { return buildTime < buildDuration; } }
+
+        /// <summary>The building rises out of the ground behind scaffolding.</summary>
+        public void StartConstruction(float seconds)
+        {
+            buildDuration = seconds;
+            buildTime = 0f;
+            dust = new GameObject("Construction").transform;
+            dust.SetParent(transform, false);
+            var s = GridMap.Size(Def, Data.rotation);
+            var wood = new Color(0.72f, 0.56f, 0.32f);
+            float h = Mathf.Max(1f, Def.height);
+            for (int i = 0; i < 4; i++)
+            {
+                float sx = (i % 2 == 0 ? -0.5f : 0.5f) * s.x * 0.95f, sz = (i < 2 ? -0.5f : 0.5f) * s.y * 0.95f;
+                Util.Prim(PrimitiveType.Cube, dust, new Vector3(sx, h * 0.5f, sz), new Vector3(0.07f, h, 0.07f), wood);
+            }
+            Util.Prim(PrimitiveType.Cube, dust, new Vector3(0, h * 0.6f, -0.5f * s.y * 0.95f), new Vector3(s.x * 0.95f, 0.05f, 0.05f), wood);
+            Util.Prim(PrimitiveType.Cube, dust, new Vector3(0, h * 0.6f, 0.5f * s.y * 0.95f), new Vector3(s.x * 0.95f, 0.05f, 0.05f), wood);
+            Util.Prim(PrimitiveType.Cube, dust, new Vector3(0.3f * s.x, 0.12f, -0.6f * s.y), new Vector3(0.35f, 0.24f, 0.25f), new Color(0.62f, 0.6f, 0.56f));
+            model.localScale = new Vector3(1f, 0.02f, 1f);
+        }
 
         public static Building Spawn(BuildingDef def, BuildingData data, Transform parent, bool ghost)
         {
@@ -175,6 +200,19 @@ namespace Emberhold
         void Update()
         {
             if (IsGhost) return;
+            if (UnderConstruction)
+            {
+                buildTime += Time.deltaTime;
+                float k = Mathf.Clamp01(buildTime / buildDuration);
+                model.localScale = new Vector3(1f, Mathf.Max(0.02f, Mathf.SmoothStep(0f, 1f, k)), 1f) * (1f + 0.06f * (Data.level - 1));
+                if (Mathf.Repeat(buildTime, 0.6f) < Time.deltaTime) AudioManager.Play("impact", 0.15f);
+                if (!UnderConstruction)
+                {
+                    if (dust != null) Destroy(dust.gameObject);
+                    AudioManager.Play("coin", 0.5f);
+                }
+                return;
+            }
             if (Data.IsUpgrading && UpgradeSecondsLeft <= 0f) FinishUpgradeNow();
 
             if (hitFlash > 0f)

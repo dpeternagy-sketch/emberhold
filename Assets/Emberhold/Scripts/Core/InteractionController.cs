@@ -46,12 +46,28 @@ namespace Emberhold
             Deselect();
             Vector3 center;
             if (!rig.GroundPoint(new Vector2(Screen.width * 0.5f, Screen.height * 0.5f), out center)) center = Vector3.zero;
-            var origin = GridMap.OriginFromCenter(center, def, 0);
+            var origin = FindFreeSpot(def, GridMap.OriginFromCenter(center, def, 0));
             var data = new BuildingData { defId = def.id, x = origin.x, z = origin.y, rotation = 0, level = 1 };
             Ghost = Building.Spawn(def, data, null, true);
             Ghost.SetRaised(true);
             RefreshGhost();
             Changed();
+        }
+
+        /// <summary>Nearest spot (spiralling out from the start) where the building fits on empty ground.</summary>
+        Vector2Int FindFreeSpot(BuildingDef def, Vector2Int start)
+        {
+            for (int r = 0; r <= 30; r++)
+                for (int dx = -r; dx <= r; dx++)
+                    for (int dz = -r; dz <= r; dz++)
+                    {
+                        if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dz)) != r) continue;
+                        // keep one free cell around other buildings so the new one never sits on top of them
+                        int x = start.x + dx, z = start.y + dz;
+                        if (gm.CanPlace(def, x, z, 0))
+                            return new Vector2Int(x, z);
+                    }
+            return start;
         }
 
         public void ConfirmPlacement()

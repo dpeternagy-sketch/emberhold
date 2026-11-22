@@ -94,9 +94,9 @@ namespace Emberhold
 
             // Floating buttons beside a ghost (OK / Rotate / Cancel)
             ghostButtons = UIKit.Rect("GhostButtons", root);
-            ghostButtons.sizeDelta = new Vector2(340, 100);
-            ghostOk = UIKit.Button(ghostButtons, "OK", 34, () => input.ConfirmPlacement(), new Color(0.2f, 0.45f, 0.2f, 0.95f));
-            UIKit.Anchor(ghostOk.GetComponent<RectTransform>(), new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(100, 100));
+            ghostButtons.sizeDelta = new Vector2(380, 100);
+            ghostOk = UIKit.Button(ghostButtons, "Build", 30, () => input.ConfirmPlacement(), new Color(0.2f, 0.45f, 0.2f, 0.95f));
+            UIKit.Anchor(ghostOk.GetComponent<RectTransform>(), new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(140, 100));
             var rot = UIKit.IconButton(ghostButtons, "rotate", null, 100, () => input.RotateCurrent());
             UIKit.Anchor(rot.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(100, 100));
             var cancel = UIKit.Button(ghostButtons, "X", 34, () => input.CancelPlacement(), new Color(0.5f, 0.15f, 0.12f, 0.95f));

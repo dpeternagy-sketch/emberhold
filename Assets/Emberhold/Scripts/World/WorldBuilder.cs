@@ -292,7 +292,7 @@ namespace Emberhold
             var flowerCols = new[] { new Color(0.95f, 0.85f, 0.25f), new Color(0.92f, 0.92f, 0.95f), new Color(0.75f, 0.35f, 0.75f), new Color(0.9f, 0.35f, 0.25f), new Color(0.45f, 0.55f, 0.95f) };
             var pebble = new Color(0.55f, 0.53f, 0.5f);
 
-            for (int i = 0; i < 3000; i++)
+            for (int i = 0; i < 2200; i++)
             {
                 float x = Random.Range(-GridMap.ForestX - 6f, GridMap.ForestX + 6f);
                 float z = Random.Range(GridMap.SeaZ + 2.5f, GridMap.MountainZ + 3f);
@@ -307,14 +307,14 @@ namespace Emberhold
                     batch.Add(cube, new Vector3(x + Random.Range(-0.08f, 0.08f), y + hgt * 0.5f, z + Random.Range(-0.08f, 0.08f)), rot, new Vector3(0.03f, hgt, 0.09f), col);
                 }
             }
-            for (int i = 0; i < 900; i++)
+            for (int i = 0; i < 140; i++)
             {
                 // flowers in meadow clusters
                 float cx = Random.Range(-GridMap.ForestX, GridMap.ForestX), cz = Random.Range(GridMap.SeaZ + 4f, GridMap.MountainZ);
-                if (Noise(cx, cz, 0.12f) < 0.55f) continue;
+                if (Noise(cx, cz, 0.12f) < 0.6f) continue;
                 if (Mathf.Abs(cx) < 4f && Mathf.Abs(cz) < 4f) continue;
                 var col = flowerCols[Random.Range(0, flowerCols.Length)];
-                for (int f = 0; f < 4; f++)
+                for (int f = 0; f < 3; f++)
                 {
                     float x = cx + Random.Range(-0.6f, 0.6f), z = cz + Random.Range(-0.6f, 0.6f), y = HeightAt(x, z);
                     float hgt = Random.Range(0.15f, 0.3f);
@@ -322,7 +322,7 @@ namespace Emberhold
                     batch.Add(sphere, new Vector3(x, y + hgt, z), Quaternion.identity, Vector3.one * Random.Range(0.07f, 0.11f), col);
                 }
             }
-            for (int i = 0; i < 700; i++)
+            for (int i = 0; i < 250; i++)
             {
                 float x = Random.Range(-GridMap.ForestX - 8f, GridMap.ForestX + 8f), z = Random.Range(GridMap.SeaZ + 1f, GridMap.MountainZ + 4f);
                 float y = HeightAt(x, z);
