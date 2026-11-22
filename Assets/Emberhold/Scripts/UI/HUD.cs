@@ -634,8 +634,8 @@ namespace Emberhold
             selTitle.gameObject.SetActive(!infoPopup.gameObject.activeSelf && !upgradePopup.gameObject.activeSelf && (armyUI == null || !armyUI.TrainOpen));
             selTitle.text = sel.Ruined ? sel.Def.displayName + "  (ruined)" : Title(sel);
             // the painted turrets are shorter than their old 3D height: keep the title just over the picture
-            float th = sel == gm.Castle ? sel.Def.height : Mathf.Min(sel.Def.height, 2.4f);
-            var top = sel.transform.position + Vector3.up * (th + 1.0f);
+            float th = sel == gm.Castle ? sel.Def.height + 1.0f : Mathf.Min(sel.Def.height, 1.4f) + 0.5f;
+            var top = sel.transform.position + Vector3.up * th;
             PlaceAt(selTitle.rectTransform, top, new Vector2(0, 30));
             ClampOnScreen(selTitle.rectTransform, selTitle.preferredWidth + 20f, 60f);
 

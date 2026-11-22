@@ -191,8 +191,7 @@ namespace Emberhold
                 gate = gm.GateOf(GameManager.WallSide.West);
                 if (gate != null) { View(gate.Center + new Vector3(1.5f, 0f, 0f), 30f); yield return new WaitForSeconds(0.5f); yield return Shot("15_wall_gate_t" + lv); }
             }
-            for (int i = 0; i < 4; i++) gm.State.wallSides[i] = 2;
-            gm.State.wallSides[0] = 0;   // one side still to buy, so the panel shows Build too
+            for (int i = 0; i < 4; i++) gm.State.wallSides[i] = 2;   // all 4 bought, as in the Defenses menu still (08: Sides 4/4)
             gm.RebuildWalls(false);
             View(new Vector3(0f, 0f, 6f), 62f);
             hud.PreviewOpenWalls(3); yield return new WaitForSeconds(0.6f); yield return Shot("17_wall_panel");

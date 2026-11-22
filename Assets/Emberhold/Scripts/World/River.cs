@@ -160,7 +160,8 @@ namespace Emberhold
             float step = 0.5f;
             int rows = 0;
             float prevY = 0f;
-            for (float z = StartZ; z >= EndZ; z -= step)
+            // the water starts at the painted pool (the backdrop foot), never under the painting (QC run 23: grey smudge)
+            for (float z = StartZ - 1.5f; z >= EndZ; z -= step)
             {
                 float cx = CenterX(z);
                 float y = Mathf.Max(WorldBuilder.HeightAt(cx, z) + 0.22f, WorldBuilder.WaterLevel + 0.02f);
