@@ -54,9 +54,15 @@ namespace Emberhold
             {
                 int cap = 0;
                 foreach (var b in Building.All)
-                    if (!b.IsGhost && !b.Ruined && b.Def.campSpace > 0) cap += b.Def.campSpace + b.Def.campPerLevel * (b.Data.level - 1);
+                    if (!b.IsGhost && !b.Ruined && !b.UnderConstruction && b.Def.campSpace > 0) cap += b.Def.campSpace + b.Def.campPerLevel * (b.Data.level - 1);
                 return cap;
             }
+        }
+
+        bool CampDamaged()
+        {
+            foreach (var b in Building.All) if (b.Def.campSpace > 0 && !b.IsGhost && (b.Ruined || b.UnderConstruction)) return true;
+            return false;
         }
 
         public int Count(string id)
@@ -104,7 +110,7 @@ namespace Emberhold
         {
             if (b.Ruined) return "Repair it first";
             if (b.Data.level < d.barracksLevel) return d.displayName + " needs " + b.Def.displayName + " Lv " + d.barracksLevel;
-            if (Capacity == 0) return "Build an Army Camp first";
+            if (Capacity == 0) return CampDamaged() ? "Army camp damaged: repair it" : "Build an Army Camp first";
             if (Used + Queued + d.space > Capacity) return "Army camps are full";
             if (!gm.State.CanAfford(d.cost)) return "Need more " + gm.State.Missing(d.cost);
             return null;
@@ -187,7 +193,7 @@ namespace Emberhold
             var c = camps[index % camps.Count];
             int slot = index / camps.Count;
             // parade-ground rows across the 3x3 pad (4 per row, 0.75 apart), then around its edge
-            if (slot < 12) return c.Center + new Vector3(-1.1f + (slot % 4) * 0.75f, 0, 0.8f - (slot / 4) * 0.8f);
+            if (slot < 12) return c.Center + new Vector3(-0.9f + (slot % 4) * 0.6f, 0, 0.6f - (slot / 4) * 0.6f);
             float ang = slot * 0.7f;
             return c.Center + new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * 2.1f;
         }

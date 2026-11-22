@@ -132,14 +132,9 @@ namespace Emberhold
                 xpFill.anchorMax = new Vector2(gm.Troops.XpProgress, 1);
             }
 
-            bool fight = hasHero && Enemy.All.Count > 0 && gm.Troops.Hero != null && !gm.Troops.Hero.KnockedOut;
-            strikeBtn.gameObject.SetActive(fight);
-            if (fight)
-            {
-                float wait = gm.Troops.StrikeReadyAt - Time.time;
-                strikeCaption.text = wait > 0f ? Mathf.CeilToInt(wait) + "s" : "Strike";
-                strikeBtn.interactable = wait <= 0f;
-            }
+            // only while it can be used: Commander up, attackers on the map, cooldown over
+            strikeBtn.gameObject.SetActive(hasHero && gm.Troops.StrikeReady);
+            strikeCaption.text = "Strike";
         }
 
         void Refresh()

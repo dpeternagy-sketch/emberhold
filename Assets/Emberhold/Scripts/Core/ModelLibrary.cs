@@ -94,6 +94,31 @@ namespace Emberhold
             return result;
         }
 
+        /// <summary>
+        /// Recolours a pack model by material name (e.g. Kenney "metalRed" -> team blue). Keys match the start
+        /// of the material name; emissive entries (alpha above 1 is not used) stay plain colours.
+        /// </summary>
+        public static void Recolor(Transform model, params KeyValuePair<string, Color>[] map)
+        {
+            foreach (var r in model.GetComponentsInChildren<Renderer>())
+            {
+                var mats = r.materials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    string n = mats[i].name.Replace(" (Instance)", "");
+                    foreach (var kv in map)
+                        if (n == kv.Key)
+                        {
+                            if (mats[i].HasProperty("_BaseColor")) mats[i].SetColor("_BaseColor", kv.Value);
+                            if (mats[i].HasProperty("_Color")) mats[i].SetColor("_Color", kv.Value);
+                        }
+                }
+                r.materials = mats;
+            }
+        }
+
+        public static KeyValuePair<string, Color> Pair(string material, Color c) { return new KeyValuePair<string, Color>(material, c); }
+
         /// <summary>Plays the first legacy clip whose name ends with the given action (e.g. "_Run").</summary>
         public static bool Play(Animation anim, string action, float fade = 0.2f)
         {

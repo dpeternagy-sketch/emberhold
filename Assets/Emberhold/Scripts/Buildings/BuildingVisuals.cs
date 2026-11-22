@@ -104,13 +104,13 @@ namespace Emberhold
                 {
                     var pad = ModelLibrary.Spawn("Models/Base/landingpad_large", t, 3.9f, 3.9f, 0.5f);
                     float y = pad != null ? Top(pad, t) : 0f;
-                    var core = ModelLibrary.Spawn("Models/Base/basemodule_E", t, 2.4f, 2.4f);
-                    core.localPosition = new Vector3(0, y, 0.25f);
+                    var core = ModelLibrary.Spawn("Models/Base/basemodule_E", t, 3.4f, 3.4f);
+                    core.localPosition = new Vector3(0, y, 0.1f);
                     float top = Top(core, t);
                     var turbine = ModelLibrary.Spawn("Models/Base/windturbine_tall", t, 0.9f, 0.9f);
-                    if (turbine != null) turbine.localPosition = new Vector3(1.45f, y, 1.45f);
+                    if (turbine != null) turbine.localPosition = new Vector3(1.72f, y, 1.72f);
                     var dish = ModelLibrary.Spawn("Models/Base/roofmodule_solarpanels", t, 1.4f, 1.4f);
-                    if (dish != null) dish.localPosition = new Vector3(0, top, 0.25f);
+                    if (dish != null) dish.localPosition = new Vector3(0, top, 0.1f);
                     // antenna with a red beacon, and the flag of the city
                     Cyl(t, new Vector3(-1.2f, y + 1.3f, 1.2f), 0.04f, 2.6f, MetalDark);
                     Glowing(Ball(t, new Vector3(-1.2f, y + 2.65f, 1.2f), Vector3.one * 0.14f, Rocket), Rocket, 3f);
@@ -201,6 +201,7 @@ namespace Emberhold
                     float y = pad != null ? Top(pad, t) : 0f;
                     var h = ModelLibrary.Spawn("Models/Space/hangar_largeA", t, 2.6f, 2.4f, 2.2f);
                     if (h == null) return false;
+                    ModelLibrary.Recolor(h, ModelLibrary.Pair("metalRed", new Color(0.12f, 0.2f, 0.38f)), ModelLibrary.Pair("metalDark", new Color(0.18f, 0.27f, 0.45f)));   // navy roof
                     h.localPosition = new Vector3(0, y, 0.15f);
                     // blue army stripe + door light so it reads as a military building
                     B(t, new Vector3(0, y + 0.08f, -1.32f), new Vector3(2.4f, 0.12f, 0.06f), new Color(0.18f, 0.49f, 0.96f));
@@ -214,6 +215,7 @@ namespace Emberhold
                     float y = pad != null ? Top(pad, t) : 0f;
                     var h = ModelLibrary.Spawn("Models/Space/hangar_roundGlass", t, 2.2f, 2.2f, 2.3f);
                     if (h == null) return false;
+                    ModelLibrary.Recolor(h, ModelLibrary.Pair("metalRed", new Color(1f, 0.55f, 0.15f)), ModelLibrary.Pair("metalDark", new Color(0.95f, 0.5f, 0.12f)));   // orange roof
                     h.localPosition = new Vector3(-0.25f, y, 0.2f);
                     var gen = ModelLibrary.Spawn("Models/Space/machine_generatorLarge", t, 0.9f, 0.9f, 1.4f);
                     if (gen != null) gen.localPosition = new Vector3(1.0f, y, -0.9f);
@@ -244,12 +246,14 @@ namespace Emberhold
                 {
                     var b = ModelLibrary.Spawn("Models/Space/hangar_smallA", t, 1.9f, 1.9f, 1.4f);
                     if (b == null) return false;
+                    ModelLibrary.Recolor(b, ModelLibrary.Pair("metalRed", new Color(1f, 0.78f, 0.2f)));   // gold command trim
                     float y = Top(b, t);
                     var dish = ModelLibrary.Spawn("Models/Space/satelliteDish_large", t, 1.1f, 1.1f, 1.2f);
                     if (dish != null) dish.localPosition = new Vector3(0.2f, y, 0.2f);
                     var gold = new Color(1f, 0.78f, 0.2f);
                     B(t, new Vector3(0, 0.1f, -0.96f), new Vector3(1.8f, 0.14f, 0.05f), gold);
                     Glowing(Ball(t, new Vector3(-0.6f, y + 0.2f, -0.4f), Vector3.one * 0.16f, gold), gold, 2.5f);
+                    Glowing(Ball(t, new Vector3(0.2f, y + 1.3f, 0.2f), Vector3.one * 0.14f, Rocket), Rocket, 3f);   // red beacon on the dish
                     return true;
                 }
                 case "cannon":

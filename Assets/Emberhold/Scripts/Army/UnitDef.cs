@@ -26,17 +26,17 @@ namespace Emberhold
             Add(new UnitDef {
                 id = "rifleman", displayName = "Rifleman", model = "Models/Space/astronautA", space = 1,
                 cost = new Cost(coins: 1, food: 3), trainSeconds = 15f, hp = 40, damage = 5, interval = 1f,
-                range = 3f, speed = 1.2f, height = 1.1f, hitsAir = true, counterHint = "Weak to Gun"
+                range = 3f, speed = 1.2f, height = 0.62f, hitsAir = true, counterHint = "Weak to Gun"
             });
             Add(new UnitDef {
                 id = "heavy", displayName = "Heavy Suit", model = "Models/Space/astronautB", space = 5,
                 cost = new Cost(steel: 6, food: 12), trainSeconds = 60f, hp = 300, damage = 12, interval = 1.2f,
-                range = 1.3f, speed = 0.7f, height = 1.55f, barracksLevel = 2, counterHint = "Weak to Laser"
+                range = 1.3f, speed = 0.7f, height = 0.8f, barracksLevel = 2, counterHint = "Weak to Laser"
             });
             Add(new UnitDef {
                 id = "drone", displayName = "Attack Drone", model = "Models/Space/craft_speederA", space = 3,
                 cost = new Cost(steel: 6, energy: 8), trainSeconds = 40f, hp = 70, damage = 8, interval = 1f,
-                range = 2.5f, speed = 1.8f, height = 0.6f, flies = true, hitsAir = true, counterHint = "Weak to Missile"
+                range = 2.5f, speed = 1.8f, height = 0.45f, flies = true, hitsAir = true, counterHint = "Weak to Missile"
             });
         }
 

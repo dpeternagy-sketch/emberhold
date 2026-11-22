@@ -52,14 +52,14 @@ namespace Emberhold
             u.damage = Mathf.RoundToInt(16 * Mathf.Pow(1.12f, level - 1));
             u.range = 3f; u.speed = 1.05f; u.interval = 1f; u.hitsAir = true;
             u.home = home;
-            u.Build("Models/Space/astronautB", 1.75f, 1.1f, new Color(1f, 0.78f, 0.2f));
+            u.Build("Models/Space/astronautB", 0.95f, 1.1f, new Color(1f, 0.78f, 0.2f));
             u.Place(home);
             return u;
         }
 
         void Place(Vector3 p)
         {
-            p.y = WorldBuilder.HeightAt(p) + (flies ? 2.2f : 0f);
+            p.y = WorldBuilder.HeightAt(p) + (flies ? 1.6f : 0f);
             transform.position = p;
             wanderGoal = p;
             hp = maxHp;
@@ -69,16 +69,26 @@ namespace Emberhold
         {
             body = new GameObject("Body").transform;
             body.SetParent(transform, false);
-            Transform m = flies ? ModelLibrary.Spawn(model, body, 1.3f, 1.3f, 0.7f) : ModelLibrary.Spawn(model, body, height, height, height);
+            Transform m = flies ? ModelLibrary.Spawn(model, body, height, height, height * 0.5f) : ModelLibrary.Spawn(model, body, height, height, height);
             if (m == null)
                 m = Util.Prim(PrimitiveType.Capsule, body, new Vector3(0, height * 0.5f, 0), new Vector3(height * 0.4f, height * 0.5f, height * 0.4f), new Color(0.9f, 0.92f, 0.95f)).transform;
             m.localScale = Vector3.Scale(m.localScale, new Vector3(bulk, 1f, bulk));
+            if (!flies)
+            {
+                // style guide: white suit, team-blue chest, dark visor (no faces or beards)
+                var visor = new Color(0.106f, 0.137f, 0.2f);   // #1B2333
+                ModelLibrary.Recolor(m,
+                    ModelLibrary.Pair("skin", visor), ModelLibrary.Pair("rock", visor), ModelLibrary.Pair("rockDark", visor),
+                    ModelLibrary.Pair("metal", new Color(0.957f, 0.965f, 0.973f)),
+                    ModelLibrary.Pair("metalRed", trim.a > 0f ? trim : new Color(0.18f, 0.49f, 0.96f)),
+                    ModelLibrary.Pair("metalDark", new Color(0.35f, 0.4f, 0.48f)));
+            }
             if (trim.a > 0f)
             {
                 foreach (var r in m.GetComponentsInChildren<Renderer>())
                     foreach (var mat in r.materials)
                         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.Lerp(mat.GetColor("_BaseColor"), trim, 0.45f));
-                var ring = Util.Prim(PrimitiveType.Cylinder, transform, new Vector3(0, 0.03f, 0), new Vector3(1.3f, 0.015f, 1.3f), trim);
+                var ring = Util.Prim(PrimitiveType.Cylinder, transform, new Vector3(0, 0.03f, 0), new Vector3(0.9f, 0.015f, 0.9f), trim);
                 ring.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(trim, 1.6f);
             }
             else if (!flies)
@@ -88,7 +98,7 @@ namespace Emberhold
                 ring.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(new Color(0.18f, 0.49f, 0.96f), 0.8f);
             }
             anim = GetComponentInChildren<Animation>();
-            hpBar = Util.Prim(PrimitiveType.Cube, transform, new Vector3(0, (flies ? 0.9f : height) + 0.35f, 0), new Vector3(0.6f, 0.06f, 0.06f), new Color(0.3f, 0.85f, 0.35f)).transform;
+            hpBar = Util.Prim(PrimitiveType.Cube, transform, new Vector3(0, (flies ? 0.5f : height) + 0.25f, 0), new Vector3(0.6f, 0.06f, 0.06f), new Color(0.3f, 0.85f, 0.35f)).transform;
             renderers = GetComponentsInChildren<Renderer>();
             bobPhase = Random.value * 6f;
         }
@@ -115,7 +125,7 @@ namespace Emberhold
         {
             KnockedOut = false;
             hp = maxHp;
-            transform.position = new Vector3(home.x, WorldBuilder.HeightAt(home) + (flies ? 2.2f : 0f), home.z);
+            transform.position = new Vector3(home.x, WorldBuilder.HeightAt(home) + (flies ? 1.6f : 0f), home.z);
             foreach (var r in renderers) r.enabled = true;
             DamageEffects.Puff(transform.position + Vector3.up * 0.5f, 0.6f);
         }
@@ -165,7 +175,7 @@ namespace Emberhold
             if (flies)
             {
                 var p = transform.position;
-                p.y = WorldBuilder.HeightAt(p) + 2.2f + Mathf.Sin(Time.time * 2f + bobPhase) * 0.15f;
+                p.y = WorldBuilder.HeightAt(p) + 1.6f + Mathf.Sin(Time.time * 2f + bobPhase) * 0.12f;
                 transform.position = p;
             }
         }

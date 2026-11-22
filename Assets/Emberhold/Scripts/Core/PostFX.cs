@@ -11,6 +11,16 @@ namespace Emberhold
     /// </summary>
     public static class PostFX
     {
+        static ColorAdjustments grade;
+        static WhiteBalance balance;
+
+        /// <summary>0 = day grade, 1 = night grade (less saturated, cooler), driven by the day/night cycle.</summary>
+        public static void SetNight(float dark)
+        {
+            if (grade != null) grade.saturation.Override(Mathf.Lerp(18f, -25f, dark));
+            if (balance != null) balance.temperature.Override(Mathf.Lerp(0f, -20f, dark));
+        }
+
         public static void Setup(Camera cam)
         {
             var data = cam.GetUniversalAdditionalCameraData();
@@ -32,6 +42,10 @@ namespace Emberhold
             ca.postExposure.Override(0.15f);
             ca.contrast.Override(12f);
             ca.saturation.Override(18f);
+            grade = ca;
+            var wb = p.Add<WhiteBalance>(true);
+            wb.temperature.Override(0f);
+            balance = wb;
 
             var bl = p.Add<Bloom>(true);
             bl.threshold.Override(1.1f);

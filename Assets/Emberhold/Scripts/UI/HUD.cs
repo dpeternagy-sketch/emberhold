@@ -389,6 +389,7 @@ namespace Emberhold
             // Toasts
             if (Time.time > toastUntil)
             {
+                while (toasts.Count > 2) toasts.Dequeue();   // never a backlog of stale toasts
                 if (toasts.Count > 0) { toastText.text = toasts.Dequeue(); toastUntil = Time.time + 2.5f; }
                 else toastText.text = "";
                 toastBg.gameObject.SetActive(toastText.text.Length > 0);
@@ -459,7 +460,7 @@ namespace Emberhold
 
             infoBtn = UIKit.IconButton(actionBar, "k_info", "Info", 124, () => ShowInfo(input.Selected), "blue");
             upgradeBtn = UIKit.IconButton(actionBar, "k_up", "Upgrade", 124, () => ShowUpgrade(input.Selected), "green");
-            repairBtn = UIKit.IconButton(actionBar, "k_wrench", "Repair", 124, () => { var b = input.Selected; if (b != null) gm.Repair(b); }, "yellow");
+            repairBtn = UIKit.IconButton(actionBar, "k_wrench", "Repair", 124, OnRepairPressed, "yellow");
             speedBtn = UIKit.IconButton(actionBar, "k_fast", "Finish", 124, SpeedUp, "yellow");
             speedCaption = speedBtn.GetComponentInChildren<Text>();
             rotateBtn = UIKit.IconButton(actionBar, "k_rotate", "Rotate", 124, () => input.RotateCurrent(), "blue");
@@ -598,7 +599,7 @@ namespace Emberhold
                 costShownFor = sel; costShownLevel = costKey; costShownRepair = broken;
                 foreach (Transform c in repairCostHolder) Destroy(c.gameObject);
                 foreach (Transform c in upgradeCostHolder) Destroy(c.gameObject);
-                if (broken) CostRow(repairCostHolder, gm.RepairCost(sel));   // repair has no popup, so its price stays visible
+                // no chips on action buttons (U6): the first Repair tap says the price, the second pays
             }
 
             if (infoPopup.gameObject.activeSelf) infoPopupBody.text = InfoText(sel);
@@ -801,7 +802,8 @@ namespace Emberhold
         {
             var seen = new HashSet<Building>();
             bool farZoom = rig.distance > 96f;   // only the widest zoom hides them
-            bool night = gm.Cycle != null && gm.Cycle.IsNight;   // at night the map shows the fight, not the to-do list
+            bool night = (gm.Cycle != null && gm.Cycle.IsNight) || Enemy.All.Count > 0;   // in a fight the map shows the fight, not the to-do list
+            bool zoomedIn = rig.distance < 62f;
             // green upgrade arrows: by day, with a free builder, on the 3 cheapest upgrades only (no clutter)
             var arrows = new HashSet<Building>();
             if (!night && gm.BuilderFree)
@@ -837,7 +839,7 @@ namespace Emberhold
 
                 bool selected = b == input.Selected;
                 // level badge at the front corner of the footprint
-                mb.level.gameObject.SetActive(levelled && !selected && !night);
+                mb.level.gameObject.SetActive(levelled && !selected && !night && zoomedIn);
                 if (levelled)
                 {
                     SetIfChanged(mb.levelText, b.Data.level.ToString());
@@ -861,6 +863,16 @@ namespace Emberhold
             var gone = new List<Building>();
             foreach (var kv in mapBadges) if (kv.Key == null || !seen.Contains(kv.Key)) gone.Add(kv.Key);
             foreach (var b in gone) { var mb = mapBadges[b]; if (mb.root != null) Destroy(mb.root.gameObject); mapBadges.Remove(b); }
+        }
+
+        Building repairArmedFor; float repairArmedUntil;
+        void OnRepairPressed()
+        {
+            var b = input.Selected;
+            if (b == null) return;
+            if (repairArmedFor == b && Time.unscaledTime < repairArmedUntil) { repairArmedFor = null; gm.Repair(b); return; }
+            repairArmedFor = b; repairArmedUntil = Time.unscaledTime + 3f;
+            gm.Toast((b.Ruined ? "Rebuild" : "Repair") + " costs " + gm.RepairCost(b) + ". Tap again");
         }
 
         static int CostWeight(Cost c) { return c.steel + c.energy + c.coins + c.food; }
