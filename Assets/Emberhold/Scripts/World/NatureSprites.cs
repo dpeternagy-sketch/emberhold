@@ -87,7 +87,9 @@ namespace Emberhold
                 v.AddRange(c);
                 var r = it.uv;
                 uv.Add(new Vector2(r.xMin, r.yMin)); uv.Add(new Vector2(r.xMax, r.yMin)); uv.Add(new Vector2(r.xMax, r.yMax)); uv.Add(new Vector2(r.xMin, r.yMax));
-                var k = new Color(shade, shade, shade, 1f);
+                // alpha = how far the shader slides this quad toward the camera (x1.2): trees need it so the ground never cuts
+                // their base, but small grass and bushes must stay behind units and walls standing just in front (QC run 30)
+                var k = new Color(shade, shade, shade, Mathf.Clamp(height * 0.4f, 0.1f, 1.2f) / 1.2f);
                 col.Add(k); col.Add(k); col.Add(k); col.Add(k);
                 tri.Add(b); tri.Add(b + 2); tri.Add(b + 1); tri.Add(b); tri.Add(b + 3); tri.Add(b + 2);
             }

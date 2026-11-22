@@ -79,7 +79,7 @@ namespace Emberhold
             h += outside * (Noise(x, z, 0.5f) - 0.5f) * 0.5f;
             // behind the painted mountain the land falls away out of sight, so above the painted peaks
             // there is only sky (the camera clears to the fog's sky blue)
-            h = Mathf.Lerp(h, -40f, Smooth(River.StartZ + 3f, River.StartZ + 10f, z));
+            h = Mathf.Lerp(h, -40f, Smooth(River.StartZ + 9f, River.StartZ + 18f, z));   // QC run 30: falling away sooner left a sky-blue strip under the painting's edge
             return h;
         }
 
@@ -267,7 +267,7 @@ namespace Emberhold
                     // a soft, light muddy edge that fades into the grass (QC run 26: a dark brown smear on the bank)
                     // no mud above the spot where the water starts (QC run 27: a brown triangle between the painted pool and the river)
                     float mudK = Mathf.Clamp01((River.StartZ - 0.5f - z) / 1.5f);
-                    if (rvm > 0f) c = Color.Lerp(c, new Color(0.47f, 0.44f, 0.3f), Mathf.SmoothStep(0f, 0.8f, Mathf.Clamp01(rvm * 1.4f)) * mudK);
+                    if (rvm > 0f) c = Color.Lerp(c, new Color(0.47f, 0.44f, 0.3f), Mathf.SmoothStep(0f, 0.8f, Mathf.Clamp01(rvm * 1.4f)) * mudK * 0.6f);   // lighter: an olive halo showed on the far bank (QC run 30)
                     cKeep = Mathf.Max(cKeep, Mathf.Clamp01(rvm * 1.6f));
                     // beach
                     float beach = Smooth(GridMap.SeaZ + 3f, GridMap.SeaZ + 0.5f, z);
@@ -344,7 +344,7 @@ namespace Emberhold
             var spriteFar = new NatureSprites.Batch();
             for (int x = -62; x < 62; x++)
             {
-                for (int z = GridMap.SeaZ + 2; z < (int)River.StartZ + 3; z++)   // nothing on the land that falls away behind the mountain
+                for (int z = GridMap.SeaZ + 2; z < (int)River.StartZ + 9; z++)   // nothing on the land that falls away behind the mountain
                 {
                     int ax = Mathf.Abs(x);
                     float hh = HeightAt(x + 0.5f, z + 0.5f);

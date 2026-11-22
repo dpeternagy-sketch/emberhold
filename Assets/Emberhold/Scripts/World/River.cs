@@ -157,7 +157,7 @@ namespace Emberhold
         {
             var verts = new List<Vector3>();
             var tris = new List<int>();
-            float step = 0.5f;
+            float step = 0.25f;   // finer rows: a polygon kink showed in the water edge (QC run 30)
             int rows = 0;
             float prevY = 0f;
             // the water starts at the painted pool (the backdrop foot), never under the painting (QC run 23: grey smudge)

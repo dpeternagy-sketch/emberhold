@@ -30,7 +30,7 @@ Shader "Emberhold/NatureSprite"
                 // slide the quad toward the camera along the view ray (same pixels, nearer depth), so the ground
                 // just in front never slices the painted base off with a straight line (QC run 26)
                 float3 ws = TransformObjectToWorld(i.positionOS.xyz);
-                ws += normalize(_WorldSpaceCameraPos - ws) * 1.2;
+                ws += normalize(_WorldSpaceCameraPos - ws) * (1.2 * i.color.a);   // per quad: big for trees, tiny for grass
                 o.positionCS = TransformWorldToHClip(ws);
                 o.uv = i.uv; o.color = i.color;
                 o.fog = ComputeFogFactor(o.positionCS.z);
