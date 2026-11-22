@@ -267,17 +267,19 @@ namespace Emberhold
                     // a soft, light muddy edge that fades into the grass (QC run 26: a dark brown smear on the bank)
                     // no mud above the spot where the water starts (QC run 27: a brown triangle between the painted pool and the river)
                     float mudK = Mathf.Clamp01((River.StartZ - 0.5f - z) / 1.5f);
-                    if (rvm > 0f) c = Color.Lerp(c, new Color(0.47f, 0.44f, 0.3f), Mathf.SmoothStep(0f, 0.8f, Mathf.Clamp01(rvm * 1.4f)) * mudK * 0.35f);   // lighter: an olive halo showed on the far bank (QC run 30)
-                    cKeep = Mathf.Max(cKeep, Mathf.Clamp01(rvm * 1.6f));
+                    // (no mud tint: the painted bank colour read as a blurry olive halo, QC runs 30-32)
+                    cKeep = Mathf.Max(cKeep, Mathf.Clamp01((rvm - 0.55f) * 4f));   // painted colour only right at the water, so the bank edge is a crisp thin line
                     // the grass under the mountain painting's lower edge matches its darker painted grass (QC runs 30-31)
-                    c = Color.Lerp(c, new Color(0.24f, 0.46f, 0.18f), Smooth(River.StartZ - 3f, River.StartZ + 3f, z) * 0.7f);
+                    float under = Smooth(River.StartZ - 4f, River.StartZ + 1f, z);
+                    c = Color.Lerp(c, new Color(0.3f, 0.46f, 0.08f), under);   // the painting's own grass tone (Tools/backdrop_extend.py)
+                    cKeep = Mathf.Max(cKeep, under);
                     // beach
                     float beach = Smooth(GridMap.SeaZ + 3f, GridMap.SeaZ + 0.5f, z);
                     c = Color.Lerp(c, sand, beach);
                     cKeep = Mathf.Max(cKeep, beach);
                     // sand where the ground dips to the water, blended over a band instead of a hard height cut
                     // (QC run 26: a stair-step sand edge along the river)
-                    float low = Smooth(WaterLevel + 0.3f, WaterLevel + 0.05f, hh) * mudK;   // no sand patch at the spring (QC run 28)
+                    float low = Smooth(WaterLevel + 0.15f, WaterLevel + 0.05f, hh) * mudK;   // no sand patch at the spring (QC run 28)
                     cKeep = Mathf.Max(cKeep, low);
                     if (low > 0f) c = Color.Lerp(c, Color.Lerp(sand, wetSand, Mathf.Clamp01((WaterLevel + 0.15f - hh) * 2f)), low);
                     // mountain: rock on steep or high ground, snow on top
@@ -346,7 +348,7 @@ namespace Emberhold
             var spriteFar = new NatureSprites.Batch();
             for (int x = -62; x < 62; x++)
             {
-                for (int z = GridMap.SeaZ + 2; z < (int)River.StartZ + 9; z++)   // nothing on the land that falls away behind the mountain
+                for (int z = GridMap.SeaZ + 2; z < (int)River.StartZ + 3; z++)   // nothing on the land that falls away behind the mountain
                 {
                     int ax = Mathf.Abs(x);
                     float hh = HeightAt(x + 0.5f, z + 0.5f);

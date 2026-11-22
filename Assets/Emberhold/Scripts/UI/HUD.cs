@@ -282,6 +282,9 @@ namespace Emberhold
                     tag.anchoredPosition = new Vector2(0, -10); tag.sizeDelta = new Vector2(196, 36);
                     var tl = UIKit.OutlinedLabel(tag, d.hitsAir ? "Hits air" : "Ground only", 22, TextAnchor.MiddleCenter);
                     tl.color = d.hitsAir ? new Color(0.5f, 1f, 1f) : new Color(1f, 0.75f, 0.5f);
+                    // the tag stays solid when the card dims (QC run 32): only its text dims when locked
+                    tag.gameObject.AddComponent<CanvasGroup>().ignoreParentGroups = true;
+                    if (locked) tl.color = Color.Lerp(tl.color, new Color(0.5f, 0.5f, 0.5f), 0.5f);
                 }
                 var name = UIKit.Label(card.transform, d.displayName, 26, TextAnchor.LowerCenter, new Color(0.13f, 0.16f, 0.26f));
                 name.rectTransform.offsetMin = new Vector2(4, 58);

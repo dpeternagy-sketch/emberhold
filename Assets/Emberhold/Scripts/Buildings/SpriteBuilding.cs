@@ -186,14 +186,14 @@ namespace Emberhold
         /// Puts an image on a camera-facing quad so that its plate centre (art.cx, art.cy) lands on ground,
         /// with the plate's pixel width (art.plate) covering diamond world units across the screen.
         /// </summary>
-        static void Place(Transform q, Material m, Art a, Vector3 ground, float diamond, bool flip, Vector3 shake)
+        static void Place(Transform q, Material m, Art a, Vector3 ground, float diamond, bool flip, Vector3 shake, float yk = 1f)
         {
             var rot = Camera.main.transform.rotation;
             float w = diamond * a.tex.width / a.plate;
             float ox = (a.cx / a.tex.width - 0.5f) * w * (flip ? -1f : 1f);
-            float oy = (0.5f - a.cy / a.tex.height) * w;
+            float oy = (0.5f - a.cy / a.tex.height) * w * yk;
             q.rotation = rot;
-            q.localScale = new Vector3(flip ? -w : w, w, 1f);
+            q.localScale = new Vector3(flip ? -w : w, w * yk, 1f);
             q.position = ground - (rot * Vector3.right) * ox - (rot * Vector3.up) * oy + shake;
             var fwd = rot * Vector3.forward;
             m.SetVector("_Center", ground);
@@ -426,7 +426,15 @@ namespace Emberhold
             q.gameObject.SetActive(on);
             if (!on) return;
             if (m.GetTexture("_MainTex") != a.tex) Show(m, a);
-            Place(q, m, a, centre.Value, SegDiamond * 1.1f, flip, shake);   // QC: a hair of overlap so neighbouring segments never show a seam
+            // the painted piece runs at a fixed 0.515 slope, but the perspective camera's slope changes across the
+            // screen: match it here so the cap and base lines run straight through every joint (QC run 32: saw-tooth)
+            float yk = 1f;
+            var cam = Camera.main;
+            var axis = flip ? new Vector3(0, 0, 0.5f) : new Vector3(0.5f, 0, 0);
+            Vector3 s0 = cam.WorldToScreenPoint(centre.Value - axis), s1 = cam.WorldToScreenPoint(centre.Value + axis);
+            float dx = Mathf.Abs(s1.x - s0.x);
+            if (dx > 1f) yk = Mathf.Clamp(Mathf.Abs(s1.y - s0.y) / dx / 0.515f, 0.85f, 1.2f);
+            Place(q, m, a, centre.Value, SegDiamond * 1.06f, flip, shake, yk);   // QC: a hair of overlap so neighbouring segments never show a seam
             Finish(m);
         }
 

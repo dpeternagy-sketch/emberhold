@@ -164,8 +164,10 @@ namespace Emberhold
             for (float z = StartZ - 0.5f; z >= EndZ; z -= step)   // QC run 28: reach back under the painted pool so no bare bed shows
             {
                 float cx = CenterX(z);
-                float y = Mathf.Max(WorldBuilder.HeightAt(cx, z) + 0.22f, WorldBuilder.WaterLevel + 0.02f);
                 float w = HalfWidth * 1.05f;   // full width up to the pool: a narrow spring left bare sandy bed on both sides (QC run 28)
+                // the water reaches its own smooth mesh edge instead of meeting the terrain's triangles (QC run 32: corners in the bank line)
+                float edgeH = Mathf.Min(Mathf.Max(WorldBuilder.HeightAt(cx - w, z), WorldBuilder.HeightAt(cx + w, z)) + 0.03f, WorldBuilder.HeightAt(cx, z) + 0.6f);
+                float y = Mathf.Max(Mathf.Max(WorldBuilder.HeightAt(cx, z) + 0.22f, WorldBuilder.WaterLevel + 0.02f), edgeH);
                 verts.Add(new Vector3(cx - w, y, z));
                 verts.Add(new Vector3(cx + w, y, z));
                 bool fall = rows > 0 && prevY - y > 0.45f;   // the waterfall sheet covers steep drops
