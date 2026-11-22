@@ -140,8 +140,8 @@ namespace Emberhold
             if (cam != null)
             {
                 cam.clearFlags = CameraClearFlags.SolidColor;
-                // anything the backdrop doesn't cover reads as dark forest, never as a white/sky hole
-                cam.backgroundColor = Color.Lerp(new Color(0.18f, 0.33f, 0.14f), RenderSettings.fogColor, dark);
+                // above the painted mountain: sky, the same blue as the fog, so far hills melt into it
+                cam.backgroundColor = RenderSettings.fogColor;
             }
         }
     }

@@ -50,11 +50,15 @@ namespace Emberhold
             float tq = hMain / band, fl = Mathf.Floor(tq), fr = tq - fl;
             float terr = (fl + Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((fr - 0.55f) / 0.45f))) * band;
             hMain = Mathf.Lerp(hMain, terr, 0.35f * rise);
+            // Peter's painted mountain (the backdrop) is the only big mountain: the 3D range stays low green hills,
+            // so no grey 3D rock pokes out around or through the painting (QC run 22: "two backdrops")
+            hMain *= 0.18f;
             float hm = hFoot + hMain;
             // 3) A rock ledge the river falls over (the waterfall), blending into the hills on both sides
             float nearRiver = 1f - Smooth(2.5f, 8f, Mathf.Abs(x - River.CenterX(z)));
             float step = nearRiver * Smooth(River.FallZ - 0.3f, River.FallZ + 0.3f, z);
-            hm = Mathf.Max(hm, step * (5.2f + Noise(x, z, 0.3f) * 0.6f));
+            // (no 3D rock ledge any more: the waterfall is the one in Peter's painting, QC run 22)
+            hm = Mathf.Max(hm, step * 0f);
 
             // Forested hills east and west
             float ax = Mathf.Abs(x);
@@ -73,6 +77,9 @@ namespace Emberhold
             // Tiny unevenness outside the city only
             float outside = Mathf.Max(m, f);
             h += outside * (Noise(x, z, 0.5f) - 0.5f) * 0.5f;
+            // behind the painted mountain the land falls away out of sight, so above the painted peaks
+            // there is only sky (the camera clears to the fog's sky blue)
+            h = Mathf.Lerp(h, -40f, Smooth(River.StartZ + 3f, River.StartZ + 10f, z));
             return h;
         }
 
@@ -327,7 +334,7 @@ namespace Emberhold
             var spriteFar = new NatureSprites.Batch();
             for (int x = -62; x < 62; x++)
             {
-                for (int z = GridMap.SeaZ + 2; z < 62; z++)
+                for (int z = GridMap.SeaZ + 2; z < (int)River.StartZ + 3; z++)   // nothing on the land that falls away behind the mountain
                 {
                     int ax = Mathf.Abs(x);
                     float hh = HeightAt(x + 0.5f, z + 0.5f);

@@ -182,6 +182,8 @@ namespace Emberhold
             var q = Army.Queue(b);
             string training = q.Count == 0 ? "Nothing in training" : "Training " + UnitDef.Get(q[0]).displayName + "  " + Mathf.CeilToInt(gm.Troops.SecondsLeft(b)) + "s   (" + q.Count + " in queue)";
             cancel.interactable = q.Count > 0;   // QC: no "Cancel last" with nothing in training
+            var ccg = cancel.GetComponent<CanvasGroup>(); if (ccg == null) ccg = cancel.gameObject.AddComponent<CanvasGroup>();
+            ccg.alpha = q.Count > 0 ? 1f : 0.4f;   // and it looks off, not just ignores the tap
             trainStatus.text = training + "\nArmy space  " + (gm.Troops.Used + gm.Troops.Queued) + " / " + gm.Troops.Capacity;
         }
     }

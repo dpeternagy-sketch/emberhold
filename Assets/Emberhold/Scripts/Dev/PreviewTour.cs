@@ -154,7 +154,6 @@ namespace Emberhold
             Place("well", c + new Vector3(4, 0, -9));
             Place("watchtower", c + new Vector3(-6, 0, -18)); Place("watchtower", c + new Vector3(8, 0, -18));
             Place("ballista", c + new Vector3(-13, 0, -5)); Place("cannon", c + new Vector3(1, 0, -19));
-            Place("trap", c + new Vector3(-16, 0, -12));
             // Peter's wall loop: all 4 sides bought (each with its gate and two guns)
             gm.EnsureWallState();
             for (int i = 0; i < 4; i++) gm.State.wallSides[i] = 1;

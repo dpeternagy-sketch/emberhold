@@ -81,7 +81,7 @@ namespace Emberhold
                     float a = 0f;
                     if (r < 1f)
                     {
-                        a = 0.16f + 0.1f * Mathf.SmoothStep(0.5f, 0.95f, r);           // tinted fill, a bit stronger outward
+                        a = 0.04f + 0.08f * Mathf.SmoothStep(0.6f, 0.95f, r);          // faint fill near the rim only (QC: a full tint greyed the river)
                         float rim = 1f - Mathf.Clamp01(Mathf.Abs(r - 0.965f) / 0.03f);   // bright rim
                         float ang = Mathf.Atan2(dy, dx);
                         float dash = Mathf.Sin(ang * 36f) > -0.2f ? 1f : 0.45f;

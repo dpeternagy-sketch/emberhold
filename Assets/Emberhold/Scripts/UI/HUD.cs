@@ -633,7 +633,9 @@ namespace Emberhold
             // the popup already names the building; a floating title would sit on top of it
             selTitle.gameObject.SetActive(!infoPopup.gameObject.activeSelf && !upgradePopup.gameObject.activeSelf && (armyUI == null || !armyUI.TrainOpen));
             selTitle.text = sel.Ruined ? sel.Def.displayName + "  (ruined)" : Title(sel);
-            var top = sel.transform.position + Vector3.up * (sel.Def.height + 1.0f);
+            // the painted turrets are shorter than their old 3D height: keep the title just over the picture
+            float th = sel == gm.Castle ? sel.Def.height : Mathf.Min(sel.Def.height, 2.4f);
+            var top = sel.transform.position + Vector3.up * (th + 1.0f);
             PlaceAt(selTitle.rectTransform, top, new Vector2(0, 30));
             ClampOnScreen(selTitle.rectTransform, selTitle.preferredWidth + 20f, 60f);
 
