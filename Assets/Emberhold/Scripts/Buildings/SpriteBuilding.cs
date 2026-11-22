@@ -223,6 +223,23 @@ namespace Emberhold
             return Load(k) != null ? k : null;
         }
 
+        /// <summary>
+        /// Where the level badge goes: on the picture's own plate, halfway along its front-left edge (left on screen),
+        /// a little inside. Taken from the drawn card, so it follows the art and not the footprint.
+        /// </summary>
+        public bool BadgeAnchor(out Vector3 world)
+        {
+            world = Vector3.zero;
+            if (wall || quad == null || art == null || !quad.gameObject.activeInHierarchy) return false;
+            bool mirrored = quad.localScale.x < 0f;
+            // a gate picture is one wall run (lower-left to upper-right): the badge sits on the run's lower end
+            bool run = def.id == "gate";
+            float px = art.cx + (mirrored ? 1f : -1f) * art.plate * (run ? 0.28f : 0.22f);
+            float py = art.cy + art.plate * (run ? 0.14f : 0.10f);
+            world = quad.TransformPoint(new Vector3(px / art.tex.width - 0.5f, 0.5f - py / art.tex.height, 0f));
+            return true;
+        }
+
         void OnDestroy()
         {
             if (quad != null) Destroy(quad.gameObject);

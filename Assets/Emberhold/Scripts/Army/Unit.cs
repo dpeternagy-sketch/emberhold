@@ -90,6 +90,19 @@ namespace Emberhold
         string portrait;
         DinoSprite sprite;
 
+        static readonly System.Collections.Generic.Dictionary<Color, Material> underPlates = new System.Collections.Generic.Dictionary<Color, Material>();
+        /// <summary>A glowing ground ring that never writes depth and draws before the building sprites, so plates sit on top of it.</summary>
+        static Material UnderPlates(Color c)
+        {
+            Material m;
+            if (underPlates.TryGetValue(c, out m) && m != null) return m;
+            m = new Material(Materials.Emissive(c, 1.4f));
+            if (m.HasProperty("_ZWrite")) m.SetFloat("_ZWrite", 0f);
+            m.renderQueue = 2010;
+            underPlates[c] = m;
+            return m;
+        }
+
         void Build(string model, float height, float bulk, Color trim)
         {
             body = new GameObject("Body").transform;
@@ -99,9 +112,17 @@ namespace Emberhold
             if (pic != null)
             {
                 sprite = pic;
-                var team = trim.a > 0f ? trim : new Color(0.18f, 0.49f, 0.96f);
-                var tr = Util.Prim(PrimitiveType.Cylinder, transform, new Vector3(0, 0.02f, 0), new Vector3(height * 0.9f, 0.01f, height * 0.9f), team);
-                tr.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(team, trim.a > 0f ? 1.6f : 0.8f);
+                // QC: no team discs under soldiers (they read as splotches on the camp pad); only the Commander
+                // keeps a gold ring, drawn under building plates so a plate always covers it cleanly
+                if (trim.a > 0f)
+                {
+                    var tr = Util.Prim(PrimitiveType.Cylinder, transform, new Vector3(0, 0.02f, 0), new Vector3(height * 0.6f, 0.01f, height * 0.6f), trim);
+                    var col = tr.GetComponent<Collider>(); if (col != null) Destroy(col);
+                    var rr = tr.GetComponent<Renderer>();
+                    rr.sharedMaterial = UnderPlates(trim);
+                    rr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    rr.receiveShadows = false;
+                }
                 hpBar = Util.Prim(PrimitiveType.Cube, transform, new Vector3(0, height * 1.0f + 0.15f, 0), new Vector3(0.45f, 0.05f, 0.05f), new Color(0.3f, 0.85f, 0.35f)).transform;
                 renderers = GetComponentsInChildren<Renderer>();
                 bobPhase = Random.value * 6f;
@@ -207,7 +228,7 @@ namespace Emberhold
                 if (calmFor > 4f && hp < maxHp) hp = Mathf.Min(maxHp, hp + Mathf.CeilToInt(maxHp * 0.08f * Time.deltaTime * 4f));
                 // drones don't roam: they fly straight back to their pad and land (Peter)
                 if (flies) wanderGoal = Post;
-                else if (Time.time > wanderAt) { wanderAt = Time.time + Random.Range(3f, 7f); wanderGoal = Post + Random.insideUnitSphere.Flat() * (isHero ? 0.4f : 0.1f); }
+                else if (Time.time > wanderAt) { wanderAt = Time.time + Random.Range(3f, 7f); wanderGoal = Post + Random.insideUnitSphere.Flat() * (isHero ? 0.25f : 0.1f); }
                 var to = wanderGoal - transform.position; to.y = 0f;
                 if (to.magnitude > 0.3f) { Face(to); Move(to.normalized, to.magnitude > 2f ? 1.25f : 0.5f); }
                 else Play("Idle");

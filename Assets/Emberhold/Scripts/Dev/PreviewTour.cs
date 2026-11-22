@@ -112,7 +112,21 @@ namespace Emberhold
             yield return new WaitForSeconds(2.5f);   // let the clear puffs fade before the still
             View(new Vector3(0f, 0f, 3f), 70f); yield return Shot("12_city_wide");   // QC: 78 showed past the backdrop
             var hero = FindHero();
-            if (hero != null) { View(hero.transform.position + new Vector3(0, 0, 2f), 30f); yield return new WaitForSeconds(0.3f); yield return Shot("13_commander_close"); }
+            var nearHouse = First("house");
+            if (hero != null)
+            {
+                // QC: a real close-up, the Commander on open ground just in front of a house
+                if (nearHouse != null)
+                {
+                    float hd = Mathf.Max(nearHouse.Def.width, nearHouse.Def.depth) * 0.70710678f;
+                    var spot = nearHouse.Center + new Vector3(-0.70710678f, 0f, -0.70710678f) * (hd + 0.6f) + new Vector3(0.5f, 0f, -0.5f);
+                    hero.Order(spot); hero.transform.position = spot;   // (an order: Army.Sync resets home every half second)
+                }
+                yield return new WaitForSeconds(0.4f);
+                View(hero.transform.position + new Vector3(0.4f, 0, 0.4f), 16f); yield return new WaitForSeconds(0.3f); yield return Shot("13_commander_close");
+                hero.Order(null);
+            }
+            View(new Vector3(0f, 0f, 6f), 105f); yield return new WaitForSeconds(0.3f); yield return Shot("16_max_zoom");   // QC: backdrop edges at the widest zoom
             yield return WallYard();
             Debug.Log("[Preview] done: " + frame + " video frames in " + Dir + "/frames");
             Running = false; Finished = true;
@@ -166,22 +180,29 @@ namespace Emberhold
         {
             var wall = BuildingCatalog.Get("wall"); var gate = BuildingCatalog.Get("gate");
             // find an open 8 x 7 spot inside the buildable area (trees may be cleared), nearest the city first
+            // QC: no building inside or within 2 cells of the loop (a turret plate once overlapped a gate end);
+            // if the map has no such room, fall back to a loop that only needs its own cells free
             int x0 = 0, z0 = 0, best = int.MaxValue;
-            for (int cx = -20; cx <= 13; cx++)
-                for (int cz = -18; cz <= 8; cz++)
-                {
-                    int score = Mathf.Abs(cx + 4) + Mathf.Abs(cz - 2);
-                    if (score >= best) continue;
-                    bool ok = true;
-                    for (int x = cx; x <= cx + 7 && ok; x++)
-                        for (int z = cz; z <= cz + 6 && ok; z++)
-                        {
-                            if (x != cx && x != cx + 7 && z != cz && z != cz + 6) continue;
-                            var cell = new Vector2Int(x, z);
-                            ok = gm.Grid.At(cell) is TreeNode || gm.CanPlace(wall, x, z, 0);
-                        }
-                    if (ok) { best = score; x0 = cx; z0 = cz; }
-                }
+            for (int pass = 0; pass < 2 && best == int.MaxValue; pass++)
+                for (int cx = -20; cx <= 13; cx++)
+                    for (int cz = -18; cz <= 8; cz++)
+                    {
+                        int score = Mathf.Abs(cx + 4) + Mathf.Abs(cz - 2);
+                        if (score >= best) continue;
+                        bool ok = true;
+                        for (int x = cx; x <= cx + 7 && ok; x++)
+                            for (int z = cz; z <= cz + 6 && ok; z++)
+                            {
+                                if (x != cx && x != cx + 7 && z != cz && z != cz + 6) continue;
+                                var cell = new Vector2Int(x, z);
+                                ok = gm.Grid.At(cell) is TreeNode || gm.CanPlace(wall, x, z, 0);
+                            }
+                        if (pass == 0)
+                            for (int x = cx - 2; x <= cx + 9 && ok; x++)
+                                for (int z = cz - 2; z <= cz + 8 && ok; z++)
+                                    ok = !(gm.Grid.At(new Vector2Int(x, z)) is Building);
+                        if (ok) { best = score; x0 = cx; z0 = cz; }
+                    }
             if (best == int.MaxValue) { Debug.Log("[Preview] no room for the wall yard"); yield break; }
             int x1 = x0 + 7, z1 = z0 + 6;
             Debug.Log("[Preview] wall yard at " + x0 + "," + z0);
@@ -205,9 +226,12 @@ namespace Emberhold
             {
                 gm.Castle.Data.level = lv;
                 foreach (var g in gates) g.Data.level = lv;
-                View(focus, 26f);
+                View(focus + new Vector3(-1.5f, 0f, -2f), 26f);   // close: the x-side gate and two L corners
                 yield return new WaitForSeconds(0.6f);
                 yield return Shot("14_wall_yard_t" + lv);
+                View(focus, 50f);                                    // whole closed loop: both gates, all 4 corners
+                yield return new WaitForSeconds(0.4f);
+                yield return Shot("15_wall_loop_t" + lv);
             }
             gm.Castle.Data.level = hq;
         }

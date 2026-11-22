@@ -809,7 +809,7 @@ namespace Emberhold
             foreach (var b in gone) { if (timerBars[b] != null) Destroy(timerBars[b].gameObject); timerBars.Remove(b); }
         }
 
-        class MapBadge { public RectTransform root, level, status; public Text levelText; public RawImage statusIcon; public Image statusBg; public string statusKind; }
+        class MapBadge { public SpriteBuilding sprite; public bool spriteLooked; public RectTransform root, level, status; public Text levelText; public RawImage statusIcon; public Image statusBg; public string statusKind; }
         readonly Dictionary<Building, MapBadge> mapBadges = new Dictionary<Building, MapBadge>();
 
         /// <summary>
@@ -862,8 +862,15 @@ namespace Emberhold
                 if (levelled)
                 {
                     SetIfChanged(mb.levelText, b.Data.level.ToString());
-                    var sz = GridMap.Size(d, b.Data.rotation);
-                    PlaceAt(mb.level, b.Center + new Vector3(-sz.x * 0.5f + 0.2f, 0.15f, -sz.y * 0.5f + 0.1f), Vector2.zero);
+                    // QC: anchored to the drawn plate (a footprint corner can sit on bare grass next to the art)
+                    if (mb.sprite == null && (!mb.spriteLooked || Time.frameCount % 30 == 0)) { mb.spriteLooked = true; mb.sprite = b.GetComponentInChildren<SpriteBuilding>(); }   // looked up again if the model is rebuilt
+                    Vector3 at;
+                    if (mb.sprite != null && mb.sprite.BadgeAnchor(out at)) PlaceAt(mb.level, at, Vector2.zero);
+                    else
+                    {
+                        var sz = GridMap.Size(d, b.Data.rotation);
+                        PlaceAt(mb.level, b.Center + new Vector3(-sz.x * 0.5f + 0.2f, 0.15f, -sz.y * 0.5f + 0.1f), Vector2.zero);
+                    }
                 }
                 // one status icon above the building (the timer bar takes this spot while upgrading)
                 mb.status.gameObject.SetActive(status != null && !selected);

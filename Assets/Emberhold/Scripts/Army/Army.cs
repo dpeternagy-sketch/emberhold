@@ -198,12 +198,35 @@ namespace Emberhold
             if (camps.Count == 0) return gm.Castle.Center + new Vector3(0, 0, -3.5f);
             var c = camps[index % camps.Count];
             int slot = index / camps.Count;
-            // parade-ground rows on the camp's own pad (5 x 5, 0.42 apart), a second staggered layer after 25,
-            // never spilling outside the pad
-            float half = Mathf.Max(c.Def.width, c.Def.depth) * 0.5f - 0.35f;
-            int layer = slot / 25, k = slot % 25;
-            float x = -0.84f + (k % 5) * 0.42f + layer * 0.21f, z = 0.84f - (k / 5) * 0.42f - layer * 0.21f;
-            return c.Center + new Vector3(Mathf.Clamp(x, -half, half), 0, Mathf.Clamp(z, -half, half));
+            // parade-ground rows on the FRONT half of the camp's pad (the camp building stands on the back half),
+            // rows run across the screen, the nearest row is the shortest; a second staggered layer after the first fills
+            float d = Mathf.Max(c.Def.width, c.Def.depth) * 0.70710678f;            // centre to front corner
+            var across = new Vector3(0.70710678f, 0f, -0.70710678f);               // left to right on screen
+            var toward = new Vector3(-0.70710678f, 0f, -0.70710678f);              // towards the camera
+            int layer = 0, k = slot;
+            while (true)
+            {
+                int inLayer = 0;
+                for (float v = 0.35f; v < d - 0.35f; v += 0.4f)
+                {
+                    float room = d - v - 0.3f;
+                    int n = Mathf.Max(0, Mathf.FloorToInt(room * 2f / 0.4f) + 1);
+                    if (k < n)
+                    {
+                        float u = -room + k * 0.4f + (layer % 2) * 0.2f;
+                        return c.Center + across * Mathf.Clamp(u, -room, room) + toward * (v + (layer % 2) * 0.2f);
+                    }
+                    k -= n; inLayer += n;
+                }
+                if (inLayer == 0 || ++layer > 8) return c.Center + toward * (d * 0.5f);
+            }
+        }
+
+        /// <summary>The Commander idles on open ground just in front of the Command Center's pad (never on a neighbour's plate).</summary>
+        static Vector3 HeroHome(Building cc)
+        {
+            float d = Mathf.Max(cc.Def.width, cc.Def.depth) * 0.70710678f;
+            return cc.Center + new Vector3(-0.70710678f, 0f, -0.70710678f) * (d + 0.45f);
         }
 
         void Sync()
@@ -235,8 +258,8 @@ namespace Emberhold
 
             var cc = CommandCenter();
             if (cc == null) { if (Hero != null) { Destroy(Hero.gameObject); Hero = null; } }
-            else if (Hero == null) Hero = Unit.SpawnHero(gm.State.heroLevel, cc.Center + new Vector3(0, 0, -1.6f), root);
-            else Hero.home = cc.Center + new Vector3(0, 0, -1.6f);
+            else if (Hero == null) Hero = Unit.SpawnHero(gm.State.heroLevel, HeroHome(cc), root);
+            else Hero.home = HeroHome(cc);
         }
 
         // ------------------------------------------------------------------ XP and strike
