@@ -33,7 +33,7 @@ namespace Emberhold
             header.anchoredPosition = new Vector2(0, -10); header.sizeDelta = new Vector2(-20, 96);
             trainTitle = UIKit.OutlinedLabel(trainPopup, "", 40, TextAnchor.UpperCenter);
             trainTitle.rectTransform.offsetMax = new Vector2(-90, -32);
-            var x = UIKit.IconButton(trainPopup, "icon_close", null, 84, CloseTrain, "red");
+            var x = UIKit.IconButton(trainPopup, "icon_close", null, 72, CloseTrain, "red");
             UIKit.Anchor(x.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-18, -18), new Vector2(84, 84));
             rows = UIKit.Rect("Rows", trainPopup);
             UIKit.Anchor(rows, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(800, 460));
@@ -63,26 +63,26 @@ namespace Emberhold
             xpFill.anchorMin = Vector2.zero; xpFill.anchorMax = new Vector2(0, 1); xpFill.pivot = new Vector2(0, 0.5f); xpFill.offsetMin = xpFill.offsetMax = Vector2.zero;
 
             // ---- Orbital Strike (bottom left, only during an attack) ----
-            strikeBtn = UIKit.IconButton(root, "icon_attack", "Strike", 150, () => { if (!gm.Troops.Strike()) gm.Toast("Strike not ready"); }, "red");
-            UIKit.Anchor(strikeBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 360), new Vector2(150, 190));
+            strikeBtn = UIKit.IconButton(root, "icon_attack", "Strike", 108, () => { if (!gm.Troops.Strike()) gm.Toast("Strike not ready"); }, "red");
+            UIKit.Anchor(strikeBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 300), new Vector2(112, 142));
             strikeCaption = strikeBtn.GetComponentInChildren<Text>();
 
             // ---- Troop orders (bottom left): select all, call home, done. Tap units / ground for the rest ----
-            troopsBtn = UIKit.IconButton(root, "icon_select_all", "Troops", 120, () => input.SelectAllUnits(), "blue");
-            UIKit.Anchor(troopsBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 210), new Vector2(120, 140));
-            homeBtn = UIKit.IconButton(root, "icon_recall", "Home", 120, () => input.RecallUnits(), "green");
-            UIKit.Anchor(homeBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(164, 210), new Vector2(120, 140));
-            doneBtn = UIKit.IconButton(root, "icon_done", "Done", 120, () => input.ClearUnits(), "red");
+            troopsBtn = UIKit.IconButton(root, "icon_select_all", "Troops", 92, () => input.SelectAllUnits(), "blue");
+            UIKit.Anchor(troopsBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 180), new Vector2(96, 126));
+            homeBtn = UIKit.IconButton(root, "icon_recall", "Home", 92, () => input.RecallUnits(), "green");
+            UIKit.Anchor(homeBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(138, 180), new Vector2(96, 126));
+            doneBtn = UIKit.IconButton(root, "icon_done", "Done", 92, () => input.ClearUnits(), "red");
 
             // ---- Repair all (same corner as Strike, which only shows during an attack) ----
-            repairAllBtn = UIKit.IconButton(root, "icon_repair_all", "Repair all", 150, () =>
+            repairAllBtn = UIKit.IconButton(root, "icon_repair_all", "Repair all", 108, () =>
             {
                 if (Time.unscaledTime < repairAllArmedUntil) { repairAllArmedUntil = 0f; gm.RepairAll(); return; }
                 repairAllArmedUntil = Time.unscaledTime + 3f;
                 gm.Toast("Repair everything for " + gm.RepairAllCost() + ". Tap again");
             }, "yellow");
-            UIKit.Anchor(repairAllBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 360), new Vector2(150, 190));
-            UIKit.Anchor(doneBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(294, 210), new Vector2(120, 140));
+            UIKit.Anchor(repairAllBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(34, 300), new Vector2(112, 142));
+            UIKit.Anchor(doneBtn.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 0), new Vector2(242, 180), new Vector2(96, 126));
         }
 
         public void ShowTrain(Building b)

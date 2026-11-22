@@ -180,7 +180,7 @@ namespace Emberhold
         public static UnityEngine.UI.Button IconButton(Transform parent, string icon, string caption, float size, Action onClick, string color = "blue")
         {
             var r = Rect("IconButton_" + icon, parent);
-            r.sizeDelta = new Vector2(size, size + (string.IsNullOrEmpty(caption) ? 0 : 40));
+            r.sizeDelta = new Vector2(size, size + (string.IsNullOrEmpty(caption) ? 0 : 34));
             var hit = r.gameObject.AddComponent<Image>();
             hit.color = new Color(0, 0, 0, 0); // invisible hit area
             // near-future badge icons (Resources/UI/Badges/icon_*.png) are complete buttons on their own
@@ -207,7 +207,7 @@ namespace Emberhold
             }
             if (!string.IsNullOrEmpty(caption))
             {
-                var t = OutlinedLabel(r, caption, 26, TextAnchor.LowerCenter);
+                var t = OutlinedLabel(r, caption, 22, TextAnchor.LowerCenter);
                 t.rectTransform.offsetMin = new Vector2(-30, -6);
                 t.rectTransform.offsetMax = new Vector2(30, 0);
                 t.horizontalOverflow = HorizontalWrapMode.Overflow;

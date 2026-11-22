@@ -69,8 +69,8 @@ namespace Emberhold
             foreach (var key in new[] { "food", "water", "energy", "steel", "coins", "people" })
                 resourceTexts[key] = ResourceChip(res, key);
 
-            var menuBtn = UIKit.IconButton(root, "icon_menu", null, 104, ToggleMenu, "blue");
-            UIKit.Anchor(menuBtn.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-30, -30), new Vector2(104, 104));
+            var menuBtn = UIKit.IconButton(root, "icon_menu", null, 84, ToggleMenu, "blue");
+            UIKit.Anchor(menuBtn.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-30, -30), new Vector2(84, 84));
 
             // Builders: how many upgrades can run at once (busy / total)
             var bld = UIKit.Pill("Builders", root).rectTransform;
@@ -112,13 +112,13 @@ namespace Emberhold
             // Bottom-right: round icon buttons
             var menu = UIKit.Rect("MainButtons", root);
             mainButtons = menu;
-            UIKit.Anchor(menu, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-30, 40), new Vector2(170, 720));
-            var b1 = UIKit.IconButton(menu, "icon_build", "Build", 150, () => TogglePanel(BuildingCategory.Economy), "green");
-            UIKit.Anchor(b1.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(150, 190));
-            var b2 = UIKit.IconButton(menu, "icon_defenses", "Defenses", 150, () => TogglePanel(BuildingCategory.Defense), "red");
-            UIKit.Anchor(b2.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -200), new Vector2(150, 190));
-            var b3 = UIKit.IconButton(menu, "icon_army", "Army", 150, () => TogglePanel(BuildingCategory.Army), "yellow");
-            UIKit.Anchor(b3.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -400), new Vector2(150, 190));
+            UIKit.Anchor(menu, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-30, 40), new Vector2(130, 470));
+            var b1 = UIKit.IconButton(menu, "icon_build", "Build", 108, () => TogglePanel(BuildingCategory.Economy), "green");
+            UIKit.Anchor(b1.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(112, 142));
+            var b2 = UIKit.IconButton(menu, "icon_defenses", "Defenses", 108, () => TogglePanel(BuildingCategory.Defense), "red");
+            UIKit.Anchor(b2.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -156), new Vector2(112, 142));
+            var b3 = UIKit.IconButton(menu, "icon_army", "Army", 108, () => TogglePanel(BuildingCategory.Army), "yellow");
+            UIKit.Anchor(b3.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -312), new Vector2(112, 142));
             nightButton = UIKit.IconButton(menu, "night", "Night", 110, () => gm.Cycle.StartNightNow(), "blue");
             UIKit.Anchor(nightButton.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -600), new Vector2(110, 150));
             nightButton.gameObject.SetActive(false);   // Peter: no night mode; dinos just wander in one at a time
@@ -146,10 +146,10 @@ namespace Emberhold
             ghostButtons.sizeDelta = new Vector2(420, 110);
             ghostOk = UIKit.SkinButton(ghostButtons, "Build", 32, () => input.ConfirmPlacement(), "green");
             UIKit.Anchor(ghostOk.GetComponent<RectTransform>(), new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(180, 100));
-            var rot = UIKit.IconButton(ghostButtons, "icon_rotate", null, 100, () => input.RotateCurrent(), "blue");
-            UIKit.Anchor(rot.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40, 0), new Vector2(100, 100));
-            var cancel = UIKit.IconButton(ghostButtons, "icon_close", null, 100, () => input.CancelPlacement(), "red");
-            UIKit.Anchor(cancel.GetComponent<RectTransform>(), new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(100, 100));
+            var rot = UIKit.IconButton(ghostButtons, "icon_rotate", null, 84, () => input.RotateCurrent(), "blue");
+            UIKit.Anchor(rot.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40, 0), new Vector2(84, 84));
+            var cancel = UIKit.IconButton(ghostButtons, "icon_close", null, 84, () => input.CancelPlacement(), "red");
+            UIKit.Anchor(cancel.GetComponent<RectTransform>(), new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(84, 84));
 
             ghostHint = UIKit.OutlinedLabel(screenRoot, "", 30, TextAnchor.MiddleCenter);
             ghostHint.rectTransform.anchorMin = ghostHint.rectTransform.anchorMax = Vector2.zero;
@@ -469,17 +469,17 @@ namespace Emberhold
             actionBar = UIKit.Rect("ActionBar", root);
             UIKit.Anchor(actionBar, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 90), new Vector2(900, 170));
 
-            infoBtn = UIKit.IconButton(actionBar, "icon_info", "Info", 124, () => ShowInfo(input.Selected), "blue");
-            upgradeBtn = UIKit.IconButton(actionBar, "icon_upgrade", "Upgrade", 124, () => ShowUpgrade(input.Selected), "green");
-            repairBtn = UIKit.IconButton(actionBar, "icon_repair_all", "Repair", 124, OnRepairPressed, "yellow");
-            speedBtn = UIKit.IconButton(actionBar, "icon_finish", "Finish", 124, SpeedUp, "yellow");
+            infoBtn = UIKit.IconButton(actionBar, "icon_info", "Info", 96, () => ShowInfo(input.Selected), "blue");
+            upgradeBtn = UIKit.IconButton(actionBar, "icon_upgrade", "Upgrade", 96, () => ShowUpgrade(input.Selected), "green");
+            repairBtn = UIKit.IconButton(actionBar, "icon_repair_all", "Repair", 96, OnRepairPressed, "yellow");
+            speedBtn = UIKit.IconButton(actionBar, "icon_finish", "Finish", 96, SpeedUp, "yellow");
             speedCaption = speedBtn.GetComponentInChildren<Text>();
-            rotateBtn = UIKit.IconButton(actionBar, "icon_rotate", "Rotate", 124, () => input.RotateCurrent(), "blue");
-            removeBtn = UIKit.IconButton(actionBar, "icon_remove", "Remove", 124, OnRemovePressed, "red");
+            rotateBtn = UIKit.IconButton(actionBar, "icon_rotate", "Rotate", 96, () => input.RotateCurrent(), "blue");
+            removeBtn = UIKit.IconButton(actionBar, "icon_remove", "Remove", 96, OnRemovePressed, "red");
             removeCaption = removeBtn.GetComponentInChildren<Text>();
             armyUI = gameObject.AddComponent<ArmyUI>();
             armyUI.Init(gm, input, rig, root);
-            trainBtn = UIKit.IconButton(actionBar, "icon_army", "Train", 124, () => armyUI.ShowTrain(input.Selected), "green");
+            trainBtn = UIKit.IconButton(actionBar, "icon_army", "Train", 96, () => armyUI.ShowTrain(input.Selected), "green");
 
             // cost chips under the Upgrade / Repair buttons
             upgradeCostHolder = CostHolder(upgradeBtn);
@@ -556,7 +556,7 @@ namespace Emberhold
 
         void CloseX(RectTransform panel, System.Action onClose)
         {
-            var x = UIKit.IconButton(panel, "icon_close", null, 84, onClose, "red");
+            var x = UIKit.IconButton(panel, "icon_close", null, 72, onClose, "red");
             UIKit.Anchor(x.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-18, -18), new Vector2(84, 84));
         }
 
@@ -623,7 +623,7 @@ namespace Emberhold
             var list = new List<RectTransform>();
             foreach (var b in new[] { trainBtn, infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn })
                 if (b.gameObject.activeSelf) list.Add(b.GetComponent<RectTransform>());
-            const float step = 175f;
+            const float step = 140f;
             for (int i = 0; i < list.Count; i++)
             {
                 var r = list[i];
