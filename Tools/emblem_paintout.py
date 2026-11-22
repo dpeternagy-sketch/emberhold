@@ -5,10 +5,12 @@ from PIL import Image
 from scipy import ndimage
 src, out, boxes = sys.argv[1], sys.argv[2], json.loads(sys.argv[3])
 im = np.asarray(Image.open(src).convert('RGB')).astype(np.float32)
-for x0, y0, x1, y1 in boxes:
+for box in boxes:
+    x0, y0, x1, y1 = box[:4]
+    dark = len(box) > 4 and box[4] == 'dark'
     sub = im[y0:y1, x0:x1]
     sat = sub.max(-1) - sub.min(-1)
-    white = (sub.min(-1) > 135) & (sat < 90)
+    white = (sub.max(-1) < 110) if dark else ((sub.min(-1) > 135) & (sat < 90))
     lab, n = ndimage.label(white)
     edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     m = white & ~np.isin(lab, list(edge))
