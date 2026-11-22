@@ -39,6 +39,7 @@ namespace Emberhold
         RectTransform upPopupCost;
         Button upPopupGo;
         Text upPopupGoText;
+        Button infoUpgradeBtn;
         bool goFreesBuilder;
         Text builderText;
         Building costShownFor; int costShownLevel = -1; bool costShownRepair;
@@ -71,6 +72,15 @@ namespace Emberhold
 
             // Builders: how many upgrades can run at once (busy / total)
             var bld = UIKit.Pill("Builders", root).rectTransform;
+            var bldBtn = bld.gameObject.AddComponent<Button>();
+            bld.GetComponent<Image>().raycastTarget = true;
+            bldBtn.onClick.AddListener(() =>
+            {
+                var busyB = gm.SoonestUpgrade();
+                if (busyB == null) { gm.Toast("Builders are free: upgrade something!"); return; }
+                input.Select(busyB);
+                rig.FocusOn(busyB.Center);
+            });
             UIKit.Anchor(bld, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-30, -150), new Vector2(190, 72));
             var bIc = UIKit.Icon(bld, "k_wrench", 60);
             UIKit.Anchor(bIc.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(-6, 2), new Vector2(60, 60));
@@ -157,14 +167,20 @@ namespace Emberhold
             Header(menuPanel);
             var title = UIKit.OutlinedLabel(menuPanel, "Emberhold", 40, TextAnchor.UpperCenter);
             title.rectTransform.offsetMax = new Vector2(-8, -32);
-            var reset = UIKit.Button(menuPanel, "Restart city", 30, () => gm.ResetGame(), new Color(0.4f, 0.13f, 0.1f, 0.95f));
+            Button reset = null;
+            float resetArmedUntil = -1f;
+            reset = UIKit.Button(menuPanel, "Restart city", 30, () =>
+            {
+                // two taps: a whole city is never lost by one mis-tap
+                if (Time.unscaledTime < resetArmedUntil) { gm.ResetGame(); return; }
+                resetArmedUntil = Time.unscaledTime + 3f;
+                reset.GetComponentInChildren<Text>().text = "Sure? Tap again";
+            }, new Color(0.4f, 0.13f, 0.1f, 0.95f));
             UIKit.Anchor(reset.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 150), new Vector2(400, 90));
             var fx = UIKit.VolumeSlider(menuPanel, "Effects", AudioManager.SoundLevel, v => AudioManager.SoundLevel = v);
             UIKit.Anchor(fx.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(400, 110));
             var amb = UIKit.VolumeSlider(menuPanel, "Nature sounds", AudioManager.AmbienceLevel, v => AudioManager.AmbienceLevel = v);
             UIKit.Anchor(amb.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -250), new Vector2(400, 110));
-            var raid = UIKit.Button(menuPanel, "Test raid now", 30, () => { if (gm.Raids != null) gm.Raids.TriggerNow(); ToggleMenu(); }, new Color(0.45f, 0.3f, 0.1f, 0.95f));
-            UIKit.Anchor(raid.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 260), new Vector2(400, 90));
             var close = UIKit.Button(menuPanel, "Close", 30, ToggleMenu);
             UIKit.Anchor(close.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 40), new Vector2(400, 90));
             menuPanel.gameObject.SetActive(false);
@@ -232,6 +248,15 @@ namespace Emberhold
                 raw.raycastTarget = false;
                 raw.uvRect = new Rect(0.07f, 0.12f, 0.86f, 0.62f);
                 if (locked) raw.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+                if (d.attackRange > 0f)
+                {
+                    // what it can hit: flyers cross walls, so the player must see which weapons stop them
+                    var tag = UIKit.Pill("AirTag", card.transform).rectTransform;
+                    tag.anchorMin = tag.anchorMax = new Vector2(0.5f, 1); tag.pivot = new Vector2(0.5f, 1);
+                    tag.anchoredPosition = new Vector2(0, -10); tag.sizeDelta = new Vector2(196, 36);
+                    var tl = UIKit.OutlinedLabel(tag, d.hitsAir ? "Hits air" : "Ground only", 22, TextAnchor.MiddleCenter);
+                    tl.color = d.hitsAir ? new Color(0.5f, 1f, 1f) : new Color(1f, 0.75f, 0.5f);
+                }
                 var name = UIKit.Label(card.transform, d.displayName, 26, TextAnchor.LowerCenter, new Color(0.13f, 0.16f, 0.26f));
                 name.rectTransform.offsetMin = new Vector2(4, 48);
                 if (locked)
@@ -434,11 +459,14 @@ namespace Emberhold
             // Info popup: name, level and two or three key numbers
             infoPopup = UIKit.PanelBox("InfoPopup", root).rectTransform;
             Header(infoPopup);
-            UIKit.Anchor(infoPopup, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 60), new Vector2(720, 400));
+            UIKit.Anchor(infoPopup, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 60), new Vector2(740, 640));
             infoPopupTitle = UIKit.OutlinedLabel(infoPopup, "", 40, TextAnchor.UpperCenter);
             infoPopupTitle.rectTransform.offsetMax = new Vector2(-90, -32);
             infoPopupBody = UIKit.Label(infoPopup, "", 36, TextAnchor.MiddleCenter);
-            infoPopupBody.rectTransform.offsetMin = new Vector2(30, 40); infoPopupBody.rectTransform.offsetMax = new Vector2(-30, -90);
+            infoPopupBody.rectTransform.offsetMin = new Vector2(30, 140); infoPopupBody.rectTransform.offsetMax = new Vector2(-30, -110);
+            infoPopupBody.supportRichText = true;
+            infoUpgradeBtn = UIKit.SkinButton(infoPopup, "Upgrade", 36, () => { var b = popupFor; if (b != null) ShowUpgrade(b); }, "green");
+            UIKit.Anchor(infoUpgradeBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 26), new Vector2(360, 96));
             CloseX(infoPopup, () => infoPopup.gameObject.SetActive(false));
             infoPopup.gameObject.SetActive(false);
 
@@ -550,9 +578,9 @@ namespace Emberhold
             if ((broken || canLevel) && (costShownFor != sel || costShownLevel != costKey || costShownRepair != broken))
             {
                 costShownFor = sel; costShownLevel = costKey; costShownRepair = broken;
-                var holder = broken ? repairCostHolder : upgradeCostHolder;
-                foreach (Transform c in holder) Destroy(c.gameObject);
-                CostRow(holder, broken ? gm.RepairCost(sel) : sel.UpgradeCost);
+                foreach (Transform c in repairCostHolder) Destroy(c.gameObject);
+                foreach (Transform c in upgradeCostHolder) Destroy(c.gameObject);
+                if (broken) CostRow(repairCostHolder, gm.RepairCost(sel));   // repair has no popup, so its price stays visible
             }
 
             if (infoPopup.gameObject.activeSelf) infoPopupBody.text = InfoText(sel);
@@ -582,29 +610,56 @@ namespace Emberhold
             upgradePopup.gameObject.SetActive(false);
             infoPopupTitle.text = Title(b);
             infoPopupBody.text = InfoText(b);
+            infoUpgradeBtn.gameObject.SetActive(!b.Ruined && !b.Data.IsUpgrading && b.Data.level < b.Def.maxLevel);
             infoPopup.gameObject.SetActive(true);
         }
 
-        /// <summary>Two or three key numbers, nothing else.</summary>
+        /// <summary>How many people live in this house (people fill homes in build order).</summary>
+        int Residents(Building house)
+        {
+            int left = gm.State.population;
+            foreach (var b in Building.All)
+            {
+                if (b.IsGhost || b.Housing <= 0) continue;
+                int here = Mathf.Min(left, b.Housing);
+                if (b == house) return here;
+                left -= here;
+            }
+            return 0;
+        }
+
+        /// <summary>Level, strength, output and the people: one short row each.</summary>
         string InfoText(Building b)
         {
             var d = b.Def;
             var lines = new List<string>();
-            if (d.maxHp < 9999) lines.Add("Health  " + Mathf.Max(0, b.Data.hp) + " / " + b.MaxHp);
-            if (d.attackRange > 0f) lines.Add("Damage  " + b.AttackDamage + "     Range  " + b.AttackRange.ToString("0"));
+            if (d.maxLevel > 1) lines.Add("Level  " + b.Data.level + " / " + d.maxLevel + (b.Data.level >= d.maxLevel ? "  (max)" : ""));
+            if (d.indestructible) lines.Add("Can't be broken");
+            else if (d.maxHp < 9999) lines.Add("Health  " + Mathf.Max(0, b.Data.hp) + " / " + b.MaxHp);
+            if (d.attackRange > 0f)
+            {
+                lines.Add("Damage  " + b.AttackDamage + "     Range  " + b.AttackRange.ToString("0"));
+                lines.Add(d.hitsAir ? "Hits ground + air" : "Hits ground only");
+            }
             if (d.produces != ResourceType.None && d.produces != ResourceType.Coins)
             {
                 int amount = Mathf.RoundToInt(d.produceAmount * (1f + 0.5f * (b.Data.level - 1)));
                 lines.Add("Makes  " + Mathf.RoundToInt(amount * 60f / d.produceInterval) + " " + d.produces.ToString().ToLower() + " / min");
             }
-            if (d.housing > 0) lines.Add("Homes  " + b.Housing + "     Pays coins");
-            if (d.workers > 0) lines.Add("Workers  " + b.AssignedWorkers + " / " + d.workers);
+            if (d.housing > 0) lines.Add("Residents  " + Residents(b) + " / " + b.Housing);
+            if (d.id == "house") lines.Add("Pays " + Mathf.RoundToInt(d.produceAmount * (1f + 0.5f * (b.Data.level - 1)) * 60f / d.produceInterval) + " coins / min");
+            if (d.workers > 0)
+            {
+                int missing = d.workers - b.AssignedWorkers;
+                lines.Add("Workers  " + b.AssignedWorkers + " / " + d.workers);
+                if (missing > 0) lines.Add("<color=#FF6A5A>Needs " + missing + " more worker" + (missing > 1 ? "s" : "") + "</color>");
+            }
             if (d.penCapacity > 0) lines.Add("Tamed dinos  " + Mathf.Min(gm.State.tamedRaptors + gm.State.tamedTrikes, d.penCapacity * b.Data.level) + " / " + d.penCapacity * b.Data.level);
             if (d.trap) lines.Add(Time.time < b.trapReadyAt ? "Resetting..." : "Ready to catch");
             if (d.id == "canal") lines.Add(b.HasWater ? "Water is flowing" : "Dry: connect to the river or a pump");
             if ((d.id == "farm" || d.id == "well") && b.HasWater) lines.Add("Next to water  +75%");
-            if (b.Starved) lines.Add("Needs energy!");
-            if (lines.Count > 3) lines.RemoveRange(3, lines.Count - 3);
+            if (b.Starved) lines.Add("<color=#FF6A5A>Needs energy!</color>");
+            if (lines.Count > 6) lines.RemoveRange(6, lines.Count - 6);
             return string.Join("\n", lines.ToArray());
         }
 
@@ -626,13 +681,19 @@ namespace Emberhold
             int L = b.Data.level, N = L + 1;
             upPopupTitle.text = d.displayName + "  Lv " + L + "  >  " + N;
             var lines = new List<string>();
-            if (d.maxHp < 9999) lines.Add("Health  " + b.MaxHp + "  >  " + Mathf.RoundToInt(d.maxHp * (1f + 0.5f * L)));
-            if (d.attackRange > 0f) lines.Add("Damage  " + b.AttackDamage + "  >  " + Mathf.RoundToInt(d.attackDamage * (1f + 0.4f * L)));
-            if (d.produces != ResourceType.None && d.produces != ResourceType.Coins) lines.Add("Output  +50%");
-            if (d.housing > 0) lines.Add("Homes  " + d.housing * L + "  >  " + d.housing * N);
-            if (d.penCapacity > 0) lines.Add("Dinos  " + d.penCapacity * L + "  >  " + d.penCapacity * N);
+            if (d.maxHp < 9999 && !d.indestructible) lines.Add(Gain("Health", b.MaxHp, Mathf.RoundToInt(d.maxHp * (1f + 0.5f * L))));
+            if (d.attackRange > 0f) lines.Add(Gain("Damage", b.AttackDamage, Mathf.RoundToInt(d.attackDamage * (1f + 0.4f * L))));
+            if (d.produces != ResourceType.None)
+            {
+                int now = Mathf.RoundToInt(d.produceAmount * (1f + 0.5f * (L - 1)) * 60f / d.produceInterval);
+                int next = Mathf.RoundToInt(d.produceAmount * (1f + 0.5f * L) * 60f / d.produceInterval);
+                lines.Add(Gain(d.produces.ToString() + " / min", now, next));
+            }
+            if (d.housing > 0) lines.Add(Gain("Homes", d.housing * L, d.housing * N));
+            if (d.penCapacity > 0) lines.Add(Gain("Dinos", d.penCapacity * L, d.penCapacity * N));
             if (d.id == BuildingCatalog.Castle) lines.Add("More land and new buildings");
             if (lines.Count > 3) lines.RemoveRange(3, lines.Count - 3);
+            upPopupBody.supportRichText = true;
             upPopupBody.text = string.Join("\n", lines.ToArray());
             upPopupTime.text = "Time  " + Util.FormatTime(b.UpgradeDuration);
             string block = null;
@@ -650,6 +711,11 @@ namespace Emberhold
             upPopupGo.interactable = block == null || goFreesBuilder;
             if (upPopupGoText != null)
                 upPopupGoText.text = goFreesBuilder ? "Free builder  " + SpeedUpCost(gm.SoonestUpgrade()) + " coins" : "Upgrade";
+        }
+
+        static string Gain(string label, int now, int next)
+        {
+            return label + "  " + now + "  <color=#7CFF7A>+" + (next - now) + "</color>";
         }
 
         /// <summary>Finishing an upgrade early costs coins (later: gems or a rewarded ad).</summary>
@@ -698,30 +764,88 @@ namespace Emberhold
             foreach (var b in gone) { if (timerBars[b] != null) Destroy(timerBars[b].gameObject); timerBars.Remove(b); }
         }
 
-        /// <summary>A green arrow over buildings you can upgrade right now.</summary>
+        class MapBadge { public RectTransform root, level, status; public Text levelText; public RawImage statusIcon; public Image statusBg; public string statusKind; }
+        readonly Dictionary<Building, MapBadge> mapBadges = new Dictionary<Building, MapBadge>();
+
+        /// <summary>
+        /// Every levelled building always shows its level (a small blue badge at its front corner) and at most
+        /// one status icon above it, in priority order: needs workers > no energy > upgrade ready.
+        /// Tapping either one selects the building and opens the matching popup.
+        /// </summary>
         void UpdateUpgradeBadges()
         {
             var seen = new HashSet<Building>();
+            bool farZoom = rig.distance > 96f;   // only the widest zoom hides them
             foreach (var b in Building.All)
             {
-                if (b.IsGhost || b.Ruined || b.Data.IsUpgrading || b.UnderConstruction || b == input.Selected) continue;
+                if (b.IsGhost || b.Ruined || b.UnderConstruction || farZoom) continue;
                 var d = b.Def;
-                if (d.maxLevel <= 1 || d.id == "wall" || b.Data.level >= d.maxLevel) continue;
-                if (b != gm.Castle && b.Data.level >= gm.CastleLevel + 1) continue;
-                if (!gm.State.CanAfford(b.UpgradeCost) || !gm.BuilderFree) continue;
-                seen.Add(b);
-                RectTransform badge;
-                if (!badges.TryGetValue(b, out badge) || badge == null)
+                bool levelled = d.maxLevel > 1;
+                string status = null;
+                if (!b.Data.IsUpgrading)
                 {
-                    badge = UIKit.Icon(overlayRoot, "upgrade", 46).rectTransform;
-                    badges[b] = badge;
+                    if (d.workers > 0 && b.AssignedWorkers < d.workers) status = "workers";
+                    else if (b.Starved) status = "energy";
+                    else if (levelled && b.Data.level < d.maxLevel && (b == gm.Castle || b.Data.level < gm.CastleLevel + 1)
+                             && gm.State.CanAfford(b.UpgradeCost) && gm.BuilderFree) status = "upgrade";
                 }
-                float bob = Mathf.Sin(Time.time * 3f + b.Data.x) * 4f;
-                PlaceAt(badge, b.transform.position + Vector3.up * (d.height + 0.4f), new Vector2(0, bob));
+                if (!levelled && status == null) continue;
+                seen.Add(b);
+                MapBadge mb;
+                if (!mapBadges.TryGetValue(b, out mb) || mb.root == null) { mb = NewMapBadge(b); mapBadges[b] = mb; }
+
+                bool selected = b == input.Selected;
+                // level badge at the front corner of the footprint
+                mb.level.gameObject.SetActive(levelled && !selected);
+                if (levelled)
+                {
+                    SetIfChanged(mb.levelText, b.Data.level.ToString());
+                    var sz = GridMap.Size(d, b.Data.rotation);
+                    PlaceAt(mb.level, b.Center + new Vector3(-sz.x * 0.5f + 0.2f, 0.15f, -sz.y * 0.5f + 0.1f), Vector2.zero);
+                }
+                // one status icon above the building (the timer bar takes this spot while upgrading)
+                mb.status.gameObject.SetActive(status != null && !selected);
+                if (status != null && mb.statusKind != status)
+                {
+                    mb.statusKind = status;
+                    mb.statusIcon.texture = UIKit.IconTexture(status == "workers" ? "people" : status == "energy" ? "energy" : "k_up");
+                    mb.statusBg.sprite = UIKit.Shape(status == "upgrade" ? "green" : "red", "button_round_depth_gloss");
+                }
+                if (status != null)
+                {
+                    float bob = Mathf.Sin(Time.time * 3f + b.Data.x) * 4f;
+                    PlaceAt(mb.status, b.transform.position + Vector3.up * (d.height + 0.4f), new Vector2(0, bob));
+                }
             }
             var gone = new List<Building>();
-            foreach (var kv in badges) if (kv.Key == null || !seen.Contains(kv.Key)) gone.Add(kv.Key);
-            foreach (var b in gone) { if (badges[b] != null) Destroy(badges[b].gameObject); badges.Remove(b); }
+            foreach (var kv in mapBadges) if (kv.Key == null || !seen.Contains(kv.Key)) gone.Add(kv.Key);
+            foreach (var b in gone) { var mb = mapBadges[b]; if (mb.root != null) Destroy(mb.root.gameObject); mapBadges.Remove(b); }
+        }
+
+        MapBadge NewMapBadge(Building b)
+        {
+            var mb = new MapBadge();
+            mb.root = UIKit.Rect("Badge", overlayRoot);
+            mb.root.anchorMin = mb.root.anchorMax = Vector2.zero; mb.root.sizeDelta = Vector2.zero;
+
+            var lvlBtn = UIKit.IconButton(overlayRoot, "k_info", null, 50, () => { input.Select(b); ShowInfo(b); }, "blue");
+            mb.level = lvlBtn.GetComponent<RectTransform>();
+            mb.level.SetParent(mb.root, false);
+            foreach (var raw in mb.level.GetComponentsInChildren<RawImage>()) raw.enabled = false;   // number instead of the icon
+            mb.levelText = UIKit.OutlinedLabel(mb.level, "1", 28, TextAnchor.MiddleCenter);
+            mb.levelText.rectTransform.offsetMin = mb.levelText.rectTransform.offsetMax = Vector2.zero;
+
+            var stBtn = UIKit.IconButton(overlayRoot, "k_up", null, 64, () =>
+            {
+                input.Select(b);
+                if (mb.statusKind == "upgrade") ShowUpgrade(b); else ShowInfo(b);
+            }, "green");
+            mb.status = stBtn.GetComponent<RectTransform>();
+            mb.status.SetParent(mb.root, false);
+            mb.statusIcon = mb.status.GetComponentInChildren<RawImage>();
+            mb.statusBg = stBtn.GetComponent<Image>();
+            mb.statusKind = "upgrade";
+            return mb;
         }
 
         Building removeArmedFor;

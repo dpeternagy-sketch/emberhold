@@ -30,6 +30,13 @@ namespace Emberhold
             Apply();
         }
 
+        /// <summary>Centres the view on a point (e.g. the building a builder is working on).</summary>
+        public void FocusOn(Vector3 world)
+        {
+            focus = new Vector3(Mathf.Clamp(world.x, -22f, 22f), 0f, Mathf.Clamp(world.z, -20f, 20f));
+            Apply();
+        }
+
         public void Zoom(float delta)
         {
             if (Mathf.Abs(delta) < 0.0001f) return;

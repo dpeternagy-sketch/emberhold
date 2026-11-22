@@ -184,6 +184,33 @@ namespace Emberhold
             Object.Destroy(go, 3f);
         }
 
+        static Material sparkMat;
+
+        /// <summary>Gold sparkle burst when an upgrade finishes ("Level up!").</summary>
+        public static void LevelUp(Vector3 worldPos, float size)
+        {
+            if (sparkMat == null) sparkMat = ParticleMaterial(true);
+            var go = new GameObject("LevelUp");
+            go.transform.position = worldPos;
+            go.transform.rotation = Quaternion.Euler(-90f, 0f, 0f);
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.loop = false; main.duration = 0.4f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.7f, 1.3f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(2f * size, 4.5f * size);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.28f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.85f, 0.3f), new Color(0.6f, 1f, 1f));
+            main.gravityModifier = 0.6f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            var em = ps.emission; em.rateOverTime = 0f;
+            em.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)28) });
+            var shape = ps.shape; shape.shapeType = ParticleSystemShapeType.Cone; shape.angle = 35f; shape.radius = 0.4f * size;
+            go.GetComponent<ParticleSystemRenderer>().sharedMaterial = sparkMat;
+            ps.Play();
+            Object.Destroy(go, 3f);
+        }
+
         /// <summary>Soft white spray at the foot of a waterfall.</summary>
         public static ParticleSystem Mist(Transform parent, Vector3 worldPos)
         {

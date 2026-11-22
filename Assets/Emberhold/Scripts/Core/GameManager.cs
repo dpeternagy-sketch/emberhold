@@ -310,7 +310,9 @@ namespace Emberhold
 
         public void OnBuildingUpgraded(Building b)
         {
-            Toast(b.Def.displayName + " reached level " + b.Data.level);
+            Toast("Level up! " + b.Def.displayName + " is now level " + b.Data.level);
+            DamageEffects.LevelUp(b.Center + Vector3.up * (b.Def.height * 0.8f), Mathf.Max(1f, b.Def.width * 0.6f));
+            AudioManager.Play("coin", 0.8f);
             if (b == Castle) { World.ShowBuildBorder(BuildRadius); Toast("Your land grows!"); }
             if (b == Castle && b.Data.level == SecondBuilderHQLevel) Toast("A second builder joined your city!");
             RecalculateCity();
