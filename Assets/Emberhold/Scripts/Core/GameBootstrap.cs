@@ -53,7 +53,9 @@ namespace Emberhold
                 sun.type = LightType.Directional;
             }
             sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.75f;
+            sun.shadowStrength = 0.65f;
+            sun.shadowBias = 1f; sun.shadowNormalBias = 0.6f;
+            PostFX.Setup(cam);
 
             var root = new GameObject("Emberhold");
             root.AddComponent<AudioManager>();

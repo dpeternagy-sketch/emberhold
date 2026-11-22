@@ -184,16 +184,16 @@ namespace Emberhold
             int w = Mathf.RoundToInt((MaxX - MinX) * ppu), h = Mathf.RoundToInt((MaxZ - MinZ) * ppu);
             var px = new Color32[w * h];
 
-            var grassA = new Color(0.30f, 0.47f, 0.19f);
-            var grassB = new Color(0.40f, 0.56f, 0.22f);
-            var grassDry = new Color(0.55f, 0.56f, 0.28f);
-            var forestFloor = new Color(0.22f, 0.33f, 0.15f);
-            var dirt = new Color(0.47f, 0.37f, 0.24f);
-            var path = new Color(0.58f, 0.48f, 0.33f);
+            var grassA = new Color(0.33f, 0.58f, 0.25f);   // palette grass shade #5A9E45
+            var grassB = new Color(0.45f, 0.71f, 0.32f);   // palette grass #7BC35A
+            var grassDry = new Color(0.6f, 0.68f, 0.34f);
+            var forestFloor = new Color(0.25f, 0.45f, 0.2f);
+            var dirt = new Color(0.66f, 0.52f, 0.34f);
+            var path = new Color(0.76f, 0.62f, 0.41f);       // palette dirt #C9A06A
             var sand = new Color(0.86f, 0.78f, 0.58f);
             var wetSand = new Color(0.62f, 0.55f, 0.42f);
-            var rock = new Color(0.47f, 0.45f, 0.43f);
-            var rockDark = new Color(0.33f, 0.32f, 0.31f);
+            var rock = new Color(0.55f, 0.56f, 0.6f);        // palette rock #8C8F99
+            var rockDark = new Color(0.42f, 0.43f, 0.47f);
             var snow = new Color(0.94f, 0.95f, 0.97f);
 
             var rng = new System.Random(7);
@@ -236,7 +236,7 @@ namespace Emberhold
                         // ledges between the cliffs keep tough alpine grass and scree
                         if (z > GridMap.MountainZ - 1f) c = Color.Lerp(c, Color.Lerp(new Color(0.33f, 0.4f, 0.2f), new Color(0.5f, 0.47f, 0.4f), Noise(wx, z, 0.4f)), Mathf.Clamp01((hh - 7f) * 0.2f));
                         // rock faces: warm and cool stone, horizontal strata, dark cracks
-                        var rc = Color.Lerp(Color.Lerp(rock, new Color(0.55f, 0.5f, 0.44f), Noise(wx + 7f, z, 0.08f)), rockDark, Noise(wx, z, 0.3f) * 0.8f);
+                        var rc = Color.Lerp(Color.Lerp(rock, new Color(0.7f, 0.72f, 0.76f), Noise(wx + 7f, z, 0.08f)), rockDark, Noise(wx, z, 0.3f) * 0.8f);
                         float strata = 0.82f + 0.18f * Mathf.Sin(hh * 5.5f + Noise(wx, z, 0.2f) * 4f);
                         float crack = Noise(wx * 3f, z * 0.6f, 0.9f) > 0.72f ? 0.6f : 1f;
                         rc *= strata * crack; rc.a = 1f;
@@ -280,6 +280,7 @@ namespace Emberhold
             // Trees near the city are real (they can be chopped and regrow).
             // Far trees are decoration, merged into a few meshes so phones stay smooth.
             var far = new MeshFactory.Batcher();
+            var natureFar = new NatureLib.Batcher();
             for (int x = -62; x < 62; x++)
             {
                 for (int z = GridMap.SeaZ + 2; z < 62; z++)
@@ -299,10 +300,23 @@ namespace Emberhold
                     var cell = new Vector2Int(x, z);
                     if (River.Mask(x + 0.5f, z + 0.5f) > 0.1f) continue;
                     if (nearCity) PlaceTree(grid, cell, mountain);
+                    else if (NatureLib.Available && ax < 48 && z < GridMap.MountainZ + 16)
+                    {
+                        // visible far forest: real (lighter) Quaternius trees, a bit sparser but bigger
+                        if (Random.value < 0.55f)
+                        {
+                            float sc = Random.Range(0.95f, 1.35f) * (mountain ? Mathf.Lerp(1f, 0.6f, hh / 14f) : 1f);
+                            var fp = new Vector3(x + Random.value, 0, z + Random.value);
+                            fp.y = GroundUnder(fp.x, fp.z, 0.4f * sc) - 0.1f;
+                            bool fpine = mountain || Random.value < 0.6f;
+                            natureFar.Add((fpine ? "Pine_" : "CommonTree_") + Random.Range(1, 6) + "_LOD", fp, Quaternion.Euler(0, Random.Range(0, 360f), 0), (fpine ? 3.6f : 3.0f) * sc);
+                        }
+                    }
                     else AddFarPine(far, new Vector3(x + Random.value, 0, z + Random.value), Random.Range(0.9f, 1.5f) * (mountain ? Mathf.Lerp(1f, 0.55f, hh / 14f) : 1f));
                 }
             }
             far.Build(TreesRoot, "FarForest", true);
+            natureFar.Build(TreesRoot, "FarForestQ", true);
 
             // groves inside the valley (wood for the first lumberjacks)
             for (int g = 0; g < 8; g++)
@@ -355,6 +369,8 @@ namespace Emberhold
             var flowerCols = new[] { new Color(0.95f, 0.85f, 0.25f), new Color(0.92f, 0.92f, 0.95f), new Color(0.75f, 0.35f, 0.75f), new Color(0.9f, 0.35f, 0.25f), new Color(0.45f, 0.55f, 0.95f) };
             var pebble = new Color(0.55f, 0.53f, 0.5f);
 
+            var nb = new NatureLib.Batcher();
+            bool q = NatureLib.Available;
             for (int i = 0; i < 600; i++)
             {
                 float x = Random.Range(-GridMap.ForestX - 6f, GridMap.ForestX + 6f);
@@ -363,6 +379,7 @@ namespace Emberhold
                 if (River.Mask(x, z) > 0.2f) continue;
                 if (Noise(x + 50f, z, 0.08f) < 0.5f) continue;   // only in natural clumps, never an even carpet
                 float y = HeightAt(x, z);
+                if (q) { nb.Add(Random.value < 0.6f ? "Grass_Common_Short" : "Grass_Wispy_Short", new Vector3(x, y - 0.02f, z), Quaternion.Euler(0, Random.Range(0, 360f), 0), Random.Range(0.22f, 0.4f)); continue; }
                 // grass tuft: 3 thin blades
                 var col = grassCols[Random.Range(0, grassCols.Length)];
                 float hgt = Random.Range(0.18f, 0.38f);
@@ -378,6 +395,15 @@ namespace Emberhold
                 float cx = Random.Range(-GridMap.ForestX, GridMap.ForestX), cz = Random.Range(GridMap.SeaZ + 4f, GridMap.MountainZ);
                 if (Noise(cx, cz, 0.12f) < 0.6f) continue;
                 if (Mathf.Abs(cx - GameManager.CastleCenter.x) < 4f && Mathf.Abs(cz - GameManager.CastleCenter.z) < 4f) continue;
+                if (q)
+                {
+                    for (int f = 0; f < 3; f++)
+                    {
+                        float fx = cx + Random.Range(-0.8f, 0.8f), fz = cz + Random.Range(-0.8f, 0.8f);
+                        nb.Add(f == 0 ? "Bush_Common_Flowers" : "Clover_" + Random.Range(1, 3), new Vector3(fx, HeightAt(fx, fz) - 0.03f, fz), Quaternion.Euler(0, Random.Range(0, 360f), 0), f == 0 ? Random.Range(0.45f, 0.65f) : Random.Range(0.12f, 0.2f));
+                    }
+                    continue;
+                }
                 var col = flowerCols[Random.Range(0, flowerCols.Length)];
                 for (int f = 0; f < 3; f++)
                 {
@@ -392,6 +418,7 @@ namespace Emberhold
                 float x = Random.Range(-GridMap.ForestX - 8f, GridMap.ForestX + 8f), z = Random.Range(GridMap.SeaZ + 1f, GridMap.MountainZ + 4f);
                 float y = HeightAt(x, z);
                 float s = Random.Range(0.06f, 0.22f);
+                if (q) { nb.Add("Pebble_Round_" + Random.Range(1, 6), new Vector3(x, y - 0.02f, z), Quaternion.Euler(0, Random.Range(0, 360f), 0), s * 1.2f); continue; }
                 batch.Add(sphere, new Vector3(x, y + s * 0.2f, z), Quaternion.Euler(0, Random.Range(0, 360f), 0), new Vector3(s * 1.4f, s * 0.7f, s), pebble * Random.Range(0.85f, 1.15f));
             }
             // bushes along the forest edge
@@ -401,6 +428,11 @@ namespace Emberhold
                 float side = Random.value < 0.5f ? -1f : 1f;
                 float x = side * Random.Range(GridMap.ForestX - 6f, GridMap.ForestX + 4f), z = Random.Range(GridMap.SeaZ + 3f, GridMap.MountainZ + 2f);
                 float y = HeightAt(x, z);
+                if (q)
+                {
+                    if (i % 2 == 0) nb.Add(Random.value < 0.8f ? "Bush_Common" : "Bush_Common_Flowers", new Vector3(x, y - 0.05f, z), Quaternion.Euler(0, Random.Range(0, 360f), 0), Random.Range(0.6f, 1.0f));
+                    continue;
+                }
                 var col = bushCols[Random.Range(0, 2)];
                 for (int b = 0; b < 3; b++)
                 {
@@ -425,9 +457,11 @@ namespace Emberhold
                 var n = NormalAt(x, z);
                 var rot = Quaternion.FromToRotation(Vector3.up, Vector3.Lerp(Vector3.up, n, 0.7f)) * Quaternion.Euler(0, Random.Range(0, 360), 0);
                 var pos = new Vector3(x, lowest - s * 0.12f, z);
-                batch.Add(rockMeshes[Random.Range(0, rockMeshes.Length)], Matrix4x4.TRS(pos, rot, new Vector3(s * 1.25f, s * 0.75f, s)), rockCols[Random.Range(0, rockCols.Length)]);
+                if (q) nb.Add("Rock_Medium_" + Random.Range(1, 4), pos, rot, s * 0.8f, 1.3f);
+                else batch.Add(rockMeshes[Random.Range(0, rockMeshes.Length)], Matrix4x4.TRS(pos, rot, new Vector3(s * 1.25f, s * 0.75f, s)), rockCols[Random.Range(0, rockCols.Length)]);
             }
             batch.Build(detail, "Detail", false);
+            nb.Build(detail, "DetailQ", false);
         }
 
         /// <summary>Low stone markers around the area the castle level allows building in.</summary>

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Emberhold
 {
     /// <summary>
-    /// Sends a wave each night from random, unannounced directions (forest sides and the shore, never over the mountain).
+    /// Sends a wave each night from random, unannounced directions (the forest sides only: never over the mountain, never from the sea).
     /// The first 3 nights are gentle. Every 5th night has a boss.
     /// </summary>
     public class EnemySpawner : MonoBehaviour
@@ -27,6 +27,8 @@ namespace Emberhold
             for (int i = 0; i < raiders; i++) pending.Enqueue(EnemyKind.Raider);
             for (int i = 0; i < brutes; i++) pending.Enqueue(EnemyKind.Brute);
             if (night % 5 == 0) pending.Enqueue(EnemyKind.Boss);
+            int flyers = night >= 2 ? 1 + night / 2 : 0;     // pterosaurs fly over walls: defend inside too
+            for (int i = 0; i < flyers; i++) pending.Enqueue(EnemyKind.Flyer);
             groupAngle = Random.Range(0f, 360f);
             nextSpawn = Time.time + 3f;
             WaveActive = true;
@@ -67,23 +69,20 @@ namespace Emberhold
         }
 
         /// <summary>
-        /// A point on the open edges of the map: the west forest, the southern shore or the east forest.
-        /// Never on the mountain behind the castle - it is a natural wall.
+        /// A point on the open land edges of the map: the west forest or the east forest.
+        /// Never on the mountain behind the castle (a natural wall) and never from the sea (a safe edge).
         /// Nearby angles give nearby points, so a group arrives together. Enemies start outside the
         /// city and walk in, so the player sees them coming.
         /// </summary>
         public static Vector3 SpawnPoint(float angleDeg, float jitter)
         {
-            float t = Mathf.Repeat(angleDeg, 360f) / 360f;      // 0..1 around a U-shaped path
-            const float zTop = 10f, zBottom = -17f, edge = 33f;
-            float side = zTop - zBottom, bottom = edge * 2f;
-            float total = side * 2f + bottom;
-            // the group spreads along the path itself, clamped at its ends, so it never splits across the map
-            float d = Mathf.Clamp(t * total + jitter, 0f, total);
-            Vector3 p;
-            if (d < side) p = new Vector3(-edge, 0f, zTop - d);                                  // west forest
-            else if (d < side + bottom) p = new Vector3(-edge + (d - side), 0f, zBottom - 1f);    // southern shore
-            else p = new Vector3(edge, 0f, zBottom + (d - side - bottom));                       // east forest
+            float t = Mathf.Repeat(angleDeg, 360f) / 360f;      // 0..0.5 west forest, 0.5..1 east forest
+            const float zTop = 12f, zBottom = -14f, edge = 33f;
+            bool west = t < 0.5f;
+            float u = (west ? t : t - 0.5f) * 2f;
+            // the group spreads along its own side, clamped at the ends, so it never splits across the map
+            float z = Mathf.Clamp(Mathf.Lerp(zTop, zBottom, u) + jitter, zBottom, zTop);
+            var p = new Vector3(west ? -edge : edge, 0f, z);
             p.y = WorldBuilder.HeightAt(p);
             return p;
         }

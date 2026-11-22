@@ -145,6 +145,9 @@ namespace Emberhold
                 case "wall":
                     Barrier(t);
                     return true;
+                case "gate":
+                    Gate(t);
+                    return true;
                 case "watchtower":
                 {
                     var b = ModelLibrary.Spawn("Models/Base/structure_tall", t, 1.6f, 1.6f, 2.4f);
@@ -231,17 +234,34 @@ namespace Emberhold
         }
 
         /// <summary>Concrete road barrier with a yellow/black stripe.</summary>
+        static readonly Color TechWhite = new Color(0.93f, 0.94f, 0.95f);   // palette #F4F6F8
+        static readonly Color TeamBlue = new Color(0.18f, 0.49f, 0.96f);    // palette #2E7DF6
+
+        /// <summary>Unbreakable tech wall: white panels with a team-blue stripe.</summary>
         static void Barrier(Transform t)
         {
-            B(t, new Vector3(0, 0.1f, 0), new Vector3(1.02f, 0.2f, 0.78f), Concrete * 0.85f);
-            B(t, new Vector3(0, 0.6f, 0), new Vector3(1.0f, 0.85f, 0.5f), Concrete);
-            B(t, new Vector3(0, 1.1f, 0), new Vector3(1.0f, 0.2f, 0.36f), Concrete * 1.05f);
-            for (int i = 0; i < 4; i++)
+            B(t, new Vector3(0, 0.1f, 0), new Vector3(1.02f, 0.2f, 0.78f), MetalDark);
+            B(t, new Vector3(0, 0.62f, 0), new Vector3(1.0f, 0.9f, 0.52f), TechWhite);
+            B(t, new Vector3(0, 1.13f, 0), new Vector3(1.0f, 0.14f, 0.4f), TechWhite * 0.9f);
+            B(t, new Vector3(0, 0.78f, -0.265f), new Vector3(1.0f, 0.12f, 0.02f), TeamBlue);
+            B(t, new Vector3(0, 0.78f, 0.265f), new Vector3(1.0f, 0.12f, 0.02f), TeamBlue);
+        }
+
+        /// <summary>The way in: two tall posts and a heavy blue door with a cyan light. Dinos must break it.</summary>
+        static void Gate(Transform t)
+        {
+            B(t, new Vector3(0, 0.08f, 0), new Vector3(1.04f, 0.16f, 0.82f), MetalDark);
+            foreach (var x in new[] { -0.42f, 0.42f })
             {
-                var c = i % 2 == 0 ? Hazard : new Color(0.12f, 0.12f, 0.12f);
-                B(t, new Vector3(-0.375f + i * 0.25f, 0.75f, -0.255f), new Vector3(0.25f, 0.14f, 0.02f), c);
-                B(t, new Vector3(-0.375f + i * 0.25f, 0.75f, 0.255f), new Vector3(0.25f, 0.14f, 0.02f), c);
+                B(t, new Vector3(x, 0.95f, 0), new Vector3(0.2f, 1.9f, 0.66f), TechWhite);
+                B(t, new Vector3(x, 1.92f, 0), new Vector3(0.26f, 0.08f, 0.72f), TeamBlue);
             }
+            B(t, new Vector3(0, 0.75f, 0), new Vector3(0.66f, 1.3f, 0.22f), TeamBlue * 0.85f);
+            B(t, new Vector3(0, 0.75f, -0.115f), new Vector3(0.04f, 1.2f, 0.02f), MetalDark);
+            B(t, new Vector3(0, 0.75f, 0.115f), new Vector3(0.04f, 1.2f, 0.02f), MetalDark);
+            B(t, new Vector3(0, 1.62f, 0), new Vector3(0.66f, 0.12f, 0.5f), TechWhite * 0.9f);
+            Glowing(B(t, new Vector3(0, 1.62f, -0.26f), new Vector3(0.5f, 0.05f, 0.02f), Laser), Laser, 3f);
+            Glowing(B(t, new Vector3(0, 1.62f, 0.26f), new Vector3(0.5f, 0.05f, 0.02f), Laser), Laser, 3f);
         }
 
         /// <summary>Steel floor plate with open jaws and hazard stripes: dinosaurs that step on it are caught.</summary>

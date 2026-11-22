@@ -27,9 +27,13 @@ namespace Emberhold
 
         Light sun;
         float transition;
+        // Style guide: gradient ambient (sky / equator / ground), day and night.
+        static Color Hex(string h) { Color c; ColorUtility.TryParseHtmlString(h, out c); return c; }
+        Color daySky = Hex("#A9D8FF"), dayEquator = Hex("#CFE6C9"), dayGround = Hex("#6E7F5A");
+        Color nightSky = Hex("#2A3A66"), nightEquator = Hex("#1F2A44"), nightGround = Hex("#141A26");
         Color dayAmbient = new Color(0.55f, 0.58f, 0.62f);
         Color nightAmbient = new Color(0.2f, 0.23f, 0.36f);
-        Color dayFog = new Color(0.7f, 0.78f, 0.85f);
+        Color dayFog = Hex("#BFE2F5");
         Color nightFog = new Color(0.08f, 0.1f, 0.18f);
         Camera cam;
 
@@ -41,7 +45,7 @@ namespace Emberhold
             cam = camera;
             DayTimeLeft = dayTimeLeft;
             Phase = Phase.Day;
-            RenderSettings.ambientMode = AmbientMode.Flat;
+            RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;   // start/end follow the camera zoom (CameraRig)
             Apply(0f);
@@ -118,11 +122,14 @@ namespace Emberhold
             Darkness = dark;
             if (sun != null)
             {
-                sun.intensity = Mathf.Lerp(1.25f, 0.45f, dark); // moonlight: darker and blue, but everything stays visible
-                sun.color = Color.Lerp(new Color(1f, 0.95f, 0.86f), new Color(0.45f, 0.55f, 0.9f), dark);
+                sun.intensity = Mathf.Lerp(1.25f, 0.4f, dark); // moonlight: darker and blue, but everything stays visible
+                sun.color = Color.Lerp(Hex("#FFF1D6"), Hex("#8FA8FF"), dark);
                 sun.transform.rotation = Quaternion.Euler(Mathf.Lerp(50f, 25f, dark), -35f, 0f);
             }
             RenderSettings.ambientLight = Color.Lerp(dayAmbient, nightAmbient, dark);
+            RenderSettings.ambientSkyColor = Color.Lerp(daySky, nightSky, dark);
+            RenderSettings.ambientEquatorColor = Color.Lerp(dayEquator, nightEquator, dark);
+            RenderSettings.ambientGroundColor = Color.Lerp(dayGround, nightGround, dark);
             RenderSettings.fogColor = Color.Lerp(dayFog, nightFog, dark);
             RenderSettings.fogDensity = Mathf.Lerp(0.006f, 0.009f, dark);
             if (cam != null)

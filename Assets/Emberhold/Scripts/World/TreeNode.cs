@@ -38,7 +38,15 @@ namespace Emberhold
             t.canopy = new GameObject("Canopy").transform;
             t.canopy.SetParent(root, false);
 
-            if (pine)
+            if (NatureLib.Available)
+            {
+                // Quaternius stylized trees: natural shapes, varied sizes
+                Util.Prim(PrimitiveType.Cylinder, root, new Vector3(0, 0.12f, 0), new Vector3(0.22f, 0.12f, 0.22f), Trunk);   // stump (shown when chopped)
+                string model = pine ? "Pine_" + Random.Range(1, 6) : "CommonTree_" + Random.Range(1, 6);
+                float h = pine ? Random.Range(3.0f, 3.9f) : Random.Range(2.6f, 3.3f);
+                NatureLib.Spawn(model, t.canopy, h);
+            }
+            else if (pine)
             {
                 Util.Prim(PrimitiveType.Cylinder, root, new Vector3(0, 0.45f, 0), new Vector3(0.16f, 0.45f, 0.16f), Trunk);
                 var g = PineGreens[Random.Range(0, PineGreens.Length)];

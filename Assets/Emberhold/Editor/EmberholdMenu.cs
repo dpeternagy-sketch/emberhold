@@ -50,6 +50,35 @@ namespace Emberhold.EditorTools
         [MenuItem("Emberhold/Test/Raid now", priority = 100)]
         static void TestRaid() { if (GM != null && GM.Raids != null) GM.Raids.TriggerNow(); }
 
+        [MenuItem("Emberhold/Test/Wall ring + gate", priority = 102)]
+        static void WallRing()
+        {
+            if (GM == null) return;
+            GM.State.steel += 2000; GM.State.coins += 500;
+            var wall = BuildingCatalog.Get("wall"); var gate = BuildingCatalog.Get("gate");
+            int cx = Mathf.FloorToInt(GameManager.CastleCenter.x), cz = Mathf.FloorToInt(GameManager.CastleCenter.z);
+            int x0 = cx - 7, x1 = cx + 7, z0 = cz - 9, z1 = GridMap.BuildBackZ - 1;
+            var gateCell = new Vector2Int(cx, z0);
+            int placed = 0, skipped = 0;
+            for (int x = x0; x <= x1; x++)
+                for (int z = z0; z <= z1; z++)
+                {
+                    bool edge = x == x0 || x == x1 || z == z0 || z == z1;
+                    if (!edge || (x == gateCell.x && z == gateCell.y)) continue;
+                    var c = new Vector2Int(x, z);
+                    var tr = GM.Grid.At(c) as TreeNode;
+                    if (tr != null) { GM.Grid.Free(new[] { c }, tr); Object.Destroy(tr.gameObject); }
+                    var o = GM.Grid.At(c) as Building;
+                    if (o != null) GM.Demolish(o);
+                    if (GM.PlaceNew(wall, x, z, 0) != null) placed++; else skipped++;
+                }
+            var go = GM.Grid.At(gateCell) as Building; if (go != null) GM.Demolish(go);
+            bool sealRefused = !GM.CanPlace(wall, gateCell.x, gateCell.y, 0);
+            var g = GM.PlaceNew(gate, gateCell.x, gateCell.y, 0);
+            GM.RefreshWallJoins();
+            Debug.Log("[WallTest] walls placed " + placed + ", skipped " + skipped + ", closing wall refused: " + sealRefused + ", gate placed: " + (g != null));
+        }
+
         [MenuItem("Emberhold/Test/Start night", priority = 101)]
         static void TestNight() { if (GM != null) GM.Cycle.StartNightNow(); }
 

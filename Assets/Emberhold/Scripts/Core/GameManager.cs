@@ -147,7 +147,29 @@ namespace Emberhold
         public bool CanPlace(BuildingDef def, int x, int z, int rotation, Building ignore = null)
         {
             if (def.nearMountain && !TouchesMountain(def, x, z, rotation)) return false;
-            return Grid.CanPlace(x, z, def, rotation, ignore, BuildRadius);
+            if (!Grid.CanPlace(x, z, def, rotation, ignore, BuildRadius)) return false;
+            if (def.indestructible && SealsCity(def, x, z, rotation, ignore)) return false;
+            return true;
+        }
+
+        /// <summary>Walls can't be broken, so they may never close the city off completely: a Gate must stay.</summary>
+        public bool SealsCity(BuildingDef def, int x, int z, int rotation, Building ignore = null)
+        {
+            var cells = new HashSet<Vector2Int>(GridMap.Footprint(x, z, def.width, def.depth, rotation));
+            if (ignore != null && ignore.Def.indestructible)
+            {
+                // moving a wall: its old cells are open while it moves
+                bool removed = false;
+                foreach (var c in ignore.Cells) if (!cells.Contains(c)) { removed = true; break; }
+                if (removed)
+                {
+                    Grid.Free(ignore.Cells, ignore);
+                    bool sealsMoved = PathField.WouldSeal(Grid, Castle, cells, BuildRadius);
+                    Grid.Occupy(ignore.Cells, ignore);
+                    return sealsMoved;
+                }
+            }
+            return PathField.WouldSeal(Grid, Castle, cells, BuildRadius);
         }
 
         /// <summary>Mines must sit against the mountain at the back of the valley.</summary>
@@ -160,7 +182,12 @@ namespace Emberhold
 
         public Building PlaceNew(BuildingDef def, int x, int z, int rotation)
         {
-            if (!CanPlace(def, x, z, rotation)) { Toast("Can't build there"); return null; }
+            if (!CanPlace(def, x, z, rotation))
+            {
+                bool sealing = def.indestructible && Grid.CanPlace(x, z, def, rotation, null, BuildRadius) && SealsCity(def, x, z, rotation);
+                Toast(sealing ? "Leave a way in: build a Gate there" : "Can't build there");
+                return null;
+            }
             if (!State.Pay(def.cost)) { Toast("Need more " + State.Missing(def.cost)); return null; }
             var b = PlaceInternal(def, x, z, rotation);
             b.StartConstruction(def.width * def.depth > 1 ? 4f : 1.5f);
@@ -207,6 +234,7 @@ namespace Emberhold
         /// <summary>Raiders broke it: it stays as a smoking ruin (no homes, no work, no shooting) until rebuilt.</summary>
         public void DestroyBuilding(Building b)
         {
+            PathField.MarkDirty();
             if (b == Castle)
             {
                 // The castle never disappears: it falls, the raid ends and the city loses part of its stock.
@@ -353,6 +381,7 @@ namespace Emberhold
         /// <summary>Recount housing, assign homes and jobs, and match villagers to the population.</summary>
         public void RecalculateCity()
         {
+            PathField.MarkDirty();
             HousingCapacity = 0;
             foreach (var b in Building.All) HousingCapacity += b.Housing;
             State.population = Mathf.Min(State.population, Mathf.Max(HousingCapacity, 1));
@@ -438,21 +467,21 @@ namespace Emberhold
         {
             foreach (var b in Building.All)
             {
-                if (b.Def.id != "wall") continue;
+                if (b.Def.id != "wall" && b.Def.id != "gate") continue;
                 var c = new Vector2Int(b.Data.x, b.Data.z);
                 bool l = IsWall(c + Vector2Int.left), r = IsWall(c + Vector2Int.right);
                 bool u = IsWall(c + Vector2Int.up), d = IsWall(c + Vector2Int.down);
                 bool alongX = l || r, alongZ = u || d;
                 int rot = alongZ && !alongX ? 1 : 0;
                 if (b.Data.rotation != rot) { b.Data.rotation = rot; b.ApplyTransform(); }
-                b.SetWallJoint(alongX && alongZ, rot == 0 ? (u || d) : false);
+                if (b.Def.id == "wall") b.SetWallJoint(alongX && alongZ, rot == 0 ? (u || d) : false);
             }
         }
 
         bool IsWall(Vector2Int c)
         {
             var o = Grid.At(c) as Building;
-            return o != null && o.Def.id == "wall";
+            return o != null && (o.Def.id == "wall" || o.Def.id == "gate");
         }
 
         /// <summary>Would a canal on this cell get water? (next to the river, a well, or a canal that already has water)</summary>

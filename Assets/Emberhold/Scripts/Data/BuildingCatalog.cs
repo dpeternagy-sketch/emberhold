@@ -84,6 +84,10 @@ namespace Emberhold
         public bool passable;
         /// <summary>Catches a dinosaur that walks over it (if a pen has room).</summary>
         public bool trap;
+        /// <summary>Can never be damaged (walls). Enemies walk around it, so a closed ring needs a gate.</summary>
+        public bool indestructible;
+        /// <summary>False for weapons that can't hit flying dinosaurs (the missile launcher).</summary>
+        public bool hitsAir = true;
         /// <summary>How many tamed dinosaurs this pen keeps.</summary>
         public int penCapacity;
 
@@ -100,7 +104,7 @@ namespace Emberhold
 
         /// <summary>Build menu order: food and water first, then the wood, stone and iron chains, then defenses.</summary>
         static readonly string[] MenuOrder = { "house", "farm", "well", "canal", "solar", "mine",
-                                               "wall", "watchtower", "ballista", "cannon", "trap", "pen" };
+                                               "wall", "gate", "watchtower", "ballista", "cannon", "trap", "pen" };
 
         static BuildingCatalog()
         {
@@ -162,7 +166,14 @@ namespace Emberhold
             Add(new BuildingDef {
                 id = "wall", displayName = "Barrier", category = BuildingCategory.Defense,
                 width = 1, depth = 1, height = 1.5f, color = new Color(0.6f, 0.58f, 0.55f),
-                cost = new Cost(steel: 3), maxHp = 300, upgradeSeconds = 20f
+                cost = new Cost(steel: 3), maxHp = 300, upgradeSeconds = 20f, maxLevel = 1, indestructible = true,
+                recipe = "Can't be broken. Leave a Gate"
+            });
+            Add(new BuildingDef {
+                id = "gate", displayName = "Gate", category = BuildingCategory.Defense,
+                width = 1, depth = 1, height = 1.9f, color = new Color(0.9f, 0.92f, 0.95f),
+                cost = new Cost(steel: 15, coins: 5), maxHp = 700, maxLevel = 5, upgradeSeconds = 40f,
+                recipe = "The way in. Dinos must break it"
             });
             Add(new BuildingDef {
                 id = "watchtower", displayName = "Gun Turret", category = BuildingCategory.Defense,
@@ -180,7 +191,7 @@ namespace Emberhold
                 id = "cannon", displayName = "Missile Launcher", category = BuildingCategory.Defense,
                 width = 2, depth = 2, height = 2.1f, color = new Color(0.55f, 0.53f, 0.5f),
                 cost = new Cost(steel: 70, energy: 30, coins: 40), maxHp = 400, unlockLevel = 3,
-                attackRange = 9f, attackDamage = 28, attackInterval = 3.2f, splashRadius = 2.2f, projectile = 2
+                attackRange = 9f, attackDamage = 28, attackInterval = 3.2f, splashRadius = 2.2f, projectile = 2, hitsAir = false
             });
         }
 

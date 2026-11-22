@@ -26,14 +26,11 @@ namespace Emberhold
             {
                 var root = new GameObject("Joint").transform;
                 root.SetParent(transform, false);
-                var stone = new Color(0.62f, 0.6f, 0.55f);
-                Util.Prim(PrimitiveType.Cube, root, new Vector3(0, 0.8f, 0), new Vector3(0.82f, 1.6f, 0.82f), stone);
-                Util.Prim(PrimitiveType.Cube, root, new Vector3(0, 1.66f, 0), new Vector3(0.92f, 0.12f, 0.92f), stone * 0.8f);
-                foreach (var x in new[] { -0.3f, 0.3f })
-                    foreach (var z in new[] { -0.3f, 0.3f })
-                        Util.Prim(PrimitiveType.Cube, root, new Vector3(x, 1.85f, z), new Vector3(0.24f, 0.26f, 0.24f), stone);
+                var stone = new Color(0.93f, 0.94f, 0.95f);
+                Util.Prim(PrimitiveType.Cube, root, new Vector3(0, 0.7f, 0), new Vector3(0.7f, 1.4f, 0.7f), stone);
+                Util.Prim(PrimitiveType.Cube, root, new Vector3(0, 1.44f, 0), new Vector3(0.78f, 0.1f, 0.78f), new Color(0.18f, 0.49f, 0.96f));
                 // also fill the other direction so both arms meet the post
-                Util.Prim(PrimitiveType.Cube, root, new Vector3(0, 0.7f, 0), new Vector3(0.62f, 1.2f, 1.0f), stone);
+                Util.Prim(PrimitiveType.Cube, root, new Vector3(0, 0.62f, 0), new Vector3(0.52f, 0.9f, 1.0f), stone);
                 RefreshRenderers();
             }
             else if (!on && j != null) { DestroyImmediate(j.gameObject); RefreshRenderers(); }
@@ -331,7 +328,7 @@ namespace Emberhold
 
         public void TakeDamage(int amount)
         {
-            if (IsGhost || Ruined) return;
+            if (IsGhost || Ruined || Def.indestructible) return;
             Data.hp -= amount;
             hitFlash = 0.15f;
             if (Data.hp <= 0) GameManager.Instance.DestroyBuilding(this);
@@ -386,7 +383,7 @@ namespace Emberhold
             if (Def.attackRange > 0f && !Ruined)
             {
                 attackTimer -= Time.deltaTime;
-                var aim = Enemy.NearestVisible(Center, AttackRange);
+                var aim = Enemy.NearestVisible(Center, AttackRange, Def.hitsAir);
                 if (aim != null && turret != null)
                 {
                     var d = aim.transform.position - turret.position; d.y = 0;

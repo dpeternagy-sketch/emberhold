@@ -3,11 +3,12 @@ using UnityEngine;
 
 namespace Emberhold
 {
-    public enum EnemyKind { Raider, Brute, Boss }
+    public enum EnemyKind { Raider, Brute, Boss, Flyer }
 
     /// <summary>
-    /// Walks toward the castle and attacks whatever building blocks its way.
-    /// Raids the nearest buildings on its way (homes, farms, towers) and smashes walls that block it.
+    /// Ground dinosaurs follow PathField to the HQ: walls can't be broken, so they go round them and
+    /// smash the gates (or buildings) in their way, raiding buildings they can reach on the way.
+    /// Flyers (pterosaurs) fly over walls straight to a building.
     /// </summary>
     public class Enemy : MonoBehaviour
     {
@@ -36,6 +37,7 @@ namespace Emberhold
             {
                 case EnemyKind.Raider: e.maxHp = 30; e.damage = 10; e.speed = 1.3f; e.reward = 3; break;
                 case EnemyKind.Brute: e.maxHp = 90; e.damage = 28; e.speed = 0.9f; e.reward = 8; break;
+                case EnemyKind.Flyer: e.maxHp = 22; e.damage = 6; e.speed = 1.7f; e.reward = 4; break;
                 default: e.maxHp = 600; e.damage = 70; e.speed = 0.7f; e.reward = 60; break;
             }
             e.maxHp = Mathf.RoundToInt(e.maxHp * scale);
@@ -54,10 +56,44 @@ namespace Emberhold
         bool dead;
         float height = 1.6f;
 
+        public bool Flying { get { return kind == EnemyKind.Flyer; } }
+        const float FlyHeight = 3.2f;
+        Transform wingL, wingR;
+        float flapPhase;
+
+        /// <summary>A low-poly pterosaur: body, crested head, and two big flapping wings.</summary>
+        void BuildFlyer()
+        {
+            flapPhase = Random.Range(0f, 6.28f);
+            var skin = new Color(0.55f, 0.42f, 0.3f); var membrane = new Color(0.72f, 0.5f, 0.35f);
+            Util.Prim(PrimitiveType.Capsule, body, new Vector3(0, 0, 0), new Vector3(0.28f, 0.42f, 0.28f), skin).transform.localRotation = Quaternion.Euler(90, 0, 0);
+            var head = Util.Prim(PrimitiveType.Cube, body, new Vector3(0, 0.12f, 0.5f), new Vector3(0.16f, 0.16f, 0.32f), skin).transform;
+            Util.Prim(PrimitiveType.Cube, body, new Vector3(0, 0.08f, 0.78f), new Vector3(0.06f, 0.06f, 0.36f), new Color(0.9f, 0.8f, 0.5f));   // beak
+            Util.Prim(PrimitiveType.Cube, body, new Vector3(0, 0.26f, 0.38f), new Vector3(0.04f, 0.14f, 0.3f), new Color(0.85f, 0.35f, 0.2f)).transform.localRotation = Quaternion.Euler(-25, 0, 0);   // crest
+            foreach (var side in new[] { -1f, 1f })
+            {
+                var pivot = new GameObject(side < 0 ? "WingL" : "WingR").transform;
+                pivot.SetParent(body, false);
+                pivot.localPosition = new Vector3(0.12f * side, 0.05f, 0.05f);
+                var w = Util.Prim(PrimitiveType.Cube, pivot, new Vector3(0.65f * side, 0, -0.05f), new Vector3(1.3f, 0.03f, 0.45f), membrane);
+                Util.Prim(PrimitiveType.Cube, pivot, new Vector3(1.25f * side, 0, 0.02f), new Vector3(0.12f, 0.035f, 0.22f), membrane * 0.9f);
+                if (side < 0) wingL = pivot; else wingR = pivot;
+            }
+            height = 0.6f;
+        }
+
         void BuildBody()
         {
             body = new GameObject("Body").transform;
             body.SetParent(transform, false);
+            if (Flying)
+            {
+                BuildFlyer();
+                hpBar = Util.Prim(PrimitiveType.Cube, transform, new Vector3(0, height + 0.3f, 0), new Vector3(0.6f, 0.06f, 0.06f), new Color(0.8f, 0.15f, 0.1f)).transform;
+                renderers = GetComponentsInChildren<Renderer>();
+                SetRenderersVisible(false);
+                return;
+            }
             var model = ModelLibrary.SpawnByLength(ModelPath(kind), body, ModelLength(kind));
             if (model != null)
             {
@@ -104,7 +140,26 @@ namespace Emberhold
                 target = PickTarget(gm);
             }
             if (target == null) return;
+            if (Flying) { FlyStep(gm); return; }
             var goal = ClosestPointOn(target, transform.position);
+            // walls can't be broken: if the target is behind one, follow the path field toward the HQ instead
+            var cellHere = GridMap.CellOf(transform.position);
+            if (!PathField.Inside(cellHere))
+            {
+                if (target != gm.Castle) { target = gm.Castle; goal = ClosestPointOn(target, transform.position); }
+            }
+            else if (target == gm.Castle || !PathField.LineClear(gm.Grid, transform.position, goal))
+            {
+                if (target != gm.Castle) target = gm.Castle;
+                float castleDist = Vector3.Distance(ClosestPointOn(gm.Castle, transform.position), transform.position);
+                if (castleDist > 1.2f)
+                {
+                    var next = PathField.Next(cellHere);
+                    if (next.HasValue) goal = new Vector3(next.Value.x + 0.5f, transform.position.y, next.Value.y + 0.5f);
+                    else goal = ClosestPointOn(target, transform.position);
+                }
+                else goal = ClosestPointOn(target, transform.position);
+            }
             var dir = goal - transform.position;
             dir.y = 0;
             float dist = dir.magnitude;
@@ -114,11 +169,11 @@ namespace Emberhold
 
             // Reached the target, or something solid is in the way: smash it.
             Building hit = null;
-            if (dist < 0.55f) hit = target;
+            if (dist < 0.55f && target != null && (ClosestPointOn(target, transform.position) - transform.position).magnitude < 0.6f) hit = target;
             else
             {
                 var blocker = gm.Grid.At(GridMap.CellOf(transform.position + dir * 0.6f)) as Building;
-                if (blocker != null && !blocker.IsGhost && !blocker.Def.passable && !blocker.Ruined) hit = blocker;
+                if (blocker != null && !blocker.IsGhost && !blocker.Def.passable && !blocker.Ruined && !blocker.Def.indestructible) hit = blocker;
             }
             if (hit != null)
             {
@@ -130,14 +185,14 @@ namespace Emberhold
                     attackTimer = AttackInterval;
                     hit.TakeDamage(damage);
                     if (anim != null) { var a = anim; foreach (AnimationState st in a) if (st.name.EndsWith("_Attack")) { a.Stop(st.name); a.Play(st.name); } }
-                    AudioManager.PlayAt(hit.Def.id == "wall" || hit == gm.Castle ? "sword" : "chop", transform.position, 0.45f);
+                    AudioManager.PlayAt(hit.Def.id == "gate" || hit == gm.Castle ? "sword" : "chop", transform.position, 0.45f);
                 }
                 return;
             }
             // wading through the river or a canal is slow
             var here = gm.Grid.At(GridMap.CellOf(transform.position));
             var trap = here as Building;
-            if (trap != null && trap.Def.trap && kind != EnemyKind.Boss && gm.TryCapture(this, trap)) return;
+            if (trap != null && trap.Def.trap && kind != EnemyKind.Boss && !Flying && gm.TryCapture(this, trap)) return;
             float wade = (here is RiverCell || (here is Building && ((Building)here).Def.passable)) ? 0.4f : 1f;
             var np = transform.position + dir * speed * wade * Time.deltaTime;
             np.y = WorldBuilder.HeightAt(np);
@@ -149,7 +204,36 @@ namespace Emberhold
         Building target;
         float retarget;
         float AttackInterval { get { return kind == EnemyKind.Boss ? 1.6f : kind == EnemyKind.Brute ? 1.3f : 1.0f; } }
-        const float AggroRadius = 9f;
+        float AggroRadius { get { return Flying ? 16f : 9f; } }
+
+        /// <summary>Flyers glide over walls straight to their target and peck at it from the air.</summary>
+        void FlyStep(GameManager gm)
+        {
+            float flap = Mathf.Sin(Time.time * 9f + flapPhase) * 35f;
+            if (wingL != null) wingL.localRotation = Quaternion.Euler(0, 0, flap);
+            if (wingR != null) wingR.localRotation = Quaternion.Euler(0, 0, -flap);
+            var goal = target.Center;
+            var flat = goal - transform.position; flat.y = 0;
+            float dist = flat.magnitude;
+            float groundY = WorldBuilder.HeightAt(transform.position);
+            float wantY = groundY + (dist < 1.6f ? target.Def.height + 0.9f : FlyHeight);
+            if (dist > 0.01f)
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(flat / dist), Time.deltaTime * 4f);
+            var np = transform.position;
+            if (dist > 1.2f) np += flat / dist * speed * Time.deltaTime;
+            np.y = Mathf.MoveTowards(np.y, wantY, Time.deltaTime * 2.5f);
+            transform.position = np;
+            if (dist <= 1.6f)
+            {
+                attackTimer -= Time.deltaTime;
+                if (attackTimer <= 0f)
+                {
+                    attackTimer = AttackInterval;
+                    target.TakeDamage(damage);
+                    AudioManager.PlayAt("chop", transform.position, 0.35f);
+                }
+            }
+        }
 
         Building PickTarget(GameManager gm)
         {
@@ -157,8 +241,11 @@ namespace Emberhold
             float bestD = AggroRadius;
             foreach (var b in Building.All)
             {
-                if (b.IsGhost || b.Ruined || b.Def.passable || b == gm.Castle) continue;
-                float d = Vector3.Distance(ClosestPointOn(b, transform.position), transform.position);
+                if (b.IsGhost || b.Ruined || b.Def.passable || b == gm.Castle || b.Def.indestructible) continue;
+                var cp = ClosestPointOn(b, transform.position);
+                float d = Vector3.Distance(cp, transform.position);
+                if (d >= bestD + 2f) continue;
+                if (!Flying && !PathField.LineClear(gm.Grid, transform.position, cp)) continue;   // behind a wall
                 // towers that shoot at them are hated a bit more
                 if (b.Def.attackRange > 0f) d -= 2f;
                 if (d < bestD) { bestD = d; best = b; }
@@ -228,7 +315,7 @@ namespace Emberhold
             away.Normalize();
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(away), Time.deltaTime * 6f);
             var np = transform.position + away * speed * 1.8f * Time.deltaTime;
-            np.y = WorldBuilder.HeightAt(np);
+            np.y = Flying ? np.y + Time.deltaTime * 1.5f : WorldBuilder.HeightAt(np);
             transform.position = np;
             if (anim != null) ModelLibrary.Play(anim, "Run");
             float left = fleeEnd - Time.time;
@@ -236,13 +323,13 @@ namespace Emberhold
             if (left <= 0f) Destroy(gameObject);
         }
 
-        public static Enemy NearestVisible(Vector3 from, float range)
+        public static Enemy NearestVisible(Vector3 from, float range, bool hitsAir = true)
         {
             Enemy best = null;
             float bestD = range * range;
             foreach (var e in All)
             {
-                if (!e.Visible) continue;
+                if (!e.Visible || (e.Flying && !hitsAir)) continue;
                 var d = e.transform.position - from; d.y = 0;
                 float sq = d.sqrMagnitude;
                 if (sq < bestD) { bestD = sq; best = e; }
