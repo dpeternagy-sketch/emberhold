@@ -48,6 +48,7 @@ namespace Emberhold
             View(gm.Castle.Center + new Vector3(0, 0, -6f), 34f); yield return Shot("03_hq_troops");
             var barracks = First("barracks");
             if (barracks != null) { input.Select(barracks); hud.PreviewShowTrain(barracks); yield return new WaitForSeconds(0.5f); yield return Shot("03b_train_popup"); hud.PreviewCloseAll(); input.Deselect(); }
+            View(gm.Castle.Center + new Vector3(-1f, 0f, -1f), 38f);   // QC: the tapped HQ in the middle of the screen, title readable
             input.Select(gm.Castle); yield return new WaitForSeconds(0.6f); yield return Shot("04_tap_hq");
             hud.ShowInfo(gm.Castle); yield return new WaitForSeconds(0.4f); yield return Shot("05_info_panel");
             hud.PreviewCloseAll();
@@ -112,6 +113,7 @@ namespace Emberhold
             View(new Vector3(0f, 0f, 3f), 70f); yield return Shot("12_city_wide");   // QC: 78 showed past the backdrop
             var hero = FindHero();
             if (hero != null) { View(hero.transform.position + new Vector3(0, 0, 2f), 30f); yield return new WaitForSeconds(0.3f); yield return Shot("13_commander_close"); }
+            yield return WallYard();
             Debug.Log("[Preview] done: " + frame + " video frames in " + Dir + "/frames");
             Running = false; Finished = true;
         }
@@ -157,6 +159,39 @@ namespace Emberhold
         }
 
         Vector3 gateCell;
+
+        /// <summary>QC wall check: a closed loop (straight runs, four L corners) with a gate on an x side and a
+        /// z side, shot at wall tiers 1, 3 and 5 (walls follow the HQ level, gates their own level).</summary>
+        IEnumerator WallYard()
+        {
+            var wall = BuildingCatalog.Get("wall"); var gate = BuildingCatalog.Get("gate");
+            int x0 = 12, z0 = -20, x1 = 19, z1 = -14;
+            var gates = new List<Building>();
+            for (int x = x0; x <= x1; x++)
+                for (int z = z0; z <= z1; z++)
+                {
+                    if (x != x0 && x != x1 && z != z0 && z != z1) continue;
+                    bool isGate = (z == z0 && x == x0 + 3) || (x == x1 && z == z0 + 3);
+                    var def = isGate ? gate : wall;
+                    Clear(x, z, 1, 1);
+                    if (!gm.CanPlace(def, x, z, 0)) { Debug.Log("[Preview] yard skipped " + x + "," + z); continue; }
+                    var b = gm.PlaceNew(def, x, z, 0);
+                    if (isGate && b != null) gates.Add(b);
+                }
+            gm.RefreshWallJoins();
+            for (float w = 0f; w < 8f && Building.All.Exists(x => x.UnderConstruction); w += Time.deltaTime) yield return null;
+            int hq = gm.Castle.Data.level;
+            var focus = new Vector3((x0 + x1 + 1) * 0.5f, 0f, (z0 + z1 + 1) * 0.5f);
+            foreach (int lv in new[] { 1, 3, 5 })
+            {
+                gm.Castle.Data.level = lv;
+                foreach (var g in gates) g.Data.level = lv;
+                View(focus, 26f);
+                yield return new WaitForSeconds(0.6f);
+                yield return Shot("14_wall_yard_t" + lv);
+            }
+            gm.Castle.Data.level = hq;
+        }
         public static bool WithDinos = false;
 
         /// <summary>Waits until a dino is biting the gate (or the time runs out).</summary>

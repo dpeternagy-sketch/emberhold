@@ -31,7 +31,7 @@ namespace Emberhold
         Button ghostOk;
         // Tapped building: name above it, round action buttons at the bottom (like CoC / Boom Beach)
         Text selTitle;
-        RectTransform actionBar, upgradeCostHolder, repairCostHolder;
+        RectTransform actionBar, actionBack, upgradeCostHolder, repairCostHolder;
         Button infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn, trainBtn;
         ArmyUI armyUI;
         Text speedCaption, removeCaption;
@@ -468,6 +468,8 @@ namespace Emberhold
 
             actionBar = UIKit.Rect("ActionBar", root);
             UIKit.Anchor(actionBar, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 90), new Vector2(900, 170));
+            // dark see-through strip behind the glass buttons so they stay readable over bright building art
+            actionBack = UIKit.Pill("ActionBack", actionBar).rectTransform;
 
             infoBtn = UIKit.IconButton(actionBar, "icon_info", "Info", 96, () => ShowInfo(input.Selected), "blue");
             upgradeBtn = UIKit.IconButton(actionBar, "icon_upgrade", "Upgrade", 96, () => ShowUpgrade(input.Selected), "green");
@@ -625,6 +627,11 @@ namespace Emberhold
             foreach (var b in new[] { trainBtn, infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn })
                 if (b.gameObject.activeSelf) list.Add(b.GetComponent<RectTransform>());
             const float step = 140f;
+            actionBack.anchorMin = actionBack.anchorMax = new Vector2(0.5f, 1f);
+            actionBack.pivot = new Vector2(0.5f, 1f);
+            actionBack.anchoredPosition = new Vector2(0f, 12f);
+            actionBack.sizeDelta = new Vector2(list.Count * step + 24f, 176f);
+            actionBack.gameObject.SetActive(list.Count > 0);
             for (int i = 0; i < list.Count; i++)
             {
                 var r = list[i];

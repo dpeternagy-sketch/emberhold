@@ -10,7 +10,7 @@ Shader "Emberhold/GroundSplat"
         _Control ("Control map", 2D) = "black" {}
         _Grass ("Grass", 2D) = "white" {}
         _GroundSat ("Ground saturation", Float) = 1.05
-        _GroundBright ("Ground brightness", Float) = 1.0
+        _GroundBright ("Ground brightness", Float) = 1.05
         _Dirt ("Dirt", 2D) = "white" {}
         _Stone ("Stone", 2D) = "white" {}
         _Tile ("World units per texture tile", Float) = 6
@@ -79,6 +79,8 @@ Shader "Emberhold/GroundSplat"
                                    SAMPLE_TEXTURE2D(_Grass, sampler_Grass, w2).rgb, 0.4);
                 half3 dirt = SAMPLE_TEXTURE2D(_Dirt, sampler_Dirt, w * 0.9).rgb;
                 half3 stone = SAMPLE_TEXTURE2D(_Stone, sampler_Stone, w * 1.3).rgb;
+                // dirt stays earthy under the global saturation boost (it went rust-orange otherwise)
+                dirt = lerp(dot(dirt, half3(0.3, 0.59, 0.11)).xxx, dirt, 0.75);
                 half3 tex = lerp(grass, dirt, ctl.r);
                 tex = lerp(tex, stone, ctl.g);
                 tex *= lerp(0.8, 1.12, ctl.a);

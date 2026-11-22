@@ -198,10 +198,12 @@ namespace Emberhold
             if (camps.Count == 0) return gm.Castle.Center + new Vector3(0, 0, -3.5f);
             var c = camps[index % camps.Count];
             int slot = index / camps.Count;
-            // parade-ground rows across the 3x3 pad (4 per row, 0.75 apart), then around its edge
-            if (slot < 12) return c.Center + new Vector3(-0.9f + (slot % 4) * 0.6f, 0, 0.6f - (slot / 4) * 0.6f);
-            float ang = slot * 0.7f;
-            return c.Center + new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * 2.1f;
+            // parade-ground rows on the camp's own pad (5 x 5, 0.42 apart), a second staggered layer after 25,
+            // never spilling outside the pad
+            float half = Mathf.Max(c.Def.width, c.Def.depth) * 0.5f - 0.35f;
+            int layer = slot / 25, k = slot % 25;
+            float x = -0.84f + (k % 5) * 0.42f + layer * 0.21f, z = 0.84f - (k / 5) * 0.42f - layer * 0.21f;
+            return c.Center + new Vector3(Mathf.Clamp(x, -half, half), 0, Mathf.Clamp(z, -half, half));
         }
 
         void Sync()
