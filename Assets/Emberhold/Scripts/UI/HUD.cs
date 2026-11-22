@@ -586,6 +586,7 @@ namespace Emberhold
             selTitle.text = sel.Ruined ? sel.Def.displayName + "  (ruined)" : Title(sel);
             var top = sel.transform.position + Vector3.up * (sel.Def.height + 1.0f);
             PlaceAt(selTitle.rectTransform, top, new Vector2(0, 30));
+            ClampOnScreen(selTitle.rectTransform, selTitle.preferredWidth + 20f, 60f);
 
             bool broken = sel.Ruined || (sel.Damaged && !sel.UnderConstruction);
             bool upgrading = sel.Data.IsUpgrading;
@@ -949,6 +950,22 @@ namespace Emberhold
             var world = b.transform.position + new Vector3(s.x * 0.5f + 0.6f, 0, 0);
             PlaceAt(ui, world, Vector2.zero);
         }
+
+        /// <summary>Keeps a floating label inside the safe area, below the resource bar (QC: clipped HQ title).</summary>
+        void ClampOnScreen(RectTransform ui, float width, float height)
+        {
+            var canvas = ui.GetComponentInParent<Canvas>();
+            var safe = Screen.safeArea;
+            float k = canvas.scaleFactor;
+            float minX = safe.xMin / k + width * 0.5f + 16f, maxX = safe.xMax / k - width * 0.5f - 16f;
+            float minY = safe.yMin / k + height * 0.5f + 16f, maxY = safe.yMax / k - 330f;   // under the resource bar and Commander row
+            var p = ui.anchoredPosition;
+            p.x = minX > maxX ? (minX + maxX) * 0.5f : Mathf.Clamp(p.x, minX, maxX);
+            p.y = Mathf.Clamp(p.y, minY, Mathf.Max(minY, maxY));
+            ui.anchoredPosition = p;
+        }
+
+        public void PreviewClearToasts() { toasts.Clear(); toastUntil = 0f; }
 
         void PlaceAt(RectTransform ui, Vector3 world, Vector2 pixelOffset)
         {

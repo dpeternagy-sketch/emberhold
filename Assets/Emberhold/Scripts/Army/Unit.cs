@@ -95,7 +95,7 @@ namespace Emberhold
             body = new GameObject("Body").transform;
             body.SetParent(transform, false);
             // Peter's painted white-and-gold soldiers and Commander (Resources/Sprites/Portraits)
-            var pic = !flies && portrait != null ? DinoSprite.CreateUnit(transform, portrait, height * (isHero ? 1.65f : 2.1f)) : null;
+            var pic = !flies && portrait != null ? DinoSprite.CreateUnit(transform, portrait, height * (isHero ? 1.05f : 2.1f)) : null;
             if (pic != null)
             {
                 sprite = pic;
@@ -224,6 +224,10 @@ namespace Emberhold
                 p.y = WorldBuilder.HeightAt(p) + altitude + bob;
                 transform.position = p;
                 if (parked && anim == null) body.localPosition = Vector3.zero;
+                // QC: the 3D craft clash with the painted city; parked drones are hidden (the pad art already
+                // shows them) and only appear once they lift off to fight
+                bool show = !(parked && altitude <= 0.3f);
+                if (body.gameObject.activeSelf != show) body.gameObject.SetActive(show);
             }
         }
 

@@ -42,7 +42,7 @@ namespace Emberhold
             for (float w = 0f; w < 8f && Building.All.Exists(x => x.UnderConstruction); w += Time.deltaTime) yield return null;   // every building finished rising
 
             // ---- stills, day ----
-            hud.PreviewCloseAll();
+            hud.PreviewCloseAll(); hud.PreviewClearToasts(); yield return null;   // QC: no stale toast across the stills
             View(new Vector3(0f, 0f, 6f), 78f); yield return Shot("01_day_city");
             View(new Vector3(0f, 0f, 9f), 52f); yield return Shot("02_day_close");
             View(gm.Castle.Center + new Vector3(0, 0, -6f), 34f); yield return Shot("03_hq_troops");
@@ -109,7 +109,9 @@ namespace Emberhold
 
             // ---- wide closing still ----
             yield return new WaitForSeconds(2.5f);   // let the clear puffs fade before the still
-            View(new Vector3(0f, 0f, 6f), 78f); yield return Shot("12_city_wide");
+            View(new Vector3(0f, 0f, 3f), 70f); yield return Shot("12_city_wide");   // QC: 78 showed past the backdrop
+            var hero = FindHero();
+            if (hero != null) { View(hero.transform.position + new Vector3(0, 0, 2f), 30f); yield return new WaitForSeconds(0.3f); yield return Shot("13_commander_close"); }
             Debug.Log("[Preview] done: " + frame + " video frames in " + Dir + "/frames");
             Running = false; Finished = true;
         }
@@ -176,6 +178,12 @@ namespace Emberhold
             }
             Debug.Log("[Preview] gate wait " + t.ToString("0.0") + "s, dinos " + Enemy.All.Count);
             yield return new WaitForSeconds(0.15f);
+        }
+
+        Unit FindHero()
+        {
+            foreach (var u in Unit.All) if (u != null && u.isHero) return u;
+            return null;
         }
 
         Building First(string id)

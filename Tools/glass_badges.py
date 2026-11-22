@@ -24,16 +24,21 @@ def glass(src):
     shape = ndimage.binary_erosion(tile, iterations=int(w * 0.04))
     soft = np.clip(ndimage.distance_transform_edt(shape) / 1.5, 0, 1)
     ys = np.linspace(0, 1, h)[:, None]
-    fill = (0.30 - 0.16 * ys) * np.ones((1, w))
     rim = shape & ~ndimage.binary_erosion(shape, iterations=max(2, int(w * 0.018)))
-    sheen = shape & (np.arange(h)[:, None] < h * 0.47) & ~ndimage.binary_erosion(shape, iterations=int(w * 0.07)) == False
-    tint = np.array([235, 245, 255], np.float32)
-    out[..., :3] = tint
-    alpha = fill * soft
-    alpha = np.where(rim, 0.70, alpha)
-    # soft highlight band over the top half
-    top = shape & (np.arange(h)[:, None] < h * 0.45)
-    alpha = np.where(top & ~rim, alpha + 0.07, alpha)
+    # QC: a see-through dark smoked glass (about 45% black) so white glyphs stay readable over bright
+    # trees and grass, with a light rim and a soft sheen on the top half
+    dark = np.array([22, 30, 44], np.float32)
+    white = np.array([235, 245, 255], np.float32)
+    top = shape & (np.arange(h)[:, None] < h * 0.45) & ~rim
+    out[..., :3] = dark
+    alpha = (0.50 - 0.10 * ys) * np.ones((1, w)) * soft
+    # sheen: blend some white over the top half
+    sheen_a = np.where(top, 0.10, 0.0)
+    out[..., :3] = (out[..., :3] * alpha[..., None] * (1 - sheen_a[..., None]) + white * sheen_a[..., None])
+    alpha = sheen_a + alpha * (1 - sheen_a)
+    out[..., :3] = out[..., :3] / np.maximum(alpha[..., None], 1e-3)
+    out[rim, :3] = white
+    alpha = np.where(rim, 0.65, alpha)
     # glyph drop shadow
     sh = ndimage.gaussian_filter(ndimage.shift(cov, (w * 0.016, 0), order=1), w * 0.012) * 0.45
     base_rgb = out[..., :3] * alpha[..., None]

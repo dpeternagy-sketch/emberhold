@@ -33,7 +33,7 @@ Shader "Emberhold/UnitSprite"
             CBUFFER_END
             half4 _EH_SpriteTint;
             struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
-            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float fog : TEXCOORD1; float4 screen : TEXCOORD2; };
+            struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float fog : TEXCOORD1; float4 screen : TEXCOORD2; float footDepth : TEXCOORD3; };
             Varyings vert(Attributes i)
             {
                 Varyings o;
@@ -41,12 +41,19 @@ Shader "Emberhold/UnitSprite"
                 o.uv = i.uv;
                 o.fog = ComputeFogFactor(o.positionCS.z);
                 o.screen = ComputeScreenPos(o.positionCS);
+                // the whole picture takes the depth of its feet (the quad's pivot), nudged towards the camera,
+                // so a building card never slices through a unit (QC: Commander cut by the Greenhouse)
+                float3 foot = TransformObjectToWorld(float3(0, 0, 0));
+                float3 toCam = normalize(_WorldSpaceCameraPos - foot);
+                float4 fc = TransformWorldToHClip(foot + toCam * 0.35);
+                o.footDepth = fc.z / fc.w;
                 return o;
             }
-            half4 frag(Varyings i) : SV_Target
+            half4 frag(Varyings i, out float depth : SV_Depth) : SV_Target
             {
                 half4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 clip(c.a - 0.5);
+                depth = i.footDepth;
                 // ordered dither so the fade needs no transparency sorting
                 float2 p = floor(i.screen.xy / max(i.screen.w, 1e-5) * _ScreenParams.xy);
                 float d = frac(dot(p, float2(0.0671, 0.00584)) * 52.98);
