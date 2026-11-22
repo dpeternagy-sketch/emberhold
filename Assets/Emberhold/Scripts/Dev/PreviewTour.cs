@@ -244,17 +244,17 @@ namespace Emberhold
                         if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dz)) != r) continue;
                         int x = x0 + dx, z = z0 + dz;
                         Clear(x, z, def.width, def.depth);
-                        if (!Roomy(x, z, def.width, def.depth)) continue;
+                        if (!Roomy(x, z, def.width, def.depth, id == "well" ? 2 : 1)) continue;   // the small pump hid behind the greenhouse roof (QC run 28)
                         if (gm.CanPlace(def, x, z, 0) && gm.PlaceNew(def, x, z, 0) != null) return;
                     }
             Debug.LogWarning("[Preview] could not place " + id);
         }
 
         /// <summary>A one-cell ring of free ground round the footprint, so painted plates never overlap (QC run 27).</summary>
-        bool Roomy(int x, int z, int w, int d)
+        bool Roomy(int x, int z, int w, int d, int ring)
         {
-            for (int i = -1; i <= w; i++)
-                for (int j = -1; j <= d; j++)
+            for (int i = -ring; i < w + ring; i++)
+                for (int j = -ring; j < d + ring; j++)
                 {
                     if (i >= 0 && i < w && j >= 0 && j < d) continue;
                     var b = gm.Grid.At(new Vector2Int(x + i, z + j)) as Building;
