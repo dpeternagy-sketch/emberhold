@@ -50,7 +50,7 @@ namespace Emberhold
         public Cost cost;
         public int maxHp = 100;
         public int maxLevel = 3;
-        public float upgradeSeconds = 30f;     // real-time seconds for level 1 -> 2 (scales per level)
+        public float upgradeSeconds = 60f;     // real-time seconds for level 1 -> 2 (x level^2: 1, 4, 9, 16 min)
 
         // Economy
         public int housing;                    // villagers this building can house
@@ -100,14 +100,14 @@ namespace Emberhold
 
         /// <summary>Build menu order: food and water first, then the wood, stone and iron chains, then defenses.</summary>
         static readonly string[] MenuOrder = { "house", "farm", "well", "canal", "solar", "mine",
-                                               "trap", "pen", "wall", "watchtower", "ballista", "cannon" };
+                                               "wall", "watchtower", "ballista", "cannon", "trap", "pen" };
 
         static BuildingCatalog()
         {
             Add(new BuildingDef {
                 id = Castle, displayName = "HQ", category = BuildingCategory.Core,
                 width = 4, depth = 4, height = 4f, color = new Color(0.62f, 0.6f, 0.56f),
-                maxHp = 1500, maxLevel = 5, upgradeSeconds = 60f, housing = 4, lightRadius = 7f,
+                maxHp = 1500, maxLevel = 5, upgradeSeconds = 180f, housing = 4, lightRadius = 7f,
                 attackRange = 7f, attackDamage = 6, attackInterval = 1.4f
             });
             Add(new BuildingDef {
@@ -150,19 +150,19 @@ namespace Emberhold
             Add(new BuildingDef {
                 id = "trap", displayName = "Dino Trap", category = BuildingCategory.Defense,
                 width = 1, depth = 1, height = 0.2f, color = new Color(0.4f, 0.4f, 0.42f),
-                cost = new Cost(steel: 15, energy: 5), maxHp = 9999, maxLevel = 1, passable = true, trap = true,
+                cost = new Cost(steel: 15, energy: 5), maxHp = 9999, maxLevel = 1, passable = true, trap = true, unlockLevel = 3,
                 recipe = "Catches a raptor or triceratops"
             });
             Add(new BuildingDef {
                 id = "pen", displayName = "Dino Pen", category = BuildingCategory.Defense,
                 width = 3, depth = 3, height = 1.2f, color = new Color(0.4f, 0.5f, 0.35f),
-                cost = new Cost(steel: 40, coins: 20), maxHp = 300, maxLevel = 3, penCapacity = 2,
+                cost = new Cost(steel: 40, coins: 20), maxHp = 300, maxLevel = 3, penCapacity = 2, unlockLevel = 3,
                 recipe = "Keeps 2 tamed dinos. They guard you"
             });
             Add(new BuildingDef {
                 id = "wall", displayName = "Barrier", category = BuildingCategory.Defense,
                 width = 1, depth = 1, height = 1.5f, color = new Color(0.6f, 0.58f, 0.55f),
-                cost = new Cost(steel: 3), maxHp = 300, upgradeSeconds = 15f
+                cost = new Cost(steel: 3), maxHp = 300, upgradeSeconds = 20f
             });
             Add(new BuildingDef {
                 id = "watchtower", displayName = "Gun Turret", category = BuildingCategory.Defense,

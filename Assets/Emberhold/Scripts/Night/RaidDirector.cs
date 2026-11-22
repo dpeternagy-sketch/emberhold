@@ -68,6 +68,13 @@ namespace Emberhold
             nextRaidCheck = Time.time + Random.Range(70f, 120f);
         }
 
+        /// <summary>Stops the raid chain (the HQ fell or the attack timed out).</summary>
+        public void CancelAll()
+        {
+            chain.Clear();
+            attackStarted = -1f;
+        }
+
         /// <summary>Start a raid right now (also used by the "Test raid" menu button).</summary>
         public void TriggerNow()
         {

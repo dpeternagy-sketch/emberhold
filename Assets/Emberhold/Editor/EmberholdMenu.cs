@@ -125,6 +125,9 @@ namespace Emberhold.EditorTools
             foreach (var b in Building.All) if (b != GM.Castle && b.Def.attackRange > 0f) { Input.Select(b); return; }
         }
 
+        [MenuItem("Emberhold/Test/Select HQ", priority = 141)]
+        static void SelectHQ() { if (GM != null && GM.Castle != null) Input.Select(GM.Castle); }
+
         [MenuItem("Emberhold/Test/Preview Gun Turret (ghost)", priority = 142)]
         static void Ghost() { if (GM != null) Input.BeginPlacing(BuildingCatalog.Get("watchtower")); }
 
@@ -146,6 +149,19 @@ namespace Emberhold.EditorTools
 
         [MenuItem("Emberhold/Test/Start upgrade (selected)", priority = 148)]
         static void StartUpgrade() { if (GM != null && Input.Selected != null) GM.TryUpgrade(Input.Selected); }
+
+        [MenuItem("Emberhold/Test/Log 40 spawn points", priority = 152)]
+        static void LogSpawns()
+        {
+            float maxZ = -999f; var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < 40; i++)
+            {
+                var p = EnemySpawner.SpawnPoint(Random.Range(0f, 360f), Random.Range(-5f, 5f));
+                maxZ = Mathf.Max(maxZ, p.z);
+                sb.Append(p.ToString("F0")).Append(' ');
+            }
+            Debug.Log("[Emberhold] 40 spawns, max z = " + maxZ.ToString("F1") + " (mountain starts near z 22): " + sb);
+        }
 
         [MenuItem("Emberhold/Test/Place trap + pen near HQ", priority = 149)]
         static void TrapPen() { PlaceAtView("pen"); PlaceAtView("trap"); }

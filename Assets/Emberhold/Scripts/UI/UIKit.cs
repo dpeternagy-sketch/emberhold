@@ -26,7 +26,7 @@ namespace Emberhold
         public static readonly Color ButtonColor = new Color(0.2f, 0.16f, 0.12f, 0.92f);
         public static readonly Color Accent = new Color(1f, 0.82f, 0.3f, 1f);
         /// <summary>Deep navy used for panels and pills (multiplied onto Kenney's light grey shapes).</summary>
-        public static readonly Color PanelTint = new Color(0.2f, 0.25f, 0.38f, 0.96f);
+        public static readonly Color PanelTint = new Color(0.22f, 0.27f, 0.4f, 1f);
         public static readonly Color PillTint = new Color(0.1f, 0.12f, 0.2f, 0.72f);
 
         // ---------- Kenney UI Pack (CC0) skin ----------
@@ -166,7 +166,7 @@ namespace Emberhold
         public static Text OutlinedLabel(Transform parent, string text, int size, TextAnchor align)
         {
             var t = Label(parent, text, size, align);
-            t.fontStyle = FontStyle.Bold;
+            if (Font.name.Contains("Legacy")) t.fontStyle = FontStyle.Bold;   // the game font is already heavy
             var o = t.gameObject.AddComponent<Outline>();
             o.effectColor = new Color(0.1f, 0.06f, 0.03f, 0.95f);
             o.effectDistance = new Vector2(2.5f, -2.5f);
@@ -253,6 +253,35 @@ namespace Emberhold
             label.rectTransform.offsetMax = new Vector2(-10, -2);
             b.onClick.AddListener(() => { AudioManager.Play("ui", 0.5f); if (onClick != null) onClick(); });
             return b;
+        }
+
+        /// <summary>A labelled volume slider (0..1) in the Kenney style.</summary>
+        public static Slider VolumeSlider(Transform parent, string label, float value, Action<float> onChange)
+        {
+            var r = Rect("Slider_" + label, parent);
+            r.sizeDelta = new Vector2(400, 110);
+            var t = OutlinedLabel(r, label, 30, TextAnchor.UpperLeft);
+            t.rectTransform.offsetMin = new Vector2(6, 50);
+            var area = Rect("Area", r);
+            area.anchorMin = new Vector2(0, 0); area.anchorMax = new Vector2(1, 0); area.pivot = new Vector2(0.5f, 0);
+            area.anchoredPosition = new Vector2(0, 10); area.sizeDelta = new Vector2(-40, 34);
+            var bg = Skin("Bg", area, "grey", "button_rectangle_flat", new Color(0.12f, 0.14f, 0.22f, 0.9f));
+            bg.rectTransform.anchorMin = Vector2.zero; bg.rectTransform.anchorMax = Vector2.one; bg.rectTransform.offsetMin = bg.rectTransform.offsetMax = Vector2.zero;
+            var fillArea = Rect("FillArea", area);
+            fillArea.anchorMin = Vector2.zero; fillArea.anchorMax = Vector2.one; fillArea.offsetMin = new Vector2(4, 4); fillArea.offsetMax = new Vector2(-4, -4);
+            var fill = Skin("Fill", fillArea, "green", "button_rectangle_flat");
+            fill.rectTransform.anchorMin = Vector2.zero; fill.rectTransform.anchorMax = new Vector2(0, 1); fill.rectTransform.offsetMin = fill.rectTransform.offsetMax = Vector2.zero;
+            var handleArea = Rect("HandleArea", area);
+            handleArea.anchorMin = Vector2.zero; handleArea.anchorMax = Vector2.one; handleArea.offsetMin = new Vector2(20, 0); handleArea.offsetMax = new Vector2(-20, 0);
+            var handle = Skin("Handle", handleArea, "yellow", "button_round_depth_gloss");
+            handle.rectTransform.sizeDelta = new Vector2(64, 0);
+            handle.rectTransform.anchorMin = new Vector2(0, -0.45f); handle.rectTransform.anchorMax = new Vector2(0, 1.45f);
+            var s = r.gameObject.AddComponent<Slider>();
+            s.fillRect = fill.rectTransform; s.handleRect = handle.rectTransform; s.targetGraphic = handle;
+            s.direction = Slider.Direction.LeftToRight; s.minValue = 0f; s.maxValue = 1f;
+            s.value = value;
+            s.onValueChanged.AddListener(v => { if (onChange != null) onChange(v); });
+            return s;
         }
 
         public static void SetText(UnityEngine.UI.Button b, string text)

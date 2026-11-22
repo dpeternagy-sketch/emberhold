@@ -38,6 +38,9 @@ namespace Emberhold
         Text infoPopupTitle, infoPopupBody, upPopupTitle, upPopupBody, upPopupTime, upPopupNote;
         RectTransform upPopupCost;
         Button upPopupGo;
+        Text upPopupGoText;
+        bool goFreesBuilder;
+        Text builderText;
         Building costShownFor; int costShownLevel = -1; bool costShownRepair;
         readonly Dictionary<Building, RectTransform> timerBars = new Dictionary<Building, RectTransform>();
         readonly Dictionary<Building, RectTransform> badges = new Dictionary<Building, RectTransform>();
@@ -63,8 +66,17 @@ namespace Emberhold
             foreach (var key in new[] { "food", "water", "energy", "steel", "coins", "people" })
                 resourceTexts[key] = ResourceChip(res, key);
 
-            var menuBtn = UIKit.IconButton(root, "k_menu", null, 104, ToggleMenu, "grey");
+            var menuBtn = UIKit.IconButton(root, "k_menu", null, 104, ToggleMenu, "blue");
             UIKit.Anchor(menuBtn.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-30, -30), new Vector2(104, 104));
+
+            // Builders: how many upgrades can run at once (busy / total)
+            var bld = UIKit.Pill("Builders", root).rectTransform;
+            UIKit.Anchor(bld, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-30, -150), new Vector2(190, 72));
+            var bIc = UIKit.Icon(bld, "k_wrench", 60);
+            UIKit.Anchor(bIc.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(-6, 2), new Vector2(60, 60));
+            builderText = UIKit.OutlinedLabel(bld, "0/1", 34, TextAnchor.MiddleCenter);
+            builderText.rectTransform.offsetMin = new Vector2(56, 0);
+            builderText.rectTransform.offsetMax = new Vector2(-8, 0);
 
             var status = UIKit.Rect("Status", root);
             UIKit.Anchor(status, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -206), new Vector2(560, 70));
@@ -147,20 +159,10 @@ namespace Emberhold
             title.rectTransform.offsetMax = new Vector2(-8, -32);
             var reset = UIKit.Button(menuPanel, "Restart city", 30, () => gm.ResetGame(), new Color(0.4f, 0.13f, 0.1f, 0.95f));
             UIKit.Anchor(reset.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 150), new Vector2(400, 90));
-            UnityEngine.UI.Button soundBtn = null, ambBtn = null;
-            soundBtn = UIKit.Button(menuPanel, SoundLabel(), 30, () =>
-            {
-                float l = AudioManager.SoundLevel;
-                AudioManager.SoundLevel = l > 0.75f ? 0.5f : l > 0.25f ? 0f : 1f;
-                UIKit.SetText(soundBtn, SoundLabel());
-            });
-            UIKit.Anchor(soundBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 470), new Vector2(400, 90));
-            ambBtn = UIKit.Button(menuPanel, "Nature sounds: " + (AudioManager.AmbienceOn ? "On" : "Off"), 30, () =>
-            {
-                AudioManager.AmbienceOn = !AudioManager.AmbienceOn;
-                UIKit.SetText(ambBtn, "Nature sounds: " + (AudioManager.AmbienceOn ? "On" : "Off"));
-            });
-            UIKit.Anchor(ambBtn.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 365), new Vector2(400, 90));
+            var fx = UIKit.VolumeSlider(menuPanel, "Effects", AudioManager.SoundLevel, v => AudioManager.SoundLevel = v);
+            UIKit.Anchor(fx.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(400, 110));
+            var amb = UIKit.VolumeSlider(menuPanel, "Nature sounds", AudioManager.AmbienceLevel, v => AudioManager.AmbienceLevel = v);
+            UIKit.Anchor(amb.GetComponent<RectTransform>(), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -250), new Vector2(400, 110));
             var raid = UIKit.Button(menuPanel, "Test raid now", 30, () => { if (gm.Raids != null) gm.Raids.TriggerNow(); ToggleMenu(); }, new Color(0.45f, 0.3f, 0.1f, 0.95f));
             UIKit.Anchor(raid.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 260), new Vector2(400, 90));
             var close = UIKit.Button(menuPanel, "Close", 30, ToggleMenu);
@@ -254,7 +256,7 @@ namespace Emberhold
         {
             var row = UIKit.Rect("Cost", card);
             row.anchorMin = new Vector2(0, 0); row.anchorMax = new Vector2(1, 0); row.pivot = new Vector2(0.5f, 0);
-            row.anchoredPosition = new Vector2(0, 6); row.sizeDelta = new Vector2(-8, 34);
+            row.anchoredPosition = new Vector2(0, 8); row.sizeDelta = new Vector2(-8, 44);
             var hl = row.gameObject.AddComponent<HorizontalLayoutGroup>();
             hl.spacing = 4; hl.childAlignment = TextAnchor.MiddleCenter; hl.childForceExpandWidth = false; hl.childControlWidth = false; hl.childControlHeight = false;
             var items = new List<KeyValuePair<ResourceType, int>>();
@@ -271,11 +273,11 @@ namespace Emberhold
             {
                 var chip = UIKit.Rect("C", row);
                 string num = it.Value.ToString();
-                chip.sizeDelta = new Vector2(30 + 13 * num.Length + 4, 34);
-                var ic = UIKit.Icon(chip, IconOf(it.Key), 30);
-                UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(15, 0), new Vector2(30, 30));
-                var t = UIKit.OutlinedLabel(chip, num, 24, TextAnchor.MiddleLeft);
-                t.rectTransform.offsetMin = new Vector2(31, 0);
+                chip.sizeDelta = new Vector2(40 + 16 * num.Length + 6, 44);
+                var ic = UIKit.Icon(chip, IconOf(it.Key), 40);
+                UIKit.Anchor(ic.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(20, 0), new Vector2(40, 40));
+                var t = UIKit.OutlinedLabel(chip, num, 30, TextAnchor.MiddleLeft);
+                t.rectTransform.offsetMin = new Vector2(40, 0);
                 t.horizontalOverflow = HorizontalWrapMode.Overflow;
                 costLabels.Add(new KeyValuePair<Text, KeyValuePair<ResourceType, int>>(t, it));
             }
@@ -327,6 +329,9 @@ namespace Emberhold
             SetIfChanged(resourceTexts["steel"], s.steel.ToString());
             SetIfChanged(resourceTexts["coins"], s.coins.ToString());
             SetIfChanged(resourceTexts["people"], s.population + "/" + gm.HousingCapacity);
+            int busy = gm.BuildersBusy, slots = gm.BuilderSlots;
+            SetIfChanged(builderText, (slots - busy) + "/" + slots);
+            builderText.color = busy >= slots ? new Color(1f, 0.55f, 0.45f) : Color.white;
 
             var cycle = gm.Cycle;
             if (cycle.IsNight)
@@ -440,23 +445,39 @@ namespace Emberhold
             // Upgrade popup: what gets better, the cost, the time, and one big button
             upgradePopup = UIKit.PanelBox("UpgradePopup", root).rectTransform;
             Header(upgradePopup);
-            UIKit.Anchor(upgradePopup, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 60), new Vector2(760, 560));
+            UIKit.Anchor(upgradePopup, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 60), new Vector2(760, 600));
             upPopupTitle = UIKit.OutlinedLabel(upgradePopup, "", 40, TextAnchor.UpperCenter);
             upPopupTitle.rectTransform.offsetMax = new Vector2(-90, -32);
             upPopupBody = UIKit.Label(upgradePopup, "", 36, TextAnchor.UpperCenter);
-            upPopupBody.rectTransform.offsetMin = new Vector2(30, 250); upPopupBody.rectTransform.offsetMax = new Vector2(-30, -100);
+            upPopupBody.fontSize = 38;
+            upPopupBody.rectTransform.offsetMin = new Vector2(30, 300); upPopupBody.rectTransform.offsetMax = new Vector2(-30, -120);
             upPopupCost = UIKit.Rect("CostLine", upgradePopup);
-            UIKit.Anchor(upPopupCost, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 200), new Vector2(600, 44));
+            UIKit.Anchor(upPopupCost, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 250), new Vector2(600, 44));
             upPopupTime = UIKit.Label(upgradePopup, "", 32, TextAnchor.MiddleCenter);
-            UIKit.Anchor(upPopupTime.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 160), new Vector2(600, 40));
+            UIKit.Anchor(upPopupTime.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 190), new Vector2(600, 40));
             upPopupNote = UIKit.Label(upgradePopup, "", 30, TextAnchor.MiddleCenter, new Color(1f, 0.45f, 0.4f));
-            UIKit.Anchor(upPopupNote.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 125), new Vector2(700, 40));
+            UIKit.Anchor(upPopupNote.rectTransform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 140), new Vector2(720, 40));
             upPopupGo = UIKit.Button(upgradePopup, "Upgrade", 40, () =>
             {
                 var b = popupFor;
-                if (b != null && gm.TryUpgrade(b)) upgradePopup.gameObject.SetActive(false);
+                if (b == null) return;
+                if (goFreesBuilder)
+                {
+                    // All builders busy: pay coins to finish the upgrade that ends first, then this one can start.
+                    var other = gm.SoonestUpgrade();
+                    if (other == null) return;
+                    int c = SpeedUpCost(other);
+                    if (gm.State.coins < c) { gm.Toast("Need " + c + " coins"); return; }
+                    gm.State.coins -= c;
+                    AudioManager.Play("coin", 0.7f);
+                    other.FinishUpgradeNow();
+                    RefreshUpgradePopup(b);
+                    return;
+                }
+                if (gm.TryUpgrade(b)) upgradePopup.gameObject.SetActive(false);
             }, new Color(0.2f, 0.55f, 0.22f, 0.97f));
-            UIKit.Anchor(upPopupGo.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 26), new Vector2(380, 96));
+            UIKit.Anchor(upPopupGo.GetComponent<RectTransform>(), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 26), new Vector2(420, 96));
+            upPopupGoText = upPopupGo.GetComponentInChildren<Text>();
             CloseX(upgradePopup, () => upgradePopup.gameObject.SetActive(false));
             upgradePopup.gameObject.SetActive(false);
         }
@@ -503,6 +524,8 @@ namespace Emberhold
             }
             if (!show) { costShownFor = null; return; }
 
+            // the popup already names the building; a floating title would sit on top of it
+            selTitle.gameObject.SetActive(!infoPopup.gameObject.activeSelf && !upgradePopup.gameObject.activeSelf);
             selTitle.text = sel.Ruined ? sel.Def.displayName + "  (ruined)" : Title(sel);
             var top = sel.transform.position + Vector3.up * (sel.Def.height + 1.0f);
             PlaceAt(selTitle.rectTransform, top, new Vector2(0, 30));
@@ -615,8 +638,18 @@ namespace Emberhold
             string block = null;
             if (b != gm.Castle && L >= gm.CastleLevel + 1) block = "Upgrade the HQ first";
             else if (!gm.State.CanAfford(b.UpgradeCost)) block = "Need more " + gm.State.Missing(b.UpgradeCost);
+            goFreesBuilder = false;
+            if (block == null && !gm.BuilderFree)
+            {
+                var other = gm.SoonestUpgrade();
+                block = "All builders busy (" + gm.BuilderSlots + "/" + gm.BuilderSlots + ")"
+                        + (other != null ? "  -  free in " + Util.FormatTime(other.UpgradeSecondsLeft) : "");
+                goFreesBuilder = other != null;
+            }
             upPopupNote.text = block ?? "";
-            upPopupGo.interactable = block == null;
+            upPopupGo.interactable = block == null || goFreesBuilder;
+            if (upPopupGoText != null)
+                upPopupGoText.text = goFreesBuilder ? "Free builder  " + SpeedUpCost(gm.SoonestUpgrade()) + " coins" : "Upgrade";
         }
 
         /// <summary>Finishing an upgrade early costs coins (later: gems or a rewarded ad).</summary>
@@ -675,7 +708,7 @@ namespace Emberhold
                 var d = b.Def;
                 if (d.maxLevel <= 1 || d.id == "wall" || b.Data.level >= d.maxLevel) continue;
                 if (b != gm.Castle && b.Data.level >= gm.CastleLevel + 1) continue;
-                if (!gm.State.CanAfford(b.UpgradeCost)) continue;
+                if (!gm.State.CanAfford(b.UpgradeCost) || !gm.BuilderFree) continue;
                 seen.Add(b);
                 RectTransform badge;
                 if (!badges.TryGetValue(b, out badge) || badge == null)

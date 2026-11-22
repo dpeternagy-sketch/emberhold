@@ -16,6 +16,7 @@ namespace Emberhold
         public int population = 4;
         /// <summary>Dinosaurs caught in traps and kept in pens (they guard the city).</summary>
         public int tamedRaptors, tamedTrikes;
+        public int extraBuilders;          // bonus builder slots (VIP / shop later)
         public int night = 0;                 // nights survived
         public float dayTimeLeft = 150f;
         public long lastSavedUtcTicks;

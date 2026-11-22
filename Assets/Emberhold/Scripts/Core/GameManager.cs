@@ -26,6 +26,25 @@ namespace Emberhold
 
         public int CastleLevel { get { return Castle != null ? Castle.Data.level : 1; } }
         public int BuildRadius { get { return 9 + 3 * CastleLevel; } }
+
+        /// <summary>Builders: how many upgrades can run at the same time. 1 at the start, a 2nd at HQ level 3
+        /// (State.extraBuilders is for a later VIP/shop bonus: it only saves time, never unlocks power).</summary>
+        public const int SecondBuilderHQLevel = 3;
+        public int BuilderSlots { get { return 1 + (CastleLevel >= SecondBuilderHQLevel ? 1 : 0) + Mathf.Max(0, State != null ? State.extraBuilders : 0); } }
+        public int BuildersBusy
+        {
+            get { int n = 0; foreach (var b in Building.All) if (b != null && !b.IsGhost && b.Data.IsUpgrading) n++; return n; }
+        }
+        public bool BuilderFree { get { return BuildersBusy < BuilderSlots; } }
+
+        /// <summary>The upgrade that will finish first (the one "Free a builder" speeds up).</summary>
+        public Building SoonestUpgrade()
+        {
+            Building best = null;
+            foreach (var b in Building.All)
+                if (b != null && !b.IsGhost && b.Data.IsUpgrading && (best == null || b.UpgradeSecondsLeft < best.UpgradeSecondsLeft)) best = b;
+            return best;
+        }
         public int HousingCapacity { get; private set; }
         public float FoodEfficiency { get { return State.food > 0 && State.water > 0 ? 1f : 0.5f; } }
         public int PendingSettlers { get; private set; }
@@ -172,14 +191,15 @@ namespace Emberhold
                 Toast("Ruins cleared");
                 return;
             }
+            // Full refund (build price + every upgrade paid, canals too): removing by mistake never costs anything.
             if (b.Def.id == "canal")
             {
+                State.Refund(b.Def.cost, 1f);
                 RemoveInternal(b);
-                Toast("Canal filled in");
+                Toast("Canal filled in - coins refunded");
                 return;
             }
-            // Full refund: removing by mistake never costs you anything, you can build it again right away.
-            State.Refund(b.Def.cost, 1f);
+            State.Refund(b.TotalPaid, 1f);
             RemoveInternal(b);
             Toast(b.Def.displayName + " removed - full cost refunded");
         }
@@ -196,7 +216,8 @@ namespace Emberhold
                 Toast("The HQ has fallen! The dinosaurs wrecked half your stock.");
                 AudioManager.Play("collapse");
                 Spawner.EndWave();
-                Cycle.EndNight();
+                if (Raids != null) Raids.CancelAll();   // a daytime raid ends too
+                Cycle.EndNight();                        // no-op by day
                 return;
             }
             b.Data.hp = 0;
@@ -214,7 +235,7 @@ namespace Emberhold
         /// <summary>Cost to fix a building: a ruin costs 60% of the build price; damage costs in proportion.</summary>
         public Cost RepairCost(Building b)
         {
-            if (b.Ruined) return b.Def.cost.Scaled(0.6f);
+            if (b.Ruined) return b.Def.cost.Scaled(0.3f);
             float missing = 1f - b.Data.hp / (float)b.MaxHp;
             if (missing <= 0f) return new Cost();
             var c = b.Def.cost.Scaled(0.5f * missing);
@@ -251,6 +272,7 @@ namespace Emberhold
             if (b.Data.IsUpgrading) return false;
             if (b.Data.level >= b.Def.maxLevel) { Toast("Max level"); return false; }
             if (b != Castle && b.Data.level >= CastleLevel + 1) { Toast("Upgrade the HQ first"); return false; }
+            if (!BuilderFree) { Toast("All builders are busy"); return false; }
             if (!State.Pay(b.UpgradeCost)) { Toast("Not enough resources"); return false; }
             b.StartUpgrade();
             AudioManager.Play("coin", 0.6f);
@@ -262,6 +284,7 @@ namespace Emberhold
         {
             Toast(b.Def.displayName + " reached level " + b.Data.level);
             if (b == Castle) { World.ShowBuildBorder(BuildRadius); Toast("Your land grows!"); }
+            if (b == Castle && b.Data.level == SecondBuilderHQLevel) Toast("A second builder joined your city!");
             RecalculateCity();
             SaveNow();
         }
@@ -324,12 +347,16 @@ namespace Emberhold
             return n;
         }
 
+        /// <summary>The HQ always keeps this many people (it houses them), so scrap can always be gathered.</summary>
+        const int MinPopulation = 2;
+
         /// <summary>Recount housing, assign homes and jobs, and match villagers to the population.</summary>
         public void RecalculateCity()
         {
             HousingCapacity = 0;
             foreach (var b in Building.All) HousingCapacity += b.Housing;
             State.population = Mathf.Min(State.population, Mathf.Max(HousingCapacity, 1));
+            State.population = Mathf.Max(State.population, MinPopulation);   // the HQ crew always stays
 
             while (Villager.All.Count < State.population)
                 Villager.Spawn(peopleRoot, Castle != null ? Castle.Center + new Vector3(0, 0, -2.6f) : Vector3.zero);

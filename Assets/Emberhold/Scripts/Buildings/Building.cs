@@ -86,15 +86,31 @@ namespace Emberhold
             get { return GridMap.Footprint(Data.x, Data.z, Def.width, Def.depth, Data.rotation); }
         }
 
-        public Cost UpgradeCost
+        public Cost UpgradeCost { get { return UpgradeCostAt(Data.level); } }
+
+        /// <summary>Price to go from this level to the next one.</summary>
+        public Cost UpgradeCostAt(int level)
+        {
+            var baseCost = Def.cost;
+            if (Def.id == BuildingCatalog.Castle) baseCost = new Cost(steel: 80, energy: 20, coins: 40);
+            var c = baseCost.Scaled(1.2f * level);
+            c.coins += 10 * level;
+            return c;
+        }
+
+        /// <summary>Everything ever paid for this building: the build price, every finished upgrade, and one in progress.</summary>
+        public Cost TotalPaid
         {
             get
             {
-                var baseCost = Def.cost;
-                if (Def.id == BuildingCatalog.Castle) baseCost = new Cost(steel: 80, energy: 20, coins: 40);
-                var c = baseCost.Scaled(1.2f * Data.level);
-                c.coins += 10 * Data.level;
-                return c;
+                var t = Def.cost;
+                int last = Data.IsUpgrading ? Data.level : Data.level - 1;
+                for (int l = 1; l <= last; l++)
+                {
+                    var u = UpgradeCostAt(l);
+                    t.steel += u.steel; t.energy += u.energy; t.coins += u.coins;
+                }
+                return t;
             }
         }
 

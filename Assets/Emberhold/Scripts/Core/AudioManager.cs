@@ -46,7 +46,7 @@ namespace Emberhold
 
         public static float SoundLevel
         {
-            get { return PlayerPrefs.GetFloat("eh.sound", 1f); }
+            get { return PlayerPrefs.GetFloat("eh.sound", 0.7f); }
             set { PlayerPrefs.SetFloat("eh.sound", value); if (Instance != null) Instance.ApplyLevels(); }
         }
         public static bool AmbienceOn
@@ -55,7 +55,14 @@ namespace Emberhold
             set { PlayerPrefs.SetInt("eh.amb", value ? 1 : 0); if (Instance != null) Instance.ApplyLevels(); }
         }
 
-        void ApplyLevels() { ambience.volume = AmbienceOn ? 0.12f * SoundLevel : 0f; }
+        /// <summary>Volume of birds, owls and other nature sounds (0..1).</summary>
+        public static float AmbienceLevel
+        {
+            get { return PlayerPrefs.GetFloat("eh.amblevel", 0.7f); }
+            set { PlayerPrefs.SetFloat("eh.amblevel", value); if (Instance != null) Instance.ApplyLevels(); }
+        }
+
+        void ApplyLevels() { ambience.volume = AmbienceOn ? 0.17f * AmbienceLevel : 0f; }
         void Start() { ApplyLevels(); }
 
         public static void Play(string name, float volume = 1f)
