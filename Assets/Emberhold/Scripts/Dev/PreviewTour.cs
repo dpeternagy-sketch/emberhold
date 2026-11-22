@@ -108,6 +108,7 @@ namespace Emberhold
             else Debug.Log("[Preview] no rock found to clear");
 
             // ---- wide closing still ----
+            yield return new WaitForSeconds(2.5f);   // let the clear puffs fade before the still
             View(new Vector3(0f, 0f, 6f), 78f); yield return Shot("12_city_wide");
             Debug.Log("[Preview] done: " + frame + " video frames in " + Dir + "/frames");
             Running = false; Finished = true;
@@ -139,6 +140,7 @@ namespace Emberhold
                 Clear(wx, z, 1, 1);
                 bool isGate = z == Mathf.FloorToInt(c.z) - 9;
                 if (isGate) gateCell = new Vector3(wx, 0f, z);
+                if (!gm.CanPlace(isGate ? gate : wall, wx, z, 0)) { Debug.Log("[Preview] wall skipped at z " + z); continue; }   // no "Can't build there" toast in the stills
                 gm.PlaceNew(isGate ? gate : wall, wx, z, 0);
             }
             gm.RefreshWallJoins();
@@ -148,6 +150,7 @@ namespace Emberhold
             Place("command", c + new Vector3(3, 0, -6));
             Place("robotfactory", c + new Vector3(8, 0, -14));
             s.riflemen = 6; s.heavies = 1; s.drones = 2;   // 6 + 5 + 6 = 17 of 20 space
+            s.population = 26;   // a staffed city: no "needs workers" icons in the stills
             gm.RecalculateCity();
         }
 
