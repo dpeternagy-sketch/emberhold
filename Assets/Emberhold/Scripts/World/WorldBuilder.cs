@@ -272,6 +272,8 @@ namespace Emberhold
                     if (hh < WaterLevel + 0.15f) c = Color.Lerp(sand, wetSand, Mathf.Clamp01((WaterLevel + 0.15f - hh) * 2f));
                     // mountain: rock on steep or high ground, snow on top
                     float rockMask = Mathf.Clamp01((slope - 0.45f) * 2.2f) + Mathf.Clamp01((hh - 13f) * 0.12f);
+                    // the river's own cut banks stay green and muddy, never a blurred grey rock band (QC runs 22-24)
+                    rockMask *= Smooth(River.HalfWidth + 1f, River.HalfWidth + 4f, Mathf.Abs(wx - River.CenterX(z)));
                     if (z > GridMap.MountainZ - 2f || Mathf.Abs(wx) > GridMap.ForestX)
                     {
                         // ledges between the cliffs keep tough alpine grass and scree
