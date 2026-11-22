@@ -12,6 +12,7 @@ namespace Emberhold
     {
         GameManager gm; InteractionController input; CameraRig rig;
         RectTransform trainPopup, rows, heroPill, xpFill;
+        public bool TrainOpen { get { return trainPopup != null && trainPopup.gameObject.activeSelf; } }
         Text trainTitle, trainStatus, heroText;
         Button strikeBtn; Text strikeCaption;
         Button troopsBtn, homeBtn, doneBtn, repairAllBtn;
@@ -155,7 +156,8 @@ namespace Emberhold
             strikeBtn.gameObject.SetActive(hasHero && gm.Troops.StrikeReady);
             input.SelectedUnits.RemoveAll(u => u == null);
             bool anyUnits = Unit.All.Count > 0, picked = input.SelectedUnits.Count > 0;
-            troopsBtn.gameObject.SetActive(anyUnits && input.Ghost == null);
+            // never on top of an open build menu
+            troopsBtn.gameObject.SetActive(anyUnits && input.Ghost == null && !HUD.BuildMenuOpen);
             homeBtn.gameObject.SetActive(picked);
             repairAllBtn.gameObject.SetActive(Enemy.All.Count == 0 && Time.frameCount % 15 == 0 ? gm.BrokenBuildings().Count > 0 : repairAllBtn.gameObject.activeSelf && Enemy.All.Count == 0);
             doneBtn.gameObject.SetActive(picked);

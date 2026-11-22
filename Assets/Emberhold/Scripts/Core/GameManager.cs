@@ -442,6 +442,33 @@ namespace Emberhold
             }
         }
 
+        // ---------------- Clearing trees and rocks (Peter: tap one, clear it, get resources) ----------------
+
+        public const int TreeFood = 6, TreeCoins = 4, RockSteel = 8, RockCoins = 2, LogCoins = 5;
+
+        public void ClearTree(TreeNode t)
+        {
+            if (t == null) return;
+            Grid.Free(new[] { t.cell }, t);
+            DamageEffects.Puff(t.transform.position + Vector3.up * 0.6f, 1.4f);
+            AudioManager.PlayAt("chop", t.transform.position, 0.6f);
+            Destroy(t.gameObject);
+            State.food += TreeFood; State.coins += TreeCoins;
+            Toast("+" + TreeFood + " Food   +" + TreeCoins + " Coins");
+            SaveNow();
+        }
+
+        public void ClearRock(Vector3 foot, string name)
+        {
+            if (DecorField.Instance == null) return;
+            DecorField.Instance.Remove(foot);
+            DamageEffects.Puff(foot + Vector3.up * 0.3f, 1.1f);
+            AudioManager.PlayAt("chop", foot, 0.5f);
+            if (name.StartsWith("rock_")) { State.steel += RockSteel; State.coins += RockCoins; Toast("+" + RockSteel + " Steel   +" + RockCoins + " Coins"); }
+            else { State.coins += LogCoins; Toast("+" + LogCoins + " Coins"); }
+            SaveNow();
+        }
+
         // ---------------- Economy & people ----------------
 
         public void Produce(Building b)

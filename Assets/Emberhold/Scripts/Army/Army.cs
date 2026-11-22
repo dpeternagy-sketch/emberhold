@@ -59,9 +59,15 @@ namespace Emberhold
             }
         }
 
+        bool CampBuilding()
+        {
+            foreach (var b in Building.All) if (b.Def.campSpace > 0 && !b.IsGhost && !b.Ruined && b.UnderConstruction) return true;
+            return false;
+        }
+
         bool CampDamaged()
         {
-            foreach (var b in Building.All) if (b.Def.campSpace > 0 && !b.IsGhost && (b.Ruined || b.UnderConstruction)) return true;
+            foreach (var b in Building.All) if (b.Def.campSpace > 0 && !b.IsGhost && b.Ruined) return true;
             return false;
         }
 
@@ -110,7 +116,7 @@ namespace Emberhold
         {
             if (b.Ruined) return "Repair it first";
             if (b.Data.level < d.barracksLevel) return d.displayName + " needs " + b.Def.displayName + " Lv " + d.barracksLevel;
-            if (Capacity == 0) return CampDamaged() ? "Army camp damaged: repair it" : "Build an Army Camp first";
+            if (Capacity == 0) return CampBuilding() ? "Army camp still being built" : CampDamaged() ? "Army camp damaged: repair it" : "Build an Army Camp first";
             if (Used + Queued + d.space > Capacity) return "Army camps are full";
             if (!gm.State.CanAfford(d.cost)) return "Need more " + gm.State.Missing(d.cost);
             return null;

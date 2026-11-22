@@ -138,6 +138,46 @@ namespace Emberhold
         readonly Dictionary<Vector2Int, GameObject> meshes = new Dictionary<Vector2Int, GameObject>();
         readonly Dictionary<Vector2Int, int> shownSig = new Dictionary<Vector2Int, int>();
         float nextCheck;
+        public static DecorField Instance { get; private set; }
+
+        void Awake() { Instance = this; }
+
+        /// <summary>
+        /// The rock, log or stump nearest to a ground point (Peter: tap one to clear it for resources).
+        /// Grass and flowers are not obstacles and are never picked.
+        /// </summary>
+        public bool FindObstacle(Vector3 ground, float radius, out Vector3 foot, out string name)
+        {
+            foot = Vector3.zero; name = null;
+            float best = radius * radius;
+            var k0 = ChunkOf(GridMap.CellOf(ground));
+            for (int dx = -1; dx <= 1; dx++)
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    List<It> list;
+                    if (!chunks.TryGetValue(k0 + new Vector2Int(dx, dz), out list)) continue;
+                    foreach (var it in list)
+                    {
+                        var n = it.item.name;
+                        if (!(n.StartsWith("rock_") || n == "log" || n == "stump") || Covered(it.cell)) continue;
+                        var d = it.foot - ground; d.y = 0f;
+                        if (d.sqrMagnitude < best) { best = d.sqrMagnitude; foot = it.foot; name = n; }
+                    }
+                }
+            return name != null;
+        }
+
+        /// <summary>Takes the obstacle standing at this foot point off the map.</summary>
+        public void Remove(Vector3 foot)
+        {
+            var k = ChunkOf(GridMap.CellOf(foot));
+            List<It> list;
+            if (!chunks.TryGetValue(k, out list)) return;
+            int i = list.FindIndex(it => (it.foot - foot).sqrMagnitude < 0.0001f);
+            if (i < 0) return;
+            list.RemoveAt(i);
+            Rebuild(k, Signature(list));
+        }
 
         static Vector2Int ChunkOf(Vector2Int c) { return new Vector2Int(Mathf.FloorToInt(c.x / (float)C), Mathf.FloorToInt(c.y / (float)C)); }
 

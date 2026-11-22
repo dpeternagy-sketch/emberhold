@@ -39,6 +39,7 @@ namespace Emberhold
             yield return null;
             Stage();
             yield return new WaitForSeconds(2.5f);   // let models, workers and badges settle
+            for (float w = 0f; w < 8f && Building.All.Exists(x => x.UnderConstruction); w += Time.deltaTime) yield return null;   // every building finished rising
 
             // ---- stills, day ----
             hud.PreviewCloseAll();
@@ -97,6 +98,15 @@ namespace Emberhold
             recording = false; Time.captureFramerate = 0;
             foreach (var e in Enemy.All.ToArray()) if (e != null) Destroy(e.gameObject);
 
+            // ---- clearing a tree and a rock (Peter's tap-to-clear) ----
+            TreeNode near = null; float nd = 1e9f;
+            foreach (var t in TreeNode.All) { if (t == null || !t.Standing) continue; float d = (t.transform.position - gm.Castle.Center).sqrMagnitude; if (d < nd) { nd = d; near = t; } }
+            if (near != null) { int f0 = gm.State.food; gm.ClearTree(near); Debug.Log("[Preview] cleared tree, food " + f0 + " -> " + gm.State.food); }
+            Vector3 rockAt; string rockName;
+            if (DecorField.Instance != null && DecorField.Instance.FindObstacle(gm.Castle.Center + new Vector3(-6f, 0, -12f), 12f, out rockAt, out rockName))
+            { int s0 = gm.State.steel; gm.ClearRock(rockAt, rockName); Debug.Log("[Preview] cleared " + rockName + ", steel " + s0 + " -> " + gm.State.steel); }
+            else Debug.Log("[Preview] no rock found to clear");
+
             // ---- wide closing still ----
             View(new Vector3(0f, 0f, 6f), 78f); yield return Shot("12_city_wide");
             Debug.Log("[Preview] done: " + frame + " video frames in " + Dir + "/frames");
@@ -116,7 +126,7 @@ namespace Emberhold
             Place("house", c + new Vector3(7, 0, -2)); Place("house", c + new Vector3(7, 0, -6));
             Place("farm", c + new Vector3(-4, 0, -14)); Place("farm", c + new Vector3(3, 0, -14));
             Place("solar", c + new Vector3(11, 0, -10)); Place("solar", c + new Vector3(11, 0, -13));
-            Place("mine", c + new Vector3(-12, 0, -11));
+            // (no Steel Works here: its 3x3 plate does not fit between the houses and the wall)
             Place("well", c + new Vector3(4, 0, -9));
             Place("watchtower", c + new Vector3(-6, 0, -18)); Place("watchtower", c + new Vector3(8, 0, -18));
             Place("ballista", c + new Vector3(-13, 0, -5)); Place("cannon", c + new Vector3(1, 0, -19));

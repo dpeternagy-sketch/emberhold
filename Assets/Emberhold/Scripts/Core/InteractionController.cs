@@ -419,9 +419,61 @@ namespace Emberhold
                         RefreshGhost();
                     }
                 }
-                else if (tapped == null) Deselect();
+                else if (tapped == null)
+                {
+                    if (TryClearObstacle(screen, g)) { mode = Mode.None; return; }
+                    Deselect();
+                }
             }
             mode = Mode.None;
+        }
+
+        // ---------------- Clearing trees and rocks ----------------
+        // First tap on a tree, rock, log or stump says what clearing it gives; a second tap within
+        // a few seconds clears it (no builder, no cost), like obstacles in other city builders.
+
+        TreeNode armedTree;
+        Vector3 armedRock;
+        string armedRockName;
+        float armedUntil;
+        const float TreeTapPixels = 80f;
+
+        bool TryClearObstacle(Vector2 screen, Vector3 ground)
+        {
+            TreeNode tree = null; float best = TreeTapPixels;
+            foreach (var t in TreeNode.All)
+            {
+                if (t == null || !t.Standing) continue;
+                var sp = rig.Cam.WorldToScreenPoint(t.transform.position + Vector3.up * 1.2f);
+                if (sp.z < 0f) continue;
+                float d = Vector2.Distance(screen, new Vector2(sp.x, sp.y));
+                if (d < best) { best = d; tree = t; }
+            }
+            bool again = Time.unscaledTime < armedUntil;
+            if (tree != null)
+            {
+                Deselect();
+                if (again && armedTree == tree) { armedTree = null; armedUntil = 0f; gm.ClearTree(tree); return true; }
+                armedTree = tree; armedRockName = null; armedUntil = Time.unscaledTime + 3f;
+                gm.Toast("Tap again to clear the tree: +" + GameManager.TreeFood + " Food, +" + GameManager.TreeCoins + " Coins");
+                return true;
+            }
+            Vector3 foot; string name;
+            if (DecorField.Instance != null && DecorField.Instance.FindObstacle(ground, 0.8f, out foot, out name))
+            {
+                Deselect();
+                if (again && armedRockName != null && (armedRock - foot).sqrMagnitude < 0.0001f)
+                {
+                    armedRockName = null; armedUntil = 0f;
+                    gm.ClearRock(foot, name);
+                    return true;
+                }
+                armedRock = foot; armedRockName = name; armedTree = null; armedUntil = Time.unscaledTime + 3f;
+                gm.Toast(name.StartsWith("rock_") ? "Tap again to clear the rock: +" + GameManager.RockSteel + " Steel, +" + GameManager.RockCoins + " Coins"
+                                                  : "Tap again to clear it: +" + GameManager.LogCoins + " Coins");
+                return true;
+            }
+            return false;
         }
 
         // ---------------- Troop orders ----------------

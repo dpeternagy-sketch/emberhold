@@ -55,6 +55,7 @@ namespace Emberhold
         public void Init(GameManager game, InteractionController interaction, CameraRig cameraRig)
         {
             gm = game; input = interaction; rig = cameraRig;
+            instance = this;
             var canvas = UIKit.CreateCanvas();
             var screenRoot = canvas.transform;            // for things pinned to the map (follow screen pixels)
             var root = UIKit.SafeArea(screenRoot);         // fixed HUD stays clear of notches and rounded corners
@@ -373,6 +374,8 @@ namespace Emberhold
         }
 
         RectTransform statusRoot;
+        static HUD instance;
+        public static bool BuildMenuOpen { get { return instance != null && instance.buildPanel != null && instance.buildPanel.gameObject.activeSelf; } }
 
         void Update()
         {
@@ -579,7 +582,7 @@ namespace Emberhold
             if (!show) { costShownFor = null; return; }
 
             // the popup already names the building; a floating title would sit on top of it
-            selTitle.gameObject.SetActive(!infoPopup.gameObject.activeSelf && !upgradePopup.gameObject.activeSelf);
+            selTitle.gameObject.SetActive(!infoPopup.gameObject.activeSelf && !upgradePopup.gameObject.activeSelf && (armyUI == null || !armyUI.TrainOpen));
             selTitle.text = sel.Ruined ? sel.Def.displayName + "  (ruined)" : Title(sel);
             var top = sel.transform.position + Vector3.up * (sel.Def.height + 1.0f);
             PlaceAt(selTitle.rectTransform, top, new Vector2(0, 30));
