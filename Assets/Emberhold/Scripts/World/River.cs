@@ -16,6 +16,11 @@ namespace Emberhold
     public static class River
     {
         public const float HalfWidth = 1.1f;
+        /// <summary>The river widens into the painted pool at its spring, so there is no grass between the two (QC runs 34-35).</summary>
+        public static float HalfWidthAt(float z)
+        {
+            return HalfWidth + 2.6f * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((z - (StartZ - 7f)) / 5f));
+        }
         public const float StartZ = GridMap.MountainZ + 15f;  // springs up in the hills
         public const float FallZ = GridMap.MountainZ + 5f;    // falls over a rock ledge here
         public const float EndZ = GridMap.SeaZ - 6f;
@@ -30,7 +35,8 @@ namespace Emberhold
         {
             if (z > StartZ + 1f || z < EndZ) return 0f;
             float d = Mathf.Abs(x - CenterX(z));
-            float m = 1f - Mathf.Clamp01((d - HalfWidth * 0.6f) / (HalfWidth * 1.0f));
+            float hw = HalfWidthAt(z);
+            float m = 1f - Mathf.Clamp01((d - hw * 0.6f) / (HalfWidth * 1.0f));
             if (z > StartZ - 2f) m *= Mathf.Clamp01((StartZ + 1f - z) / 3f); // spring fades in
             return m;
         }
@@ -164,7 +170,7 @@ namespace Emberhold
             for (float z = StartZ + 1f; z >= EndZ; z -= step)   // QC run 28: reach back under the painted pool so no bare bed shows
             {
                 float cx = CenterX(z);
-                float w = HalfWidth * 1.05f;   // full width up to the pool: a narrow spring left bare sandy bed on both sides (QC run 28)
+                float w = HalfWidthAt(z) * 1.05f;   // full width up to the pool: a narrow spring left bare sandy bed on both sides (QC run 28)
                 // the water reaches its own smooth mesh edge instead of meeting the terrain's triangles (QC run 32: corners in the bank line)
                 float edgeH = Mathf.Min(Mathf.Max(WorldBuilder.HeightAt(cx - w, z), WorldBuilder.HeightAt(cx + w, z)) + 0.03f, WorldBuilder.HeightAt(cx, z) + 0.6f);
                 float y = Mathf.Max(Mathf.Max(WorldBuilder.HeightAt(cx, z) + 0.22f, WorldBuilder.WaterLevel + 0.02f), edgeH);
