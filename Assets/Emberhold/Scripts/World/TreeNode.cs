@@ -38,7 +38,15 @@ namespace Emberhold
             t.canopy = new GameObject("Canopy").transform;
             t.canopy.SetParent(root, false);
 
-            if (NatureLib.Available)
+            if (NatureSprites.Available)
+            {
+                // Peter's painted tree, facing the camera whatever way the tree object is turned
+                Util.Prim(PrimitiveType.Cylinder, root, new Vector3(0, 0.12f, 0), new Vector3(0.22f, 0.12f, 0.22f), Trunk);   // stump (shown when chopped)
+                var it = pine ? NatureSprites.Pick("pine_a", "pine_b") : NatureSprites.Pick("tree_green", "tree_green", "tree_green", "tree_orange", "tree_pink");
+                var spr = NatureSprites.Single(t.canopy, it, pine ? Random.Range(3.0f, 3.6f) : Random.Range(2.6f, 3.2f));
+                spr.transform.rotation = Quaternion.identity;   // the quad is already built facing the camera in world space
+            }
+            else if (NatureLib.Available)
             {
                 // Quaternius stylized trees: natural shapes, varied sizes
                 Util.Prim(PrimitiveType.Cylinder, root, new Vector3(0, 0.12f, 0), new Vector3(0.22f, 0.12f, 0.22f), Trunk);   // stump (shown when chopped)

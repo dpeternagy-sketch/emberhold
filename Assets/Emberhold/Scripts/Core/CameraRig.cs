@@ -12,7 +12,7 @@ namespace Emberhold
         public float distance = 78f;
         const float MinDistance = 42f, MaxDistance = 105f;   // 2.5x pinch range
         // Locked to the angle of the building images (45 degrees round, ~31 degrees down), like CoC.
-        const float Pitch = 31f, Yaw = 45f;
+        public const float Pitch = 31f, Yaw = 45f;
 
         public void Init(Camera cam)
         {
