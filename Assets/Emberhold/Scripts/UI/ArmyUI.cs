@@ -43,7 +43,7 @@ namespace Emberhold
 
             // ---- Commander pill (top left, under the resources) ----
             heroPill = UIKit.Rect("CommanderPill", root);
-            UIKit.Anchor(heroPill, new Vector2(0, 1), new Vector2(0, 1), new Vector2(34, -200), new Vector2(360, 84));
+            UIKit.Anchor(heroPill, new Vector2(0, 1), new Vector2(0, 1), new Vector2(34, -290), new Vector2(360, 84));
             var bg = UIKit.Pill("Bg", heroPill);
             bg.rectTransform.anchorMin = Vector2.zero; bg.rectTransform.anchorMax = Vector2.one; bg.rectTransform.offsetMin = bg.rectTransform.offsetMax = Vector2.zero;
             var hit = heroPill.gameObject.AddComponent<Button>();

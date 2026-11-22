@@ -186,8 +186,10 @@ namespace Emberhold
             if (camps.Count == 0) return gm.Castle.Center + new Vector3(0, 0, -3.5f);
             var c = camps[index % camps.Count];
             int slot = index / camps.Count;
-            float ang = slot * 2.4f;
-            return c.Center + new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * (0.4f + 0.25f * (slot % 5));
+            // parade-ground rows across the 3x3 pad (4 per row, 0.75 apart), then around its edge
+            if (slot < 12) return c.Center + new Vector3(-1.1f + (slot % 4) * 0.75f, 0, 0.8f - (slot / 4) * 0.8f);
+            float ang = slot * 0.7f;
+            return c.Center + new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * 2.1f;
         }
 
         void Sync()
@@ -204,6 +206,19 @@ namespace Emberhold
                 while (list.Count < want) list.Add(Unit.Spawn(d, HomeFor(index + list.Count), root));
                 index += want;
             }
+            // two patrol drones per Drone Pad (they guard the pad, hit air and ground)
+            var pads = new List<Building>();
+            foreach (var b in Building.All) if (b.Def.id == "dronepad" && !b.IsGhost && !b.Ruined && !b.UnderConstruction) pads.Add(b);
+            List<Unit> patrols;
+            if (!units.TryGetValue("patrol", out patrols)) { patrols = new List<Unit>(); units["patrol"] = patrols; }
+            patrols.RemoveAll(u => u == null);
+            while (patrols.Count > pads.Count * 2) { Destroy(patrols[patrols.Count - 1].gameObject); patrols.RemoveAt(patrols.Count - 1); }
+            for (int i = 0; i < pads.Count * 2; i++)
+            {
+                var h = pads[i / 2].Center + new Vector3(i % 2 == 0 ? -0.8f : 0.8f, 0, 0);
+                if (i < patrols.Count) patrols[i].home = h; else patrols.Add(Unit.Spawn(UnitDef.Patrol, h, root));
+            }
+
             var cc = CommandCenter();
             if (cc == null) { if (Hero != null) { Destroy(Hero.gameObject); Hero = null; } }
             else if (Hero == null) Hero = Unit.SpawnHero(gm.State.heroLevel, cc.Center + new Vector3(0, 0, -1.6f), root);

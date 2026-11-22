@@ -66,6 +66,15 @@ namespace Emberhold
         public int MaxHp { get { return Mathf.RoundToInt(Def.maxHp * (1f + 0.5f * (Data.level - 1))); } }
         public float LightRadius { get { return Def.lightRadius * (1f + 0.2f * (Data.level - 1)); } }
         public float AttackRange { get { return Def.attackRange * (1f + 0.1f * (Data.level - 1)); } }
+        /// <summary>Counter rule (x2): Gun beats raptors, Laser beats triceratops and T-rex, Missile beats pterosaurs.</summary>
+        public static int Counter(int projectile, EnemyKind kind)
+        {
+            if (projectile == 0 && kind == EnemyKind.Raider) return 2;
+            if (projectile == 1 && (kind == EnemyKind.Brute || kind == EnemyKind.Boss)) return 2;
+            if (projectile == 2 && kind == EnemyKind.Flyer) return 2;
+            return 1;
+        }
+
         public int AttackDamage { get { return Mathf.RoundToInt(Def.attackDamage * (1f + 0.4f * (Data.level - 1))); } }
         public int Housing { get { return Ruined ? 0 : Def.housing * Data.level; } }
         /// <summary>Destroyed in a raid. A ruin houses nobody, makes nothing and does not shoot until rebuilt.</summary>
@@ -394,7 +403,7 @@ namespace Emberhold
                 {
                     attackTimer = Def.attackInterval / (AssignedWorkers > 0 ? 1.25f : 1f);
                     var from = turret != null ? turret.position + Vector3.up * 0.3f : Center + Vector3.up * Def.height;
-                    Projectile.Fire(from, aim, AttackDamage, Def.projectile, Def.splashRadius);
+                    Projectile.Fire(from, aim, AttackDamage * Counter(Def.projectile, aim.kind), Def.projectile, Def.splashRadius);
                     if (Def.projectile == 2) AudioManager.PlayAt("cannon", from, 0.9f);
                     else if (Def.projectile == 1) AudioManager.PlayAt("ballista", from, 0.8f);
                     else AudioManager.PlayAt(UnityEngine.Random.value < 0.5f ? "bow" : "bow2", from, 0.7f);

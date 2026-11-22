@@ -61,10 +61,13 @@ namespace Emberhold
             if (gun != null) { input.Select(gun); yield return new WaitForSeconds(0.4f); yield return Shot("09_turret_range"); input.Deselect(); }
 
             // ---- dino attack by day (stills) ----
-            SpawnDinos(new Vector3(-20f, 0, 2f), 6, true);
-            View(new Vector3(-9f, 0, 4f), 40f);
-            yield return new WaitForSeconds(5f); yield return Shot("10_dino_attack");
-            yield return new WaitForSeconds(3f); yield return Shot("11_turrets_fire");
+            var gun2 = First("watchtower");
+            var hit = gun2 != null ? gun2.Center + new Vector3(-7f, 0, -1f) : GameManager.CastleCenter + new Vector3(-12f, 0, -18f);
+            SpawnDinos(hit, 6, true);
+            View(hit + new Vector3(4f, 0, 2f), 36f);
+            yield return new WaitForSeconds(2.2f); yield return Shot("10_dino_attack");
+            View(hit + new Vector3(6f, 0, 3f), 40f);
+            yield return new WaitForSeconds(1.8f); yield return Shot("11_turrets_fire");
             foreach (var e in Enemy.All.ToArray()) if (e != null) Destroy(e.gameObject);
             yield return new WaitForSeconds(1f);
 
@@ -125,7 +128,7 @@ namespace Emberhold
             Place("barracks", c + new Vector3(-6, 0, -13));
             Place("command", c + new Vector3(3, 0, -6));
             Place("robotfactory", c + new Vector3(8, 0, -14));
-            s.riflemen = 8; s.heavies = 2; s.drones = 2;
+            s.riflemen = 6; s.heavies = 1; s.drones = 2;   // 6 + 5 + 6 = 17 of 20 space
             gm.RecalculateCity();
         }
 

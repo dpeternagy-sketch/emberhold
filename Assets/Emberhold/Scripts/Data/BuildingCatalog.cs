@@ -111,7 +111,7 @@ namespace Emberhold
 
         /// <summary>Build menu order: food and water first, then the wood, stone and iron chains, then defenses.</summary>
         static readonly string[] MenuOrder = { "house", "farm", "well", "canal", "solar", "mine",
-                                               "wall", "gate", "watchtower", "ballista", "cannon", "trap", "pen",
+                                               "powerplant", "factory", "wall", "gate", "watchtower", "ballista", "cannon", "dronepad", "trap", "pen",
                                                "barracks", "camp", "command", "robotfactory" };
 
         static BuildingCatalog()
@@ -187,19 +187,41 @@ namespace Emberhold
                 id = "watchtower", displayName = "Gun Turret", category = BuildingCategory.Defense,
                 width = 2, depth = 2, height = 3.5f, color = new Color(0.5f, 0.38f, 0.25f),
                 cost = new Cost(steel: 30, coins: 10), maxHp = 250,
-                lightRadius = 8f, attackRange = 9f, attackDamage = 12, attackInterval = 1f
+                lightRadius = 8f, attackRange = 9f, attackDamage = 12, attackInterval = 1f,
+                recipe = "Rapid fire. Strong vs raptors and soldiers"
             });
             Add(new BuildingDef {
                 id = "ballista", displayName = "Laser Turret", category = BuildingCategory.Defense,
                 width = 2, depth = 2, height = 1.3f, color = new Color(0.5f, 0.38f, 0.25f),
                 cost = new Cost(steel: 45, energy: 20, coins: 20), maxHp = 220, unlockLevel = 2,
-                attackRange = 12f, attackDamage = 40, attackInterval = 2.6f, projectile = 1
+                attackRange = 12f, attackDamage = 40, attackInterval = 2.6f, projectile = 1,
+                recipe = "Beam. Strong vs triceratops and heavies"
             });
             Add(new BuildingDef {
                 id = "cannon", displayName = "Missile Launcher", category = BuildingCategory.Defense,
                 width = 2, depth = 2, height = 2.1f, color = new Color(0.55f, 0.53f, 0.5f),
                 cost = new Cost(steel: 70, energy: 30, coins: 40), maxHp = 400, unlockLevel = 2,
-                attackRange = 9f, attackDamage = 28, attackInterval = 3.2f, splashRadius = 2.2f, projectile = 2, hitsAir = true
+                attackRange = 9f, attackDamage = 28, attackInterval = 3.2f, splashRadius = 2.2f, projectile = 2, hitsAir = true,
+                recipe = "Anti-air. Strong vs pterosaurs and drones"
+            });
+            Add(new BuildingDef {
+                id = "dronepad", displayName = "Drone Pad", category = BuildingCategory.Defense,
+                width = 2, depth = 2, height = 0.6f, color = new Color(0.5f, 0.55f, 0.6f),
+                cost = new Cost(steel: 50, energy: 30), maxHp = 300, maxLevel = 3, unlockLevel = 4, hitsAir = true,
+                recipe = "2 patrol drones. Hit air and ground"
+            });
+            Add(new BuildingDef {
+                id = "powerplant", displayName = "Power Plant", category = BuildingCategory.Economy,
+                width = 2, depth = 2, height = 2f, color = new Color(0.55f, 0.6f, 0.65f),
+                cost = new Cost(steel: 35, coins: 15), maxHp = 250, workers = 2, unlockLevel = 2,
+                produces = ResourceType.Energy, produceAmount = 6, produceInterval = 8f, recipe = "Energy day and night"
+            });
+            Add(new BuildingDef {
+                id = "factory", displayName = "Parts Factory", category = BuildingCategory.Economy,
+                width = 3, depth = 3, height = 2.4f, color = new Color(0.6f, 0.5f, 0.4f),
+                cost = new Cost(steel: 40, energy: 20), maxHp = 350, workers = 3, unlockLevel = 3,
+                produces = ResourceType.Steel, produceAmount = 7, produceInterval = 10f, consumeEnergy = 2,
+                recipe = "Energy -> Steel, anywhere"
             });
             AddArmy();
         }

@@ -38,7 +38,7 @@ namespace Emberhold
             u.interval = def.interval; u.flies = def.flies; u.hitsAir = def.hitsAir;
             u.home = home;
             u.Build(def.model, def.height, def.id == "heavy" ? 1.3f : 1f, Color.clear);
-            u.Place(home + Random.insideUnitSphere.Flat() * 1.2f);
+            u.Place(home);
             return u;
         }
 
@@ -81,11 +81,11 @@ namespace Emberhold
                 var ring = Util.Prim(PrimitiveType.Cylinder, transform, new Vector3(0, 0.03f, 0), new Vector3(1.3f, 0.015f, 1.3f), trim);
                 ring.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(trim, 1.6f);
             }
-            else
+            else if (!flies)
             {
-                // team colour stripe so our troops read as ours (blue), never mixed up with AI cities (orange)
-                var tag = Util.Prim(PrimitiveType.Cube, body, new Vector3(0, height * 0.62f, 0), new Vector3(height * 0.42f, 0.06f, height * 0.42f), new Color(0.18f, 0.49f, 0.96f));
-                if (flies) tag.SetActive(false);
+                // small team-blue ring at the feet: ours, never mixed up with AI cities (orange)
+                var ring = Util.Prim(PrimitiveType.Cylinder, transform, new Vector3(0, 0.02f, 0), new Vector3(height * 0.55f, 0.01f, height * 0.55f), new Color(0.18f, 0.49f, 0.96f));
+                ring.GetComponent<Renderer>().sharedMaterial = Materials.Emissive(new Color(0.18f, 0.49f, 0.96f), 0.8f);
             }
             anim = GetComponentInChildren<Animation>();
             hpBar = Util.Prim(PrimitiveType.Cube, transform, new Vector3(0, (flies ? 0.9f : height) + 0.35f, 0), new Vector3(0.6f, 0.06f, 0.06f), new Color(0.3f, 0.85f, 0.35f)).transform;
@@ -156,7 +156,7 @@ namespace Emberhold
                 // calm: heal up and stroll around home
                 calmFor += Time.deltaTime;
                 if (calmFor > 4f && hp < maxHp) hp = Mathf.Min(maxHp, hp + Mathf.CeilToInt(maxHp * 0.08f * Time.deltaTime * 4f));
-                if (Time.time > wanderAt) { wanderAt = Time.time + Random.Range(3f, 7f); wanderGoal = home + Random.insideUnitSphere.Flat() * (isHero ? 1f : 2f); }
+                if (Time.time > wanderAt) { wanderAt = Time.time + Random.Range(3f, 7f); wanderGoal = home + Random.insideUnitSphere.Flat() * (isHero ? 0.8f : 0.25f); }
                 var to = wanderGoal - transform.position; to.y = 0f;
                 if (to.magnitude > 0.3f) { Face(to); Move(to.normalized, 0.5f); }
                 else Play("Idle");

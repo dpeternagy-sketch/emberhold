@@ -40,6 +40,12 @@ namespace Emberhold
             });
         }
 
+        /// <summary>Patrol drone from a Drone Pad: not trained, not in the camp; two per pad.</summary>
+        public static readonly UnitDef Patrol = new UnitDef {
+            id = "patrol", displayName = "Patrol Drone", model = "Models/Units/EyeDrone", space = 0,
+            hp = 50, damage = 4, interval = 0.8f, range = 3f, speed = 2f, height = 0.6f, flies = true, hitsAir = true
+        };
+
         static void Add(UnitDef d) { All[d.id] = d; Ordered.Add(d); }
         public static UnitDef Get(string id) { UnitDef d; return id != null && All.TryGetValue(id, out d) ? d : null; }
     }

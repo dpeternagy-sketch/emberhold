@@ -100,7 +100,7 @@ namespace Emberhold
             statusText.rectTransform.offsetMin = new Vector2(112, 0);
 
             var toast = UIKit.Rect("Toast", root);
-            UIKit.Anchor(toast, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -290), new Vector2(960, 96));
+            UIKit.Anchor(toast, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -400), new Vector2(960, 96));
             toastBg = UIKit.Pill("Bg", toast).rectTransform;
             UIKit.Anchor(toastBg, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(400, 96));
             toastText = UIKit.OutlinedLabel(toast, "", 34, TextAnchor.MiddleCenter);
@@ -801,6 +801,23 @@ namespace Emberhold
         {
             var seen = new HashSet<Building>();
             bool farZoom = rig.distance > 96f;   // only the widest zoom hides them
+            bool night = gm.Cycle != null && gm.Cycle.IsNight;   // at night the map shows the fight, not the to-do list
+            // green upgrade arrows: by day, with a free builder, on the 3 cheapest upgrades only (no clutter)
+            var arrows = new HashSet<Building>();
+            if (!night && gm.BuilderFree)
+            {
+                var cands = new List<Building>();
+                foreach (var b in Building.All)
+                {
+                    var d = b.Def;
+                    if (b.IsGhost || b.Ruined || b.UnderConstruction || b.Data.IsUpgrading || d.maxLevel <= 1 || b.Data.level >= d.maxLevel) continue;
+                    if (b != gm.Castle && b.Data.level >= gm.CastleLevel + 1) continue;
+                    if (!gm.State.CanAfford(b.UpgradeCost)) continue;
+                    cands.Add(b);
+                }
+                cands.Sort((a, c) => (a == gm.Castle ? -1000000 : CostWeight(a.UpgradeCost)).CompareTo(c == gm.Castle ? -1000000 : CostWeight(c.UpgradeCost)));
+                for (int i = 0; i < cands.Count && i < 3; i++) arrows.Add(cands[i]);
+            }
             foreach (var b in Building.All)
             {
                 if (b.IsGhost || b.Ruined || b.UnderConstruction || farZoom) continue;
@@ -811,8 +828,7 @@ namespace Emberhold
                 {
                     if (d.workers > 0 && b.AssignedWorkers < d.workers) status = "workers";
                     else if (b.Starved) status = "energy";
-                    else if (levelled && b.Data.level < d.maxLevel && (b == gm.Castle || b.Data.level < gm.CastleLevel + 1)
-                             && gm.State.CanAfford(b.UpgradeCost) && gm.BuilderFree) status = "upgrade";
+                    else if (arrows.Contains(b)) status = "upgrade";
                 }
                 if (!levelled && status == null) continue;
                 seen.Add(b);
@@ -821,7 +837,7 @@ namespace Emberhold
 
                 bool selected = b == input.Selected;
                 // level badge at the front corner of the footprint
-                mb.level.gameObject.SetActive(levelled && !selected);
+                mb.level.gameObject.SetActive(levelled && !selected && !night);
                 if (levelled)
                 {
                     SetIfChanged(mb.levelText, b.Data.level.ToString());
@@ -846,6 +862,8 @@ namespace Emberhold
             foreach (var kv in mapBadges) if (kv.Key == null || !seen.Contains(kv.Key)) gone.Add(kv.Key);
             foreach (var b in gone) { var mb = mapBadges[b]; if (mb.root != null) Destroy(mb.root.gameObject); mapBadges.Remove(b); }
         }
+
+        static int CostWeight(Cost c) { return c.steel + c.energy + c.coins + c.food; }
 
         MapBadge NewMapBadge(Building b)
         {

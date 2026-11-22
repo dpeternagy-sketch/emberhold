@@ -164,6 +164,37 @@ namespace Emberhold
                     LaserHead(t, y);
                     return true;
                 }
+                case "dronepad":
+                {
+                    var pad = ModelLibrary.Spawn("Models/Base/landingpad_small", t, 1.9f, 1.9f, 0.4f);
+                    if (pad == null) return false;
+                    float y = Top(pad, t);
+                    var mast = ModelLibrary.Spawn("Models/Space/machine_wireless", t, 0.5f, 0.5f, 1.0f);
+                    if (mast != null) mast.localPosition = new Vector3(0.7f, y, 0.7f);
+                    Glowing(Cyl(t, new Vector3(0, y + 0.02f, 0), 0.55f, 0.02f, new Color(0.3f, 0.85f, 1f)), new Color(0.3f, 0.85f, 1f), 1.5f);
+                    return true;
+                }
+                case "powerplant":
+                {
+                    var pad = ModelLibrary.Spawn("Models/Base/structure_low", t, 1.9f, 1.9f, 0.5f);
+                    float y = pad != null ? Top(pad, t) : 0f;
+                    var gen = ModelLibrary.Spawn("Models/Space/machine_generatorLarge", t, 1.5f, 1.5f, 1.6f);
+                    if (gen == null) return false;
+                    gen.localPosition = new Vector3(0, y, 0);
+                    Glowing(Ball(t, new Vector3(0.75f, y + 0.4f, -0.75f), Vector3.one * 0.18f, new Color(1f, 0.85f, 0.3f)), new Color(1f, 0.85f, 0.3f), 2.5f);
+                    return true;
+                }
+                case "factory":
+                {
+                    var f = ModelLibrary.Spawn("Models/Industrial/building-c", t, 2.6f, 2.6f, 2.2f);
+                    if (f == null) return false;
+                    float top = Top(f, t);
+                    var ch = ModelLibrary.Spawn("Models/Industrial/chimney-large", t, 0.7f, 0.7f, 2.4f);
+                    if (ch != null) ch.localPosition = new Vector3(1.0f, 0, 1.0f);
+                    var tank = ModelLibrary.Spawn("Models/Industrial/detail-tank", t, 0.7f, 0.7f, 1.0f);
+                    if (tank != null) tank.localPosition = new Vector3(-1.05f, 0, -1.05f);
+                    return true;
+                }
                 case "barracks":
                 {
                     var pad = ModelLibrary.Spawn("Models/Base/landingpad_large", t, 2.9f, 2.9f, 0.35f);
