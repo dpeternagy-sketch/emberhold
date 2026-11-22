@@ -958,7 +958,7 @@ namespace Emberhold
             var safe = Screen.safeArea;
             float k = canvas.scaleFactor;
             float minX = safe.xMin / k + width * 0.5f + 16f, maxX = safe.xMax / k - width * 0.5f - 16f;
-            float minY = safe.yMin / k + height * 0.5f + 16f, maxY = safe.yMax / k - 330f;   // under the resource bar and Commander row
+            float minY = safe.yMin / k + height * 0.5f + 16f, maxY = safe.yMax / k - 440f;   // under the resource bar and Commander row
             var p = ui.anchoredPosition;
             p.x = minX > maxX ? (minX + maxX) * 0.5f : Mathf.Clamp(p.x, minX, maxX);
             p.y = Mathf.Clamp(p.y, minY, Mathf.Max(minY, maxY));
