@@ -173,7 +173,7 @@ namespace Emberhold
             menuPanel = UIKit.PanelBox("Menu", root).rectTransform;
             UIKit.Anchor(menuPanel, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-20, -170), new Vector2(460, 680));
             Header(menuPanel);
-            var title = UIKit.OutlinedLabel(menuPanel, "Emberhold", 40, TextAnchor.UpperCenter);
+            var title = UIKit.OutlinedLabel(menuPanel, "Mega Fort", 40, TextAnchor.UpperCenter);
             title.rectTransform.offsetMax = new Vector2(-8, -32);
             Button reset = null;
             float resetArmedUntil = -1f;
