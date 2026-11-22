@@ -31,6 +31,7 @@ namespace Emberhold
 
         public static GameObject Create(BuildingDef def, Transform parent)
         {
+            if (SpriteBuilding.Has(def.id)) return SpriteBuilding.Create(def, parent);
             var prefab = Resources.Load<GameObject>(def.PrefabPath);
             if (prefab != null)
             {

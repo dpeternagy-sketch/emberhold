@@ -11,7 +11,8 @@ namespace Emberhold
         // undistorted. Upright screen, so the mountain sits at the top and the shore at the bottom.
         public float distance = 78f;
         const float MinDistance = 42f, MaxDistance = 105f;   // 2.5x pinch range
-        const float Pitch = 50f, Yaw = 0f;
+        // Locked to the angle of the building images (45 degrees round, ~31 degrees down), like CoC.
+        const float Pitch = 31f, Yaw = 45f;
 
         public void Init(Camera cam)
         {

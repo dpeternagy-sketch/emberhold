@@ -133,6 +133,7 @@ namespace Emberhold
             RenderSettings.fogColor = Color.Lerp(dayFog, nightFog, dark);
             RenderSettings.fogDensity = Mathf.Lerp(0.006f, 0.009f, dark);
             PostFX.SetNight(dark);
+            SpriteBuilding.SetLighting(dark);
             if (cam != null)
             {
                 cam.clearFlags = CameraClearFlags.SolidColor;

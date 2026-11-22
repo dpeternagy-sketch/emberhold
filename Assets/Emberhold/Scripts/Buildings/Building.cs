@@ -182,7 +182,8 @@ namespace Emberhold
             b.IsGhost = ghost;
             if (data.hp <= 0 && !data.ruined) data.hp = b.MaxHp;
             b.model = BuildingVisuals.Create(def, go.transform).transform;
-            b.renderers = go.GetComponentsInChildren<Renderer>();
+            b.sprite = b.model.GetComponent<SpriteBuilding>();
+            b.renderers = System.Array.FindAll(go.GetComponentsInChildren<Renderer>(), r => r.name != SpriteBuilding.QuadName);
             b.turret = b.model.Find("Turret");
             b.ApplyTransform();
             if (!ghost)
@@ -204,8 +205,11 @@ namespace Emberhold
             model.localRotation = Quaternion.Euler(0, Data.rotation * 90f, 0);
         }
 
+        SpriteBuilding sprite;
+
         public void SetTint(Color? tint)
         {
+            if (sprite != null) sprite.SetTint(tint);
             if (originalMaterials == null)
             {
                 originalMaterials = new Material[renderers.Length][];

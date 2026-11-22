@@ -136,7 +136,7 @@ namespace Emberhold
             });
             Add(new BuildingDef {
                 id = "well", displayName = "Water Pump", category = BuildingCategory.Economy,
-                width = 1, depth = 1, height = 1.2f, color = new Color(0.55f, 0.6f, 0.68f),
+                width = 2, depth = 2, height = 1.2f, color = new Color(0.55f, 0.6f, 0.68f),
                 cost = new Cost(steel: 10, coins: 5), maxHp = 120, workers = 1,
                 produces = ResourceType.Water, produceAmount = 3, produceInterval = 12f, recipe = "Pumps water, fills canals"
             });
@@ -153,8 +153,8 @@ namespace Emberhold
                 produces = ResourceType.Energy, produceAmount = 3, produceInterval = 8f, recipe = "Makes energy by day"
             });
             Add(new BuildingDef {
-                id = "mine", displayName = "Steel Drill", category = BuildingCategory.Economy,
-                width = 2, depth = 2, height = 1.6f, color = new Color(0.4f, 0.37f, 0.35f),
+                id = "mine", displayName = "Steel Works", category = BuildingCategory.Economy,
+                width = 3, depth = 3, height = 1.6f, color = new Color(0.4f, 0.37f, 0.35f),
                 cost = new Cost(steel: 25, coins: 10), maxHp = 200, workers = 2, nearMountain = true,
                 produces = ResourceType.Steel, produceAmount = 4, produceInterval = 9f,
                 consumeEnergy = 1, recipe = "Energy -> Steel (build at the mountain)"

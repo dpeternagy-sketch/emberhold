@@ -17,7 +17,7 @@ namespace Emberhold
         {
             Texture2D tex;
             if (cache.TryGetValue(def.id, out tex) && tex != null) return tex;
-            tex = Render(def);
+            tex = SpriteBuilding.Thumbnail(def.id) ?? Render(def);
             cache[def.id] = tex;
             return tex;
         }
