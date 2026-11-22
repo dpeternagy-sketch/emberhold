@@ -27,7 +27,7 @@ namespace Emberhold
         public static readonly Color Accent = new Color(1f, 0.82f, 0.3f, 1f);
         /// <summary>Deep navy used for panels and pills (multiplied onto Kenney's light grey shapes).</summary>
         public static readonly Color PanelTint = new Color(0.22f, 0.27f, 0.4f, 1f);
-        public static readonly Color PillTint = new Color(0.1f, 0.12f, 0.2f, 0.84f);   // QC run 26: buildings showed through the HUD pills
+        public static readonly Color PillTint = new Color(0.1f, 0.12f, 0.2f, 0.96f);   // QC runs 26-27: buildings showed through the HUD pills
 
         // ---------- Kenney UI Pack (CC0) skin ----------
         // Shapes live in Resources/UI/{blue,green,red,yellow,grey}/ and are imported as 9-sliced sprites.

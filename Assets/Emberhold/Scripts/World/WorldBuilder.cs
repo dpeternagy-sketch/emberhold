@@ -263,7 +263,9 @@ namespace Emberhold
                     // river bed and muddy banks
                     float rvm = River.Mask(wx, z);
                     // a soft, light muddy edge that fades into the grass (QC run 26: a dark brown smear on the bank)
-                    if (rvm > 0f) c = Color.Lerp(c, new Color(0.47f, 0.44f, 0.3f), Mathf.SmoothStep(0f, 0.8f, Mathf.Clamp01(rvm * 1.4f)));
+                    // no mud above the spot where the water starts (QC run 27: a brown triangle between the painted pool and the river)
+                    float mudK = Mathf.Clamp01((River.StartZ - 1.5f - z) / 1.5f);
+                    if (rvm > 0f) c = Color.Lerp(c, new Color(0.47f, 0.44f, 0.3f), Mathf.SmoothStep(0f, 0.8f, Mathf.Clamp01(rvm * 1.4f)) * mudK);
                     cKeep = Mathf.Max(cKeep, Mathf.Clamp01(rvm * 1.6f));
                     // beach
                     float beach = Smooth(GridMap.SeaZ + 3f, GridMap.SeaZ + 0.5f, z);

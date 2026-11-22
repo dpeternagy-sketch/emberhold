@@ -482,6 +482,7 @@ namespace Emberhold
             // a building's painted plate (rim, lamps, rocks) is a bit wider than its cells: shrink it so neighbours
             // never overlap (QC run 26: houses and the turret ran into each other). The gate must fill its wall gap.
             if (def.id != "gate") diamond *= 0.9f;
+            else diamond *= 1.08f;   // QC run 27: a sliver of ground showed between the gate and the next wall piece
             var ground = transform.parent.position;
 
             // weapons turn to their target. Until a turret has head pictures, the whole picture (drawn aiming left)
