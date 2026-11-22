@@ -23,6 +23,8 @@ namespace Emberhold
             return new Cost(Mathf.CeilToInt(steel * factor), Mathf.CeilToInt(energy * factor), Mathf.CeilToInt(coins * factor), Mathf.CeilToInt(food * factor));
         }
 
+        public static Cost operator +(Cost a, Cost b) { return new Cost(a.steel + b.steel, a.energy + b.energy, a.coins + b.coins, a.food + b.food); }
+
         public bool IsFree { get { return steel + energy + coins + food == 0; } }
 
         public override string ToString()
@@ -97,7 +99,7 @@ namespace Emberhold
         /// <summary>Optional prefab at Resources/Models/{id}. If missing, a placeholder is generated.</summary>
         public string PrefabPath { get { return "Models/" + id; } }
 
-        public bool Movable { get { return category != BuildingCategory.Core && id != "wallgun"; } }
+        public bool Movable { get { return category != BuildingCategory.Core && id != "wallgun" && id != "wall" && id != "gate"; } }
 
         /// <summary>Enemies walk through it (slowly) instead of attacking it, e.g. canals.</summary>
         public bool passable;

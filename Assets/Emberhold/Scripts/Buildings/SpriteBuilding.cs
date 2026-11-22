@@ -18,7 +18,7 @@ namespace Emberhold
         public const string QuadName = "IsoSprite";
         static readonly int[] Tiers = { 1, 3, 5 };
 
-        class Art { public Texture2D tex, emis; public float cx, cy, plate; }
+        class Art { public Texture2D tex, emis; public float cx, cy, plate, mountX, mountY; }
         static readonly Dictionary<string, Art> cache = new Dictionary<string, Art>();
         static Shader shader;
 
@@ -48,6 +48,11 @@ namespace Emberhold
                     cy = float.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture),
                     plate = float.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture),
                 };
+                if (p.Length >= 5)   // a turret base: where its head sits
+                {
+                    a.mountX = float.Parse(p[3], System.Globalization.CultureInfo.InvariantCulture);
+                    a.mountY = float.Parse(p[4], System.Globalization.CultureInfo.InvariantCulture);
+                }
             }
             cache[key] = a;
             return a;
@@ -223,26 +228,108 @@ namespace Emberhold
             return Load(k) != null ? k : null;
         }
 
-        /// <summary>
-        /// Where the level badge goes: on the picture's own plate, halfway along its front-left edge (left on screen),
-        /// a little inside. Taken from the drawn card, so it follows the art and not the footprint.
-        /// </summary>
-        public bool BadgeAnchor(out Vector3 world)
+        // ---------- aiming (turrets and wall guns) ----------
+        // Head pictures: {id}_head_t{tier}_d0..d8 face 6:00, 5:15, 4:30 ... 12:00 on screen (16 directions with the
+        // mirrors), or d0..d4 face S, SE, E, NE, N (8 directions with the mirrors). The left half is always mirrored.
+        // Each head's sidecar is "pivot x, pivot y, width": the pivot (mount ring centre) lands on the base's
+        // mount point (the base sidecar's 4th and 5th numbers), and width is its size against the base picture.
+        bool aimRight;          // the target is right of the turret on screen (fallback: mirror the picture)
+        float aimAngle = 200f;  // screen angle to the target: 0 = right, 90 = up (the pictures aim a bit left of down-left)
+        Transform head, flash;
+        Material headMat, flashMat;
+        string headKey;
+        /// <summary>World point where shots leave the barrel (null until the turret is drawn).</summary>
+        public Vector3? Muzzle { get; private set; }
+
+        void AimScreen(Vector3 target, Vector3 ground, Camera cam)
         {
-            world = Vector3.zero;
-            if (wall || quad == null || art == null || !quad.gameObject.activeInHierarchy) return false;
-            bool mirrored = quad.localScale.x < 0f;
-            // a gate picture is one wall run (lower-left to upper-right): the badge sits on the run's lower end
-            bool run = def.id == "gate";
-            float px = art.cx + (mirrored ? 1f : -1f) * art.plate * (run ? 0.28f : 0.22f);
-            float py = art.cy + art.plate * (run ? 0.14f : 0.10f);
-            world = quad.TransformPoint(new Vector3(px / art.tex.width - 0.5f, 0.5f - py / art.tex.height, 0f));
-            return true;
+            var a = cam.WorldToScreenPoint(ground);
+            var b = cam.WorldToScreenPoint(target);
+            var d = new Vector2(b.x - a.x, b.y - a.y);
+            if (d.sqrMagnitude < 4f) return;
+            if (Mathf.Abs(d.x) > 6f) aimRight = d.x > 0f;
+            aimAngle = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+        }
+
+        /// <summary>Which head frame shows the aim angle, and whether it is mirrored (targets on the left).</summary>
+        void HeadFrame(int frames, out int frame, out bool mirror)
+        {
+            float a = Mathf.Repeat(aimAngle + 180f, 360f) - 180f;   // -180..180
+            mirror = Mathf.Abs(a) > 90f;
+            if (mirror) a = Mathf.Sign(a) * 180f - a;                // fold the left half onto the right
+            float step = 180f / (frames - 1);
+            frame = Mathf.Clamp(Mathf.RoundToInt((a + 90f) / step), 0, frames - 1);
+        }
+
+        void Heads(int tier, Vector3 ground, float diamond, float baseW, Quaternion rot, Vector3 recoil)
+        {
+            if (head == null) head = NewQuad(transform.parent, out headMat);
+            int frames = Load(def.id + "_head_t" + tier + "_d8") != null ? 9 : 5;
+            int frame; bool mirror;
+            HeadFrame(frames, out frame, out mirror);
+            string key = def.id + "_head_t" + tier + "_d" + frame;
+            var h = Load(key);
+            head.gameObject.SetActive(h != null);
+            if (h == null) return;
+            if (key != headKey) { headKey = key; Show(headMat, h); }
+            // mount point on the base picture (sidecar numbers 4 and 5), as a world point on the base card
+            float mx = art.mountX > 0f ? art.mountX : art.cx, my = art.mountY > 0f ? art.mountY : art.cy - art.plate * 0.35f;
+            var mount = quad.TransformPoint(new Vector3(mx / art.tex.width - 0.5f, 0.5f - my / art.tex.height, 0f));
+            float hw = baseW * h.plate / art.tex.width;              // head width in world units
+            float hx = (h.cx / h.tex.width - 0.5f) * hw * (mirror ? -1f : 1f), hy = (0.5f - h.cy / h.tex.height) * hw;
+            head.rotation = rot;
+            head.localScale = new Vector3(mirror ? -hw : hw, hw, 1f);
+            // a hair towards the camera so the head always draws over its own base
+            head.position = mount - (rot * Vector3.right) * hx - (rot * Vector3.up) * hy + recoil - (rot * Vector3.forward) * 0.05f;
+            headMat.SetVector("_Center", ground);
+            headMat.SetVector("_Normal", mat.GetVector("_Normal"));
+            Finish(headMat);
+        }
+
+        void MuzzleFlash(bool split, float w, Quaternion rot, float kick)
+        {
+            // barrel tip on the picture (fraction of the image, picture aiming left) for the single-picture turrets
+            Vector2 tip = def.id == "cannon" ? new Vector2(0.17f, 0.33f) : def.id == "ballista" ? new Vector2(0.10f, 0.45f) : new Vector2(0.11f, 0.40f);
+            Vector3 at;
+            if (split && head != null && head.gameObject.activeSelf)
+            {
+                float ang = aimAngle * Mathf.Deg2Rad;
+                at = head.position + (rot * new Vector3(Mathf.Cos(ang), Mathf.Sin(ang) * 0.6f, 0f)) * Mathf.Abs(head.localScale.x) * 0.42f;
+            }
+            else at = quad.TransformPoint(new Vector3(tip.x - 0.5f, 0.5f - tip.y, 0f));
+            Muzzle = at;
+            bool on = kick > 0.5f;
+            if (flash == null && !on) return;
+            if (flash == null)
+            {
+                var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                go.name = "MuzzleFlash";
+                var col = go.GetComponent<Collider>(); if (col != null) Destroy(col);
+                go.transform.SetParent(transform.parent, false);
+                var r = go.GetComponent<MeshRenderer>();
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+                flashMat = DamageEffects.ParticleMaterial(true);
+                var c = def.id == "ballista" ? new Color(0.45f, 0.75f, 1f) : def.id == "cannon" ? new Color(1f, 0.85f, 0.6f) : new Color(1f, 0.95f, 0.7f);
+                if (flashMat.HasProperty("_BaseColor")) flashMat.SetColor("_BaseColor", c);
+                if (flashMat.HasProperty("_Color")) flashMat.SetColor("_Color", c);
+                r.sharedMaterial = flashMat;
+                flash = go.transform;
+            }
+            flash.gameObject.SetActive(on);
+            if (!on) return;
+            float size = (def.id == "wallgun" ? 0.45f : 0.8f) * (0.7f + 0.6f * kick);
+            flash.rotation = rot;
+            flash.localScale = new Vector3(size, size, 1f);
+            flash.position = at - (rot * Vector3.forward) * 0.3f;
         }
 
         void OnDestroy()
         {
             if (quad != null) Destroy(quad.gameObject);
+            if (head != null) Destroy(head.gameObject);
+            if (headMat != null) Destroy(headMat);
+            if (flash != null) Destroy(flash.gameObject);
+            if (flashMat != null) Destroy(flashMat);
             if (mat != null) Destroy(mat);
             if (segX != null) Destroy(segX.gameObject);
             if (segZ != null) Destroy(segZ.gameObject);
@@ -254,7 +341,7 @@ namespace Emberhold
         // A wall cell shows a seamless straight segment (one cell long, no end caps: Tools/wall_strip.py) to each neighbour wall or gate on +x / +z,
         // and towards a gate on -x / -z (gates don't draw segments). Corners, ends and junctions also get a post.
         // The segment image runs along +x (lower-left to upper-right on screen); +z segments are its mirror.
-        // Walls have no upgrades of their own: their look follows the HQ level (HQ 1-2, 3-4, 5+).
+        // A wall's look follows its side's level (1-2, 3-4, 5).
         const float PostDiamond = 0.36f;           // post footprint width across the screen, world units
         const float SegDiamond = 0.70710678f;      // one cell along an axis, seen from 45 degrees
         bool wall, gun;
@@ -262,11 +349,9 @@ namespace Emberhold
         const float GunDiamond = 1.0f;   // a wall gun: the gun turret image shrunk onto one wall cell
         Material matX, matZ;
 
-        static int WallTier()
+        static int WallTier(int level)
         {
-            var gm = GameManager.Instance;
-            int hq = gm != null ? gm.CastleLevel : 1;
-            int t = Tiers[Mathf.Clamp((hq - 1) / 2, 0, 2)];
+            int t = Tiers[Mathf.Clamp((level - 1) / 2, 0, 2)];
             while (t > 1 && Load("wallseg_t" + t) == null) t -= 2;
             return t;
         }
@@ -283,7 +368,7 @@ namespace Emberhold
         {
             if (building == null) building = GetComponentInParent<Building>();
             if (building == null || building.Data == null) return;
-            int t = WallTier();
+            int t = WallTier(Mathf.Max(1, building.Data.level));   // each wall side has its own level
             var c = new Vector2Int(building.Data.x, building.Data.z);
             int l = WallAt(c + Vector2Int.left), r = WallAt(c + Vector2Int.right);
             int d = WallAt(c + Vector2Int.down), u = WallAt(c + Vector2Int.up);
@@ -309,7 +394,13 @@ namespace Emberhold
                 quad.gameObject.SetActive(g != null);
                 if (g == null) return;
                 if (key != shownKey) { shownKey = key; Show(mat, g); }
-                Place(quad, mat, g, ground, GunDiamond, false, shake);
+                // a wall gun turns to its target too (mirrors the left-aiming picture) and flashes when it fires
+                var wcam = Camera.main;
+                if (building.AimAt.HasValue && !building.Ruined) AimScreen(building.AimAt.Value, ground, wcam);
+                float wkick = Mathf.Clamp01(1f - (Time.time - building.LastShotTime) / 0.14f);
+                var wrot = wcam.transform.rotation;
+                Place(quad, mat, g, ground, GunDiamond, aimRight, shake + (wrot * Vector3.right) * ((aimRight ? -1f : 1f) * 0.04f * wkick));
+                MuzzleFlash(false, 0f, wrot, building.Ruined ? 0f : wkick);
                 Finish(mat);
                 if (building.Ruined) { mat.SetFloat("_Shade", 0.42f); mat.SetColor("_Overlay", new Color(0.2f, 0.17f, 0.15f, 0.35f)); }
                 return;
@@ -352,7 +443,11 @@ namespace Emberhold
             if (wall) { WallUpdate(); return; }
             if (building == null) building = GetComponentInParent<Building>();
             int level = building != null && building.Data != null ? building.Data.level : 1;
-            string key = def.id + "_t" + TierFor(def, level);
+            int tier = TierFor(def, level);
+            string key = def.id + "_t" + tier;
+            // rotating turrets: a fixed base picture plus a head picture per direction (see Heads)
+            bool split = Load(def.id + "_base_t" + tier) != null && Load(def.id + "_head_t" + tier + "_d0") != null;
+            if (split) key = def.id + "_base_t" + tier;
             bool ruinArt = false;
             if (building != null && building.Ruined)
             {
@@ -382,14 +477,26 @@ namespace Emberhold
             }
             var size = GridMap.Size(def, rotation);
             float diamond = Mathf.Max(size.x, size.y) * 1.41421356f;     // footprint diagonal as seen from 45 degrees
+            var ground = transform.parent.position;
+
+            // weapons turn to their target. Until a turret has head pictures, the whole picture (drawn aiming left)
+            // mirrors to face the side its target is on; it keeps the last side when nothing is in range.
+            bool weapon = def.attackRange > 0f && building != null && !building.IsGhost && !building.Ruined;
+            if (weapon && building.AimAt.HasValue) AimScreen(building.AimAt.Value, ground, cam);
+            if (weapon && !split) flip ^= aimRight;
+            float kick = weapon ? Mathf.Clamp01(1f - (Time.time - building.LastShotTime) / 0.14f) : 0f;
+            var recoil = (rot * Vector3.right) * ((aimRight ? -1f : 1f) * 0.07f * kick);
+
             float w = diamond * art.tex.width / art.plate;
             float ox = (art.cx / art.tex.width - 0.5f) * w * (flip ? -1f : 1f);
             float oy = (0.5f - art.cy / art.tex.height) * w;
 
-            var ground = transform.parent.position;
             quad.rotation = rot;
             quad.localScale = new Vector3(flip ? -w : w, w, 1f);
-            quad.position = ground - (rot * Vector3.right) * ox - (rot * Vector3.up) * oy + transform.localPosition;
+            quad.position = ground - (rot * Vector3.right) * ox - (rot * Vector3.up) * oy + transform.localPosition + (split ? Vector3.zero : recoil);
+            if (split) Heads(tier, ground, diamond, w, rot, recoil);
+            else if (head != null) head.gameObject.SetActive(false);
+            if (weapon) MuzzleFlash(split, w, rot, kick);
 
             bool ruined = building != null && building.Ruined;
             bool building_ = building != null && building.UnderConstruction && !building.IsGhost;

@@ -36,7 +36,10 @@ namespace Emberhold
             hud = FindAnyObjectByType<HUD>();
             System.IO.Directory.CreateDirectory(Dir + "/frames");
             foreach (var f in System.IO.Directory.GetFiles(Dir + "/frames")) System.IO.File.Delete(f);
-            yield return null;
+            yield return null; yield return null;
+            yield return new WaitForSeconds(0.5f);
+            yield return Shot("00_title");                  // the title screen Peter sees at launch
+            TitleScreen.HideNow();
             Stage();
             yield return new WaitForSeconds(2.5f);   // let models, workers and badges settle
             for (float w = 0f; w < 8f && Building.All.Exists(x => x.UnderConstruction); w += Time.deltaTime) yield return null;   // every building finished rising
@@ -150,18 +153,12 @@ namespace Emberhold
             Place("watchtower", c + new Vector3(-6, 0, -18)); Place("watchtower", c + new Vector3(8, 0, -18));
             Place("ballista", c + new Vector3(-13, 0, -5)); Place("cannon", c + new Vector3(1, 0, -19));
             Place("trap", c + new Vector3(-16, 0, -12));
-            // a wall arc with a gate across the west approach
-            var wall = BuildingCatalog.Get("wall"); var gate = BuildingCatalog.Get("gate");
-            int wx = Mathf.FloorToInt(c.x) - 17;
-            for (int z = Mathf.FloorToInt(c.z) - 18; z <= GridMap.MountainZ - 2; z++)   // right up to the mountain foot
-            {
-                Clear(wx, z, 1, 1);
-                bool isGate = z == Mathf.FloorToInt(c.z) - 9;
-                if (isGate) gateCell = new Vector3(wx, 0f, z);
-                if (!gm.CanPlace(isGate ? gate : wall, wx, z, 0)) { Debug.Log("[Preview] wall skipped at z " + z); continue; }   // no "Can't build there" toast in the stills
-                gm.PlaceNew(isGate ? gate : wall, wx, z, 0);
-            }
-            gm.RefreshWallJoins();
+            // Peter's wall loop: all 4 sides bought (each with its gate and two guns)
+            gm.EnsureWallState();
+            for (int i = 0; i < 4; i++) gm.State.wallSides[i] = 1;
+            gm.RebuildWalls(true);
+            var westGate = gm.GateOf(GameManager.WallSide.West);
+            if (westGate != null) gateCell = new Vector3(westGate.Data.x, 0f, westGate.Data.z);
             // army district in front of the HQ: camp, barracks, command center, robot factory
             Place("camp", c + new Vector3(-2, 0, -8));
             Place("barracks", c + new Vector3(-6, 0, -13));
@@ -174,66 +171,31 @@ namespace Emberhold
 
         Vector3 gateCell;
 
-        /// <summary>QC wall check: a closed loop (straight runs, four L corners) with a gate on an x side and a
-        /// z side, shot at wall tiers 1, 3 and 5 (walls follow the HQ level, gates their own level).</summary>
+        /// <summary>QC wall check (Peter: straight, never hidden): the loop's front corner, where the West and South
+        /// sides meet and run away in two straight lines, and the West gate up close, at wall levels 1, 3 and 5;
+        /// then the Walls panel.</summary>
         IEnumerator WallYard()
         {
-            var wall = BuildingCatalog.Get("wall"); var gate = BuildingCatalog.Get("gate");
-            // find an open 8 x 7 spot inside the buildable area (trees may be cleared), nearest the city first
-            // QC: no building inside or within 2 cells of the loop (a turret plate once overlapped a gate end);
-            // if the map has no such room, fall back to a loop that only needs its own cells free
-            int x0 = 0, z0 = 0, best = int.MaxValue;
-            for (int pass = 0; pass < 2 && best == int.MaxValue; pass++)
-                for (int cx = -20; cx <= 13; cx++)
-                    for (int cz = -18; cz <= 8; cz++)
-                    {
-                        int score = Mathf.Abs(cx + 4) + Mathf.Abs(cz - 2);
-                        if (score >= best) continue;
-                        bool ok = true;
-                        for (int x = cx; x <= cx + 7 && ok; x++)
-                            for (int z = cz; z <= cz + 6 && ok; z++)
-                            {
-                                if (x != cx && x != cx + 7 && z != cz && z != cz + 6) continue;
-                                var cell = new Vector2Int(x, z);
-                                ok = gm.Grid.At(cell) is TreeNode || gm.CanPlace(wall, x, z, 0);
-                            }
-                        if (pass == 0)
-                            for (int x = cx - 2; x <= cx + 9 && ok; x++)
-                                for (int z = cz - 2; z <= cz + 8 && ok; z++)
-                                    ok = !(gm.Grid.At(new Vector2Int(x, z)) is Building);
-                        if (ok) { best = score; x0 = cx; z0 = cz; }
-                    }
-            if (best == int.MaxValue) { Debug.Log("[Preview] no room for the wall yard"); yield break; }
-            int x1 = x0 + 7, z1 = z0 + 6;
-            Debug.Log("[Preview] wall yard at " + x0 + "," + z0);
-            var gates = new List<Building>();
-            for (int x = x0; x <= x1; x++)
-                for (int z = z0; z <= z1; z++)
-                {
-                    if (x != x0 && x != x1 && z != z0 && z != z1) continue;
-                    bool isGate = (z == z0 && x == x0 + 3) || (x == x1 && z == z0 + 3);
-                    var def = isGate ? gate : wall;
-                    Clear(x, z, 1, 1);
-                    if (!gm.CanPlace(def, x, z, 0)) { Debug.Log("[Preview] yard skipped " + x + "," + z); continue; }
-                    var b = gm.PlaceNew(def, x, z, 0);
-                    if (isGate && b != null) gates.Add(b);
-                }
-            gm.RefreshWallJoins();
-            for (float w = 0f; w < 8f && Building.All.Exists(x => x.UnderConstruction); w += Time.deltaTime) yield return null;
-            int hq = gm.Castle.Data.level;
-            var focus = new Vector3((x0 + x1 + 1) * 0.5f, 0f, (z0 + z1 + 1) * 0.5f);
+            var bounds = GameManager.WallBounds(gm.CastleLevel);
+            var corner = new Vector3(bounds.xMin + 0.5f, 0f, bounds.yMin + 0.5f);
+            var gate = gm.GateOf(GameManager.WallSide.West);
             foreach (int lv in new[] { 1, 3, 5 })
             {
-                gm.Castle.Data.level = lv;
-                foreach (var g in gates) g.Data.level = lv;
-                View(focus + new Vector3(-1.5f, 0f, -2f), 26f);   // close: the x-side gate and two L corners
+                for (int i = 0; i < 4; i++) gm.State.wallSides[i] = lv;
+                gm.RebuildWalls(false);
+                for (float w = 0f; w < 8f && Building.All.Exists(x => x.UnderConstruction); w += Time.deltaTime) yield return null;
+                View(corner + new Vector3(5f, 0f, 5f), 62f);
                 yield return new WaitForSeconds(0.6f);
-                yield return Shot("14_wall_yard_t" + lv);
-                View(focus, 50f);                                    // whole closed loop: both gates, all 4 corners
-                yield return new WaitForSeconds(0.4f);
-                yield return Shot("15_wall_loop_t" + lv);
+                yield return Shot("14_wall_corner_t" + lv);
+                gate = gm.GateOf(GameManager.WallSide.West);
+                if (gate != null) { View(gate.Center + new Vector3(1.5f, 0f, 0f), 30f); yield return new WaitForSeconds(0.5f); yield return Shot("15_wall_gate_t" + lv); }
             }
-            gm.Castle.Data.level = hq;
+            for (int i = 0; i < 4; i++) gm.State.wallSides[i] = 2;
+            gm.State.wallSides[0] = 0;   // one side still to buy, so the panel shows Build too
+            gm.RebuildWalls(false);
+            View(new Vector3(0f, 0f, 6f), 62f);
+            hud.PreviewOpenWalls(3); yield return new WaitForSeconds(0.6f); yield return Shot("17_wall_panel");
+            hud.PreviewCloseWalls();
         }
         public static bool WithDinos = false;
 

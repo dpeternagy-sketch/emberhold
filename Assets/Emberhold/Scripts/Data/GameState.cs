@@ -25,6 +25,8 @@ namespace Emberhold
         public float dayTimeLeft = 150f;
         public long lastSavedUtcTicks;
         public List<BuildingData> buildings = new List<BuildingData>();
+        /// <summary>The wall loop: level of the North, East, South and West side (0 = not built yet).</summary>
+        public int[] wallSides = new int[4];
 
         public int Get(ResourceType t)
         {

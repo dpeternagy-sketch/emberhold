@@ -98,6 +98,9 @@ namespace Emberhold
         /// <summary>Price to go from this level to the next one.</summary>
         public Cost UpgradeCostAt(int level)
         {
+            // a wall side's upgrade rides on its gate: the whole side's price (Peter: walls are a big, slow investment)
+            var gm = GameManager.Instance;
+            if (Def.id == "gate" && gm != null && gm.WallSideOf(this) >= 0) return gm.WallUpgradeCostAt((GameManager.WallSide)gm.WallSideOf(this), level);
             var baseCost = Def.cost;
             if (Def.id == BuildingCatalog.Castle) baseCost = new Cost(steel: 80, energy: 20, coins: 40);
             var c = baseCost.Scaled(1.2f * level);
@@ -121,7 +124,7 @@ namespace Emberhold
             }
         }
 
-        public float UpgradeDuration { get { return Def.upgradeSeconds * Data.level * Data.level; } }
+        public float UpgradeDuration { get { return Def.id == "gate" ? GameManager.WallUpgradeSeconds(Data.level) : Def.upgradeSeconds * Data.level * Data.level; } }
 
         public float UpgradeSecondsLeft
         {
@@ -134,6 +137,10 @@ namespace Emberhold
 
         Transform model;
         Transform turret;
+        SpriteBuilding spriteModel; bool spriteLooked;
+        /// <summary>Last target position (weapons turn to it) and when the last shot left (muzzle flash, recoil).</summary>
+        public Vector3? AimAt { get; private set; }
+        public float LastShotTime { get; private set; } = -10f;
         Transform damageFx;
         int damageFxLevel = -1;
         Transform upgradeScaffold;
@@ -426,6 +433,7 @@ namespace Emberhold
             {
                 attackTimer -= Time.deltaTime;
                 var aim = Enemy.NearestVisible(Center, AttackRange, Def.hitsAir);
+                if (aim != null) AimAt = aim.transform.position;   // the picture turns to it (kept when the target is gone)
                 if (aim != null && turret != null)
                 {
                     var d = aim.transform.position - turret.position; d.y = 0;
@@ -435,7 +443,10 @@ namespace Emberhold
                 if (attackTimer <= 0f && aim != null)
                 {
                     attackTimer = Def.attackInterval / (AssignedWorkers > 0 ? 1.25f : 1f);
-                    var from = turret != null ? turret.position + Vector3.up * 0.3f : Center + Vector3.up * Def.height;
+                    if (spriteModel == null && !spriteLooked) { spriteLooked = true; spriteModel = GetComponentInChildren<SpriteBuilding>(); }
+                    var from = turret != null ? turret.position + Vector3.up * 0.3f
+                             : spriteModel != null && spriteModel.Muzzle.HasValue ? spriteModel.Muzzle.Value : Center + Vector3.up * Def.height;
+                    LastShotTime = Time.time;
                     Projectile.Fire(from, aim, AttackDamage * Counter(Def.projectile, aim.kind), Def.projectile, Def.splashRadius);
                     if (Def.projectile == 2) AudioManager.PlayAt("cannon", from, 0.9f);
                     else if (Def.projectile == 1) AudioManager.PlayAt("ballista", from, 0.8f);

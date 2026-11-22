@@ -32,7 +32,10 @@ namespace Emberhold
         // Tapped building: name above it, round action buttons at the bottom (like CoC / Boom Beach)
         Text selTitle;
         RectTransform actionBar, actionBack, upgradeCostHolder, repairCostHolder;
-        Button infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn, trainBtn;
+        Button infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn, trainBtn, wallsBtn;
+        WallPanel wallPanel;
+        Transform titleRoot;
+        bool titleMade;
         ArmyUI armyUI;
         Text speedCaption, removeCaption;
         RectTransform infoPopup, upgradePopup;
@@ -157,6 +160,7 @@ namespace Emberhold
             ghostHint.horizontalOverflow = HorizontalWrapMode.Overflow;
 
             BuildSelectionUI(root, screenRoot);
+            titleRoot = screenRoot;
 
             // Settlers popup
             settlersPopup = UIKit.PanelBox("SettlersPopup", root).rectTransform;
@@ -241,9 +245,11 @@ namespace Emberhold
             foreach (var kv in cards) Destroy(kv.Key.gameObject);
             cards.Clear();
             costLabels.Clear();
+            if (category == BuildingCategory.Defense) WallsCard();
             foreach (var def in BuildingCatalog.InCategory(category))
             {
                 var d = def;
+                if (d.id == "wall" || d.id == "gate") continue;   // the wall is bought by side (Walls card)
                 bool locked = gm.CastleLevel < d.unlockLevel;
                 var card = UIKit.Button(buildRow, "", 30, () =>
                 {
@@ -301,6 +307,35 @@ namespace Emberhold
             buildPanel.gameObject.SetActive(true);
             input.Deselect();
         }
+
+        /// <summary>First card in Defenses: the wall loop (opens the Walls panel).</summary>
+        void WallsCard()
+        {
+            var wallDef = BuildingCatalog.Get("wall");
+            var card = UIKit.Button(buildRow, "", 30, () => { buildPanel.gameObject.SetActive(false); openCategory = null; wallPanel.Show(); });
+            var cimg = card.GetComponent<Image>();
+            var cardShape = UIKit.Shape("grey", "button_square_depth_flat");
+            if (cardShape != null) cimg.sprite = cardShape;
+            var le = card.gameObject.AddComponent<LayoutElement>();
+            le.preferredWidth = 230;
+            var pic = UIKit.Rect("Picture", card.transform);
+            pic.anchorMin = new Vector2(0, 1); pic.anchorMax = new Vector2(1, 1); pic.pivot = new Vector2(0.5f, 1);
+            pic.anchoredPosition = new Vector2(0, -12); pic.sizeDelta = new Vector2(-24, 140);
+            var raw = pic.gameObject.AddComponent<RawImage>();
+            raw.texture = Thumbnails.Get(wallDef);
+            raw.raycastTarget = false;
+            raw.uvRect = new Rect(0.07f, 0.12f, 0.86f, 0.62f);
+            var name = UIKit.Label(card.transform, "Walls", 26, TextAnchor.LowerCenter, new Color(0.13f, 0.16f, 0.26f));
+            name.rectTransform.offsetMin = new Vector2(4, 48);
+            int built = 0;
+            for (int i = 0; i < 4; i++) if (gm.WallLevel((GameManager.WallSide)i) > 0) built++;
+            var sub = UIKit.Label(card.transform, built + " / 4 sides", 22, TextAnchor.LowerCenter, new Color(0.2f, 0.24f, 0.36f));
+            sub.rectTransform.offsetMin = new Vector2(4, 12);
+            cards.Add(new KeyValuePair<Button, BuildingDef>(card, wallDef));
+        }
+
+        public void PreviewOpenWalls(int side) { wallPanel.Show(side); }
+        public void PreviewCloseWalls() { wallPanel.Close(); }
 
         // Every price on a card: an icon and the amount per resource. Amounts you can't pay turn red.
         readonly List<KeyValuePair<Text, KeyValuePair<ResourceType, int>>> costLabels = new List<KeyValuePair<Text, KeyValuePair<ResourceType, int>>>();
@@ -379,6 +414,7 @@ namespace Emberhold
 
         void Update()
         {
+            if (!titleMade && titleRoot != null) { titleMade = true; TitleScreen.Create(titleRoot); }
             if (gm == null || gm.State == null) return;
             var s = gm.State;
 
@@ -482,6 +518,10 @@ namespace Emberhold
             armyUI = gameObject.AddComponent<ArmyUI>();
             armyUI.Init(gm, input, rig, root);
             trainBtn = UIKit.IconButton(actionBar, "icon_army", "Train", 96, () => armyUI.ShowTrain(input.Selected), "green");
+            wallPanel = gameObject.AddComponent<WallPanel>();
+            wallPanel.Init(gm, root);
+            // a wall piece, gate or wall gun opens the Walls panel with its side picked (sides upgrade as a whole)
+            wallsBtn = UIKit.IconButton(actionBar, "icon_upgrade", "Walls", 96, () => { var b = input.Selected; wallPanel.Show(gm.WallSideOf(b)); }, "green");
 
             // cost chips under the Upgrade / Repair buttons
             upgradeCostHolder = CostHolder(upgradeBtn);
@@ -592,7 +632,9 @@ namespace Emberhold
 
             bool broken = sel.Ruined || (sel.Damaged && !sel.UnderConstruction);
             bool upgrading = sel.Data.IsUpgrading;
-            bool canLevel = !broken && !upgrading && sel.Data.level < sel.Def.maxLevel;
+            bool onWall = gm.WallSideOf(sel) >= 0 && (sel.Def.id == "wall" || sel.Def.id == "gate" || sel.Def.id == "wallgun");
+            bool canLevel = !broken && !upgrading && sel.Data.level < sel.Def.maxLevel && !onWall;
+            wallsBtn.gameObject.SetActive(onWall);
             infoBtn.gameObject.SetActive(!sel.Ruined);
             trainBtn.gameObject.SetActive(!sel.Ruined && !sel.UnderConstruction && sel.Def.trains != null);
             repairBtn.gameObject.SetActive(broken);
@@ -624,7 +666,7 @@ namespace Emberhold
         void LayoutActions()
         {
             var list = new List<RectTransform>();
-            foreach (var b in new[] { trainBtn, infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn })
+            foreach (var b in new[] { trainBtn, wallsBtn, infoBtn, upgradeBtn, repairBtn, speedBtn, rotateBtn, removeBtn })
                 if (b.gameObject.activeSelf) list.Add(b.GetComponent<RectTransform>());
             const float step = 140f;
             actionBack.anchorMin = actionBack.anchorMax = new Vector2(0.5f, 1f);
@@ -648,7 +690,7 @@ namespace Emberhold
             upgradePopup.gameObject.SetActive(false);
             infoPopupTitle.text = Title(b);
             infoPopupBody.text = InfoText(b);
-            infoUpgradeBtn.gameObject.SetActive(!b.Ruined && !b.Data.IsUpgrading && b.Data.level < b.Def.maxLevel);
+            infoUpgradeBtn.gameObject.SetActive(!b.Ruined && !b.Data.IsUpgrading && b.Data.level < b.Def.maxLevel && gm.WallSideOf(b) < 0);
             infoPopup.gameObject.SetActive(true);
         }
 
@@ -809,7 +851,7 @@ namespace Emberhold
             foreach (var b in gone) { if (timerBars[b] != null) Destroy(timerBars[b].gameObject); timerBars.Remove(b); }
         }
 
-        class MapBadge { public SpriteBuilding sprite; public bool spriteLooked; public RectTransform root, level, status; public Text levelText; public RawImage statusIcon; public Image statusBg; public string statusKind; }
+        class MapBadge { public RectTransform root, level, status; public Text levelText; public RawImage statusIcon; public Image statusBg; public string statusKind; }
         readonly Dictionary<Building, MapBadge> mapBadges = new Dictionary<Building, MapBadge>();
 
         /// <summary>
@@ -858,19 +900,13 @@ namespace Emberhold
 
                 bool selected = b == input.Selected;
                 // level badge at the front corner of the footprint
-                mb.level.gameObject.SetActive(levelled && !selected && !night && zoomedIn);
+                // Peter: levels show only on tap (the title says "House Lv 2"), never as floating numbers on the map
+                mb.level.gameObject.SetActive(false);
                 if (levelled)
                 {
                     SetIfChanged(mb.levelText, b.Data.level.ToString());
-                    // QC: anchored to the drawn plate (a footprint corner can sit on bare grass next to the art)
-                    if (mb.sprite == null && (!mb.spriteLooked || Time.frameCount % 30 == 0)) { mb.spriteLooked = true; mb.sprite = b.GetComponentInChildren<SpriteBuilding>(); }   // looked up again if the model is rebuilt
-                    Vector3 at;
-                    if (mb.sprite != null && mb.sprite.BadgeAnchor(out at)) PlaceAt(mb.level, at, Vector2.zero);
-                    else
-                    {
-                        var sz = GridMap.Size(d, b.Data.rotation);
-                        PlaceAt(mb.level, b.Center + new Vector3(-sz.x * 0.5f + 0.2f, 0.15f, -sz.y * 0.5f + 0.1f), Vector2.zero);
-                    }
+                    var sz = GridMap.Size(d, b.Data.rotation);
+                    PlaceAt(mb.level, b.Center + new Vector3(-sz.x * 0.5f + 0.2f, 0.15f, -sz.y * 0.5f + 0.1f), Vector2.zero);
                 }
                 // one status icon above the building (the timer bar takes this spot while upgrading)
                 mb.status.gameObject.SetActive(status != null && !selected);

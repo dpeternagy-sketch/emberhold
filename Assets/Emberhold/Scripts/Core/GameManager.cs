@@ -8,7 +8,7 @@ namespace Emberhold
     /// Owns the game state and the rules of the city: placing buildings, workers, food,
     /// production, nights and settlers. Visual/UI code talks to the game through this class.
     /// </summary>
-    public class GameManager : MonoBehaviour
+    public partial class GameManager : MonoBehaviour
     {
         public static GameManager Instance { get; private set; }
 
@@ -163,6 +163,7 @@ namespace Emberhold
             Cycle.OnDawn += HandleDawn;
             Cycle.OnDayPassed += HandleDawn;
             World.ShowBuildBorder(BuildRadius);
+            InitWalls();
             RecalculateCity();
             RefreshWallJoins();
             if (!fresh) ApplyOfflineProduction();
@@ -250,7 +251,7 @@ namespace Emberhold
                 State.Refund(b.Def.cost, 1f);
                 RemoveInternal(b);
                 var wall = BuildingCatalog.Get("wall");
-                if (wall != null) PlaceInternal(wall, wx, wz, 0);
+                if (wall != null) { var piece = PlaceInternal(wall, wx, wz, 0); int side = WallSideOf(piece); if (side >= 0) piece.Data.level = Mathf.Max(1, State.wallSides[side]); }
                 RefreshWallJoins();
                 Toast("Wall Gun removed - refunded");
                 return;
@@ -386,6 +387,7 @@ namespace Emberhold
             if (b.Data.IsUpgrading) return false;
             if (b.Data.level >= b.Def.maxLevel) { Toast("Max level"); return false; }
             if (b != Castle && b.Data.level >= CastleLevel + 1) { Toast("Upgrade the HQ first"); return false; }
+            if (b.Def.id == "gate" && b.Data.level >= CastleLevel) { Toast("Upgrade the HQ first"); return false; }   // wall levels never pass the HQ
             if (!BuilderFree) { Toast("All builders are busy"); return false; }
             if (!State.Pay(b.UpgradeCost)) { Toast("Not enough resources"); return false; }
             b.StartUpgrade();
@@ -399,7 +401,9 @@ namespace Emberhold
             Toast("Level up! " + b.Def.displayName + " is now level " + b.Data.level);
             DamageEffects.LevelUp(b.Center + Vector3.up * (b.Def.height * 0.8f), Mathf.Max(1f, b.Def.width * 0.6f));
             AudioManager.Play("coin", 0.8f);
-            if (b == Castle) { World.ShowBuildBorder(BuildRadius); Toast("Your land grows!"); }
+            if (b == Castle) { World.ShowBuildBorder(BuildRadius); Toast("Your land grows!"); Invoke(nameof(GrowWalls), 0f); }
+            int wallSide = b.Def.id == "gate" ? WallSideOf(b) : -1;
+            if (wallSide >= 0) { EnsureWallState(); State.wallSides[wallSide] = b.Data.level; Invoke(nameof(RelevelWalls), 0f); }   // next frame: never while buildings are being updated
             if (b == Castle && b.Data.level == SecondBuilderHQLevel) Toast("A second builder joined your city!");
             RecalculateCity();
             SaveNow();
