@@ -237,7 +237,9 @@ namespace Emberhold
                 case "icon_repair_all": return "k_wrench";
                 case "icon_select_all": return "people";
                 case "icon_recall": return "k_rotate";
-                case "icon_done": return "k_cross";
+                case "icon_done": case "icon_close": return "k_cross";
+                case "icon_rotate": return "k_rotate";
+                case "icon_finish": return "k_fast";
                 default: return "k_info";
             }
         }

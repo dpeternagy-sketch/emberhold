@@ -32,7 +32,7 @@ namespace Emberhold
             header.anchoredPosition = new Vector2(0, -10); header.sizeDelta = new Vector2(-20, 96);
             trainTitle = UIKit.OutlinedLabel(trainPopup, "", 40, TextAnchor.UpperCenter);
             trainTitle.rectTransform.offsetMax = new Vector2(-90, -32);
-            var x = UIKit.IconButton(trainPopup, "k_cross", null, 84, CloseTrain, "red");
+            var x = UIKit.IconButton(trainPopup, "icon_close", null, 84, CloseTrain, "red");
             UIKit.Anchor(x.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-18, -18), new Vector2(84, 84));
             rows = UIKit.Rect("Rows", trainPopup);
             UIKit.Anchor(rows, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(800, 460));

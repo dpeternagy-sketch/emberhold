@@ -145,9 +145,9 @@ namespace Emberhold
             ghostButtons.sizeDelta = new Vector2(420, 110);
             ghostOk = UIKit.SkinButton(ghostButtons, "Build", 32, () => input.ConfirmPlacement(), "green");
             UIKit.Anchor(ghostOk.GetComponent<RectTransform>(), new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(180, 100));
-            var rot = UIKit.IconButton(ghostButtons, "k_rotate", null, 100, () => input.RotateCurrent(), "blue");
+            var rot = UIKit.IconButton(ghostButtons, "icon_rotate", null, 100, () => input.RotateCurrent(), "blue");
             UIKit.Anchor(rot.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40, 0), new Vector2(100, 100));
-            var cancel = UIKit.IconButton(ghostButtons, "k_cross", null, 100, () => input.CancelPlacement(), "red");
+            var cancel = UIKit.IconButton(ghostButtons, "icon_close", null, 100, () => input.CancelPlacement(), "red");
             UIKit.Anchor(cancel.GetComponent<RectTransform>(), new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(100, 100));
 
             ghostHint = UIKit.OutlinedLabel(screenRoot, "", 30, TextAnchor.MiddleCenter);
@@ -469,9 +469,9 @@ namespace Emberhold
             infoBtn = UIKit.IconButton(actionBar, "icon_info", "Info", 124, () => ShowInfo(input.Selected), "blue");
             upgradeBtn = UIKit.IconButton(actionBar, "icon_upgrade", "Upgrade", 124, () => ShowUpgrade(input.Selected), "green");
             repairBtn = UIKit.IconButton(actionBar, "icon_repair_all", "Repair", 124, OnRepairPressed, "yellow");
-            speedBtn = UIKit.IconButton(actionBar, "k_fast", "Finish", 124, SpeedUp, "yellow");
+            speedBtn = UIKit.IconButton(actionBar, "icon_finish", "Finish", 124, SpeedUp, "yellow");
             speedCaption = speedBtn.GetComponentInChildren<Text>();
-            rotateBtn = UIKit.IconButton(actionBar, "k_rotate", "Rotate", 124, () => input.RotateCurrent(), "blue");
+            rotateBtn = UIKit.IconButton(actionBar, "icon_rotate", "Rotate", 124, () => input.RotateCurrent(), "blue");
             removeBtn = UIKit.IconButton(actionBar, "icon_remove", "Remove", 124, OnRemovePressed, "red");
             removeCaption = removeBtn.GetComponentInChildren<Text>();
             armyUI = gameObject.AddComponent<ArmyUI>();
@@ -553,7 +553,7 @@ namespace Emberhold
 
         void CloseX(RectTransform panel, System.Action onClose)
         {
-            var x = UIKit.IconButton(panel, "k_cross", null, 84, onClose, "red");
+            var x = UIKit.IconButton(panel, "icon_close", null, 84, onClose, "red");
             UIKit.Anchor(x.GetComponent<RectTransform>(), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-18, -18), new Vector2(84, 84));
         }
 
