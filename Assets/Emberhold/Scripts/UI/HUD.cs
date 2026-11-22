@@ -210,6 +210,14 @@ namespace Emberhold
             return "Sound: " + (l > 0.75f ? "High" : l > 0.25f ? "Low" : "Off");
         }
 
+        /// <summary>Dev preview helpers (PreviewTour).</summary>
+        public void PreviewCloseAll()
+        {
+            buildPanel.gameObject.SetActive(false); menuPanel.gameObject.SetActive(false);
+            infoPopup.gameObject.SetActive(false); upgradePopup.gameObject.SetActive(false);
+        }
+        public void PreviewOpenBuild(BuildingCategory c) { buildPanel.gameObject.SetActive(false); TogglePanel(c); }
+
         void ToggleMenu() { menuPanel.gameObject.SetActive(!menuPanel.gameObject.activeSelf); }
 
         void TogglePanel(BuildingCategory category)

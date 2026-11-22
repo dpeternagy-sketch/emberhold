@@ -211,6 +211,9 @@ namespace Emberhold.EditorTools
         [MenuItem("Emberhold/Test/Look back at city", priority = 151)]
         static void LookCity() { var rig = Object.FindAnyObjectByType<CameraRig>(); if (rig != null) { rig.focus = new Vector3(0f, 0, 9f); rig.distance = 78f; rig.Pan(Vector3.zero); } }
 
+        [MenuItem("Emberhold/Preview/Run look tour (Play mode)", priority = 200)]
+        static void Tour() { PreviewTour.Run(); }
+
         [MenuItem("Emberhold/Test/Save screenshot", priority = 160)]
         static void Shot()
         {
